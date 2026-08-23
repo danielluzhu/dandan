@@ -34,9 +34,9 @@
   form.addEventListener("submit", (e) => {
     err.hidden = true;
     const has = (n) => form.querySelector(`[name="${n}"]`).value.trim();
-    if (!has("email") && !has("phone")) {
+    if (!has("instagram") || !has("phone")) {
       e.preventDefault();
-      return fail("Leave an email or a phone number so I can actually send you the invite.");
+      return fail("Both your Instagram and a phone number, please — that is how the invite reaches you.");
     }
     if (!form.querySelectorAll('[name="categories"]:checked').length) {
       e.preventDefault();
@@ -50,8 +50,9 @@
   const err = new URLSearchParams(location.search).get("error");
   const box = document.querySelector(".form__error");
   if (!err || !box) return;
-  box.textContent = err === "slow"
-    ? "That's a lot of signups from one place — try again in a bit."
-    : "Please add your name, an email or phone, and at least one category.";
+  box.textContent = {
+    slow: "That's a lot of signups from one place — try again in a bit.",
+    instagram: "That doesn't look like an Instagram handle. Try @yourhandle.",
+  }[err] || "Please add your name, Instagram, phone, and at least one category.";
   box.hidden = false;
 })();

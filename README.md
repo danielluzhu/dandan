@@ -73,6 +73,23 @@ top. The form on the home page writes here, and contacts can also be added and e
 click a row to open its form, change anything including the category tags, then save. Deleting is
 on the same form.
 
+Contact details are an Instagram handle and a phone number; the public form requires both. Handles
+are normalised, so `@name`, `name` and `instagram.com/name` all store as `@name` and link through
+to the profile from the list.
+
+To bring in a list you already keep elsewhere:
+
+```bash
+bun run import <file.csv | google-sheet-url> [--dry-run]
+```
+
+It reads a `Name` column and an `Event` column (plus optional `Instagram`, `Phone`, `Note`) and
+merges rows by name, so someone listed under three events becomes one contact with three
+categories. Event names map onto categories case-insensitively — `Films` to Film Night, `Hike` to
+Hikes, and so on; anything unrecognised is reported rather than guessed. Re-running is safe: an
+existing contact keeps its details and only gains new categories. A Google Sheet must be shared as
+"anyone with the link" for the export to work.
+
 Every change mirrors to `data/signups.csv`, which opens directly in Excel, Numbers or Google
 Sheets. The dashboard has a **Download spreadsheet (CSV)** button, and `bun run export` rewrites
 the file on demand.
@@ -91,7 +108,7 @@ lib/partiful.js     fetch + parse a Partiful event
 lib/render.js       HTML for the public site, /list and /admin
 lib/csv.js          spreadsheet export
 public/             styles.css, app.js
-scripts/            add-event.js, add-idea.js, sync.js, export-csv.js
+scripts/            add-event.js, add-idea.js, import-contacts.js, sync.js, export-csv.js
 data/               events.db + signups.csv (gitignored — never committed)
 ```
 

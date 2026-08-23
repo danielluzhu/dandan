@@ -9,6 +9,7 @@
     "add": "bun run scripts/add-event.js",
     "sync": "bun run scripts/sync.js",
     "export": "bun run scripts/export-csv.js",
-    "idea": "bun run scripts/add-idea.js"
+    "idea": "bun run scripts/add-idea.js",
+    "import": "bun run scripts/import-contacts.js"
   }
 }

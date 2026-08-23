@@ -1,5 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { db, allSignups, allEvents, upcomingEvents, undatedEvents, pastEvents, addSignup, updateSignup, deleteSignup, upsertEvent, CATEGORIES } from "./lib/db.js";
+import { db, allSignups, allEvents, upcomingEvents, undatedEvents, pastEvents, addSignup, updateSignup, deleteSignup, normalizeInstagram, upsertEvent, CATEGORIES } from "./lib/db.js";
 import { fetchPartifulEvent } from "./lib/partiful.js";
 import { signupsCsv, writeSignupsCsv } from "./lib/csv.js";
 import { homePage, passwordPage, adminPage, listPage } from "./lib/render.js";
@@ -57,14 +57,16 @@ async function handleSignup(req, ip) {
   if (throttled(ip)) return redirect("/?error=slow#keep-in-touch");
 
   const name = String(form.get("name") || "").trim().slice(0, 80);
-  const email = String(form.get("email") || "").trim().slice(0, 120);
+  const instagram = normalizeInstagram(form.get("instagram"));
   const phone = String(form.get("phone") || "").trim().slice(0, 40);
   const note = String(form.get("note") || "").trim().slice(0, 600);
   const categories = form.getAll("categories").map(String).filter((c) => VALID_SLUGS.has(c));
 
-  if (!name || (!email && !phone) || categories.length === 0) return redirect("/?error=missing#keep-in-touch");
+  if (!name || !phone || categories.length === 0) return redirect("/?error=missing#keep-in-touch");
+  // A handle that survives normalising is the only proof the field held something usable.
+  if (!instagram) return redirect("/?error=instagram#keep-in-touch");
 
-  addSignup({ name, email, phone, categories, note });
+  addSignup({ name, instagram, phone, categories, note });
   writeSignupsCsv();
   return redirect("/?thanks=1#keep-in-touch");
 }
@@ -72,7 +74,7 @@ async function handleSignup(req, ip) {
 function contactFields(form) {
   return {
     name: String(form.get("name") || "").trim().slice(0, 80),
-    email: String(form.get("email") || "").trim().slice(0, 120),
+    instagram: normalizeInstagram(form.get("instagram")),
     phone: String(form.get("phone") || "").trim().slice(0, 40),
     note: String(form.get("note") || "").trim().slice(0, 600),
     categories: form.getAll("categories").map(String).filter((c) => VALID_SLUGS.has(c)),
