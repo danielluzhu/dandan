@@ -375,8 +375,16 @@ img { max-width: 100%; display: block; }
   margin-bottom: 1.25rem; padding: .85rem 1rem;
   background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
 }
-.tally__total { font-weight: 600; font-size: .9rem; margin-right: .4rem; }
-.tally .tag b { font-weight: 700; }
+.tally .tag {
+  border: 1px solid transparent; font: inherit; font-size: .78rem; font-weight: 600;
+  padding: .3rem .7rem; cursor: pointer; transition: border-color .15s ease, filter .15s ease;
+}
+.tally .tag b { font-weight: 700; opacity: .75; margin-left: .1rem; }
+.tally .tag:hover { border-color: currentColor; }
+.tally .tag.is-active { background: var(--c, var(--ink)); color: var(--surface); border-color: transparent; }
+.tally .tag.is-active b { opacity: .85; }
+.tally .tag--all { --c: var(--ink); background: var(--bg-alt); color: var(--ink); }
+.contacts__empty { margin: 1rem 0 0; color: var(--ink-soft); }
 
 /* ---------- admin contacts ---------- */
 .adder { margin-bottom: 1.25rem; border: 1px dashed var(--line); border-radius: 12px; }

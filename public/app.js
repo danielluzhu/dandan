@@ -56,3 +56,32 @@
   }[err] || "Please add your name, Instagram, phone, and at least one category.";
   box.hidden = false;
 })();
+
+// Filter the contact list by interest
+(() => {
+  const chips = document.querySelectorAll(".tally .tag");
+  const rows = document.querySelectorAll(".contact");
+  const empty = document.querySelector(".contacts__empty");
+  if (!chips.length || !rows.length) return;
+
+  const apply = (want) => {
+    let shown = 0;
+    rows.forEach((row) => {
+      const has = want === "all" || (row.dataset.categories || "").split(",").includes(want);
+      row.hidden = !has;
+      // Collapse any row being hidden, so a filter change never leaves an edit form open off-screen.
+      if (!has) row.querySelector("details")?.removeAttribute("open");
+      if (has) shown++;
+    });
+    if (empty) empty.hidden = shown > 0;
+  };
+
+  chips.forEach((chip) => chip.addEventListener("click", () => {
+    chips.forEach((c) => {
+      const on = c === chip;
+      c.classList.toggle("is-active", on);
+      c.setAttribute("aria-pressed", String(on));
+    });
+    apply(chip.dataset.filter);
+  }));
+})();
