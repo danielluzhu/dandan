@@ -5,6 +5,7 @@ import { signupsCsv, writeSignupsCsv } from "./lib/csv.js";
 import { homePage, adminLoginPage, adminPage } from "./lib/render.js";
 
 const PORT = Number(process.env.PORT || 4321);
+const ADMIN_USER = process.env.ADMIN_USER || "dan";
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 const SESSION_SECRET = process.env.SESSION_SECRET || "dev-only-secret";
 const VALID_SLUGS = new Set(CATEGORIES.map((c) => c.slug));
@@ -17,7 +18,8 @@ if (!ADMIN_PASSWORD) {
 
 /* ---------- helpers ---------- */
 
-const sessionToken = () => createHmac("sha256", SESSION_SECRET).update(ADMIN_PASSWORD).digest("hex");
+// Binding the token to the username as well means changing either credential signs old sessions out.
+const sessionToken = () => createHmac("sha256", SESSION_SECRET).update(`${ADMIN_USER}:${ADMIN_PASSWORD}`).digest("hex");
 
 function safeEqual(a, b) {
   const A = Buffer.from(String(a));
@@ -98,8 +100,11 @@ async function handleAdmin(req, url) {
 
   if (pathname === "/admin/login" && method === "POST") {
     const form = await req.formData();
-    if (!safeEqual(String(form.get("password") || ""), ADMIN_PASSWORD)) {
-      return html(adminLoginPage("Wrong password."), 401);
+    // Check both before deciding, so a wrong username costs the same as a wrong password.
+    const userOk = safeEqual(String(form.get("username") || "").trim().toLowerCase(), ADMIN_USER.toLowerCase());
+    const passOk = safeEqual(String(form.get("password") || ""), ADMIN_PASSWORD);
+    if (!userOk || !passOk) {
+      return html(adminLoginPage("That username and password do not match."), 401);
     }
     return redirect("/admin", {
       "set-cookie": `dandan_admin=${sessionToken()}; Path=/; HttpOnly; SameSite=Lax; Max-Age=2592000`,

@@ -15,7 +15,7 @@ so edits made on Partiful show up here.
 ## Running it
 
 ```bash
-cp .env.example .env      # then set ADMIN_PASSWORD and SESSION_SECRET
+cp .env.example .env      # then set ADMIN_USER, ADMIN_PASSWORD and SESSION_SECRET
 bun run start             # http://localhost:4321
 bun run dev               # same, with auto-reload
 ```
@@ -76,7 +76,11 @@ Every change mirrors to `data/signups.csv`, which opens directly in Excel, Numbe
 Sheets. The dashboard has a **Download spreadsheet (CSV)** button, and `bun run export` rewrites
 the file on demand.
 
-Contacts are only visible behind the `/admin` password — nothing about them is public, and the
+Signing in to `/admin` takes a username and password, set as `ADMIN_USER` (default `dan`) and
+`ADMIN_PASSWORD` in `.env`. The session cookie is signed against both, so changing either one
+signs out any session still open elsewhere.
+
+Contacts are only visible behind that login — nothing about them is public, and the
 whole `/admin/*` tree including the contact routes returns 401 without the session cookie. The
 public form has a hidden honeypot field and a per-IP rate limit to keep bots out.
 
