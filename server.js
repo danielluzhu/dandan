@@ -1,5 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { db, allSignups, allEvents, nextByCategory, pastEvents, addSignup, upsertEvent, CATEGORIES } from "./lib/db.js";
+import { db, allSignups, allEvents, upcomingEvents, undatedEvents, pastEvents, addSignup, upsertEvent, CATEGORIES } from "./lib/db.js";
 import { fetchPartifulEvent } from "./lib/partiful.js";
 import { signupsCsv, writeSignupsCsv } from "./lib/csv.js";
 import { homePage, adminLoginPage, adminPage } from "./lib/render.js";
@@ -70,7 +70,7 @@ async function handleSignup(req, ip) {
 }
 
 async function syncAll() {
-  const rows = db.query("SELECT id, url, category FROM events").all();
+  const rows = db.query("SELECT id, url, category FROM events WHERE url != ''").all();
   const errors = [];
   for (const row of rows) {
     try {
@@ -181,7 +181,8 @@ const server = Bun.serve({
 
       if (url.pathname === "/") {
         return html(homePage({
-          next: nextByCategory(),
+          upcoming: upcomingEvents(),
+          ideas: undatedEvents(),
           past: pastEvents(),
           thanks: url.searchParams.get("thanks") === "1",
         }), 200, { "cache-control": "no-store" });

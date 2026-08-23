@@ -3,7 +3,7 @@
 import { db, upsertEvent } from "../lib/db.js";
 import { fetchPartifulEvent } from "../lib/partiful.js";
 
-const rows = db.query("SELECT id, url, category FROM events").all();
+const rows = db.query("SELECT id, url, category FROM events WHERE url != ''").all();
 let ok = 0;
 for (const row of rows) {
   try {

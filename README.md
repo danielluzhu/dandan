@@ -29,8 +29,18 @@ bun run add https://partiful.com/e/xxxxxxxx            # category auto-detected
 bun run add https://partiful.com/e/xxxxxxxx mahjong    # or set it explicitly
 ```
 
-Categories: `mahjong`, `hikes`, `film`, `cabin`, `parties`.
+Categories: `mahjong`, `hikes`, `film`, `cabin`, `parties`, `homeless`, `dining`, `tasting`.
 Both long links and `go.partiful.com` short links work.
+
+For something with no Partiful page yet — a hike on the list, a film picked but
+unscheduled — add it as an idea. It shows under "On the list" with no RSVP link
+until a real event exists:
+
+```bash
+bun run idea hikes lands-end-coastal-trail "Lands End Coastal Trail" \
+  "3.4 miles · 350 ft gain · out-and-back from the Lands End Lookout." \
+  "Lands End Lookout · San Francisco"
+```
 
 Refresh cached data for every event (safe to put on a cron):
 
@@ -38,7 +48,9 @@ Refresh cached data for every event (safe to put on a cron):
 bun run sync
 ```
 
-An event moves from "Up next" to the archive automatically, 6 hours after its start time.
+"Up next" lists every scheduled event, soonest first; undated ones sit below it
+under "On the list". An event moves to the archive automatically, 6 hours after
+its start time.
 
 ## Signups
 
@@ -58,7 +70,7 @@ lib/partiful.js     fetch + parse a Partiful event
 lib/render.js       HTML for the public site and the dashboard
 lib/csv.js          spreadsheet export
 public/             styles.css, app.js
-scripts/            add-event.js, sync.js, export-csv.js
+scripts/            add-event.js, add-idea.js, sync.js, export-csv.js
 data/               events.db + signups.csv (gitignored — never committed)
 ```
 

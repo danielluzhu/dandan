@@ -155,6 +155,39 @@ img { max-width: 100%; display: block; }
 .card__meta dd { margin: 0; }
 .card__body .btn { margin-top: auto; }
 
+.ideawrap { max-width: 68rem; margin: 2.25rem auto 0; }
+.ideawrap__head {
+  margin: 0 0 .85rem; font-size: .78rem; font-weight: 600; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--ink-soft);
+}
+.idealist { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr)); align-items: start; }
+.idea {
+  --c: var(--accent);
+  display: flex; flex-direction: column; gap: .4rem;
+  padding: 1.1rem 1.15rem; border-radius: 14px;
+  background: var(--surface); border: 1px solid var(--line);
+  border-left: 3px solid var(--c);
+}
+.idea[data-category="mahjong"] { --c: var(--c-mahjong); }
+.idea[data-category="hikes"]   { --c: var(--c-hikes); }
+.idea[data-category="film"]    { --c: var(--c-film); }
+.idea[data-category="cabin"]   { --c: var(--c-cabin); }
+.idea[data-category="parties"] { --c: var(--c-parties); }
+.idea[data-category="homeless"]{ --c: var(--c-homeless); }
+.idea[data-category="dining"]  { --c: var(--c-dining); }
+.idea[data-category="tasting"] { --c: var(--c-tasting); }
+.idea__head { display: flex; align-items: center; justify-content: space-between; gap: .75rem; }
+.idea__cat { font-size: .72rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--c); }
+.idea__tbd {
+  font-size: .68rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--ink-soft); padding: .15rem .5rem; border-radius: 999px; background: var(--bg-alt);
+}
+.idea__title { font-size: 1.2rem; letter-spacing: -.01em; }
+.idea__desc { margin: 0; font-size: .9rem; color: var(--ink-soft); }
+.idea__where { margin: 0; font-size: .82rem; color: var(--ink-soft); font-style: italic; }
+.idea__link { margin-top: .35rem; font-size: .85rem; font-weight: 600; color: var(--c); text-decoration: none; }
+.idea__link:hover { text-decoration: underline; }
+
 .pendingwrap { max-width: 68rem; margin: 2rem auto 0; }
 .pendingwrap__head {
   margin: 0 0 .85rem; font-size: .78rem; font-weight: 600; letter-spacing: .12em;
