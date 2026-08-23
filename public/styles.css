@@ -16,6 +16,7 @@
   --c-film:    #6c5ad8;
   --c-cabin:   #2f6f8f;
   --c-parties: #d94f86;
+  --c-homeless:#5f6b1a;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -35,6 +36,7 @@
     --c-film:   #9b8cf0;
     --c-cabin:  #62a6c6;
     --c-parties:#f279ab;
+    --c-homeless:#b9c95f;
   }
 }
 
@@ -107,6 +109,7 @@ img { max-width: 100%; display: block; }
 .card[data-category="film"]    { --c: var(--c-film); }
 .card[data-category="cabin"]   { --c: var(--c-cabin); }
 .card[data-category="parties"] { --c: var(--c-parties); }
+.card[data-category="homeless"] { --c: var(--c-homeless); }
 
 .card__media {
   position: relative; display: block; aspect-ratio: 3 / 2;
@@ -163,6 +166,7 @@ img { max-width: 100%; display: block; }
 .pending[data-category="film"]    { --c: var(--c-film); }
 .pending[data-category="cabin"]   { --c: var(--c-cabin); }
 .pending[data-category="parties"] { --c: var(--c-parties); }
+.pending[data-category="homeless"] { --c: var(--c-homeless); }
 .pending__emoji { grid-row: span 2; font-size: 1.5rem; line-height: 1; }
 .pending__text { display: flex; flex-direction: column; }
 .pending__label { font-weight: 600; font-size: .95rem; }
@@ -214,6 +218,7 @@ img { max-width: 100%; display: block; }
 .past[data-category="film"]    { --c: var(--c-film); }
 .past[data-category="cabin"]   { --c: var(--c-cabin); }
 .past[data-category="parties"] { --c: var(--c-parties); }
+.past[data-category="homeless"] { --c: var(--c-homeless); }
 .past__thumb {
   width: 3.5rem; height: 3.5rem; border-radius: 12px; overflow: hidden;
   background: color-mix(in srgb, var(--c) 16%, var(--surface));
