@@ -15,7 +15,7 @@ so edits made on Partiful show up here.
 ## Running it
 
 ```bash
-cp .env.example .env      # then set ADMIN_USER, ADMIN_PASSWORD and SESSION_SECRET
+cp .env.example .env      # then set ADMIN_PASSWORD and SESSION_SECRET
 bun run start             # http://localhost:4321
 bun run dev               # same, with auto-reload
 ```
@@ -65,32 +65,30 @@ bun run sync
 under "On the list". An event moves to the archive automatically, 6 hours after
 its start time.
 
-## Contacts
+## The List
 
-The form on the home page writes to the `signups` table. The **Contacts** panel in `/admin` is the
-private view of that list: who they are, how to reach them, and which categories they said they
-would come to. Contacts can also be added and edited by hand there — click a row to open its form,
-change anything including the category tags, then save. Deleting is on the same form.
+`/list` is the private view of everyone who has asked to hear about an event: who they are, how to
+reach them, and which categories they said they would come to, with a tally per category at the
+top. The form on the home page writes here, and contacts can also be added and edited by hand —
+click a row to open its form, change anything including the category tags, then save. Deleting is
+on the same form.
 
 Every change mirrors to `data/signups.csv`, which opens directly in Excel, Numbers or Google
 Sheets. The dashboard has a **Download spreadsheet (CSV)** button, and `bun run export` rewrites
 the file on demand.
 
-Signing in to `/admin` takes a username and password, set as `ADMIN_USER` (default `dan`) and
-`ADMIN_PASSWORD` in `.env`. The session cookie is signed against both, so changing either one
-signs out any session still open elsewhere.
-
-Contacts are only visible behind that login — nothing about them is public, and the
-whole `/admin/*` tree including the contact routes returns 401 without the session cookie. The
-public form has a hidden honeypot field and a per-IP rate limit to keep bots out.
+`/list` and `/admin` are both behind one password, `ADMIN_PASSWORD` in `.env`. Visiting either
+unlocked shows a password prompt; unlocking one unlocks both, and **Lock** in the header clears it.
+Nothing about contacts is public — every `/list/*` and `/admin/*` route returns 401 without the
+session cookie. The public form has a hidden honeypot field and a per-IP rate limit to keep bots out.
 
 ## Layout
 
 ```
-server.js           routes, admin auth, static files
+server.js           routes, password gate, static files
 lib/db.js           SQLite schema, categories, queries
 lib/partiful.js     fetch + parse a Partiful event
-lib/render.js       HTML for the public site and the dashboard
+lib/render.js       HTML for the public site, /list and /admin
 lib/csv.js          spreadsheet export
 public/             styles.css, app.js
 scripts/            add-event.js, add-idea.js, sync.js, export-csv.js

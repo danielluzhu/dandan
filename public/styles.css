@@ -368,6 +368,16 @@ img { max-width: 100%; display: block; }
 .hint { margin: .75rem 0 0; font-size: .82rem; color: var(--ink-soft); }
 .hint code { background: var(--bg-alt); padding: .1rem .35rem; border-radius: 5px; }
 
+.admin__lede { margin: -.5rem 0 1.25rem; color: var(--ink-soft); max-width: 44rem; }
+.login__blurb { margin: -.4rem 0 0; font-size: .9rem; color: var(--ink-soft); }
+.tally {
+  display: flex; flex-wrap: wrap; align-items: center; gap: .4rem;
+  margin-bottom: 1.25rem; padding: .85rem 1rem;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+}
+.tally__total { font-weight: 600; font-size: .9rem; margin-right: .4rem; }
+.tally .tag b { font-weight: 700; }
+
 /* ---------- admin contacts ---------- */
 .adder { margin-bottom: 1.25rem; border: 1px dashed var(--line); border-radius: 12px; }
 .adder > summary {

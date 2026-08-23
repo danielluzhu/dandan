@@ -2,10 +2,9 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { db, allSignups, allEvents, upcomingEvents, undatedEvents, pastEvents, addSignup, updateSignup, deleteSignup, upsertEvent, CATEGORIES } from "./lib/db.js";
 import { fetchPartifulEvent } from "./lib/partiful.js";
 import { signupsCsv, writeSignupsCsv } from "./lib/csv.js";
-import { homePage, adminLoginPage, adminPage } from "./lib/render.js";
+import { homePage, passwordPage, adminPage, listPage } from "./lib/render.js";
 
 const PORT = Number(process.env.PORT || 4321);
-const ADMIN_USER = process.env.ADMIN_USER || "dan";
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 const SESSION_SECRET = process.env.SESSION_SECRET || "dev-only-secret";
 const VALID_SLUGS = new Set(CATEGORIES.map((c) => c.slug));
@@ -18,8 +17,7 @@ if (!ADMIN_PASSWORD) {
 
 /* ---------- helpers ---------- */
 
-// Binding the token to the username as well means changing either credential signs old sessions out.
-const sessionToken = () => createHmac("sha256", SESSION_SECRET).update(`${ADMIN_USER}:${ADMIN_PASSWORD}`).digest("hex");
+const sessionToken = () => createHmac("sha256", SESSION_SECRET).update(ADMIN_PASSWORD).digest("hex");
 
 function safeEqual(a, b) {
   const A = Buffer.from(String(a));
@@ -94,37 +92,74 @@ async function syncAll() {
   return { count: rows.length - errors.length, errors };
 }
 
+const SAFE_NEXT = /^\/(list|admin)$/;
+
+async function handleLogin(req) {
+  const form = await req.formData();
+  const next = SAFE_NEXT.test(String(form.get("next") || "")) ? String(form.get("next")) : "/list";
+  if (!safeEqual(String(form.get("password") || ""), ADMIN_PASSWORD)) {
+    return html(passwordPage({ next, error: "That password is not right." }), 401);
+  }
+  return redirect(next, {
+    "set-cookie": `dandan_admin=${sessionToken()}; Path=/; HttpOnly; SameSite=Lax; Max-Age=2592000`,
+  });
+}
+
+async function handleList(req, url) {
+  const { pathname } = url;
+  if (!isAdmin(req)) return html(passwordPage({ next: "/list" }), pathname === "/list" ? 200 : 401);
+
+  if (pathname === "/list/contacts.csv") {
+    return new Response(signupsCsv(), {
+      headers: {
+        "content-type": "text/csv; charset=utf-8",
+        "content-disposition": `attachment; filename="dandan-list-${new Date().toISOString().slice(0, 10)}.csv"`,
+      },
+    });
+  }
+
+  if (req.method === "POST") {
+    if (pathname === "/list/contacts") {
+      const fields = contactFields(await req.formData());
+      if (!fields.name) return redirect("/list?error=A+contact+needs+a+name.&add=1#contacts");
+      addSignup(fields);
+      writeSignupsCsv();
+      return redirect(`/list?flash=${encodeURIComponent(`Added ${fields.name}.`)}#contacts`);
+    }
+
+    let m;
+    if ((m = pathname.match(/^\/list\/contacts\/(\d+)$/))) {
+      const id = Number(m[1]);
+      const fields = contactFields(await req.formData());
+      if (!fields.name) return redirect(`/list?error=A+contact+needs+a+name.&edit=${id}#contacts`);
+      updateSignup(id, fields);
+      writeSignupsCsv();
+      return redirect(`/list?flash=${encodeURIComponent(`Updated ${fields.name}.`)}#contacts`);
+    }
+
+    if ((m = pathname.match(/^\/list\/contacts\/(\d+)\/delete$/))) {
+      deleteSignup(Number(m[1]));
+      writeSignupsCsv();
+      return redirect("/list?flash=Contact+deleted.#contacts");
+    }
+  }
+
+  if (pathname === "/list") {
+    return html(listPage({
+      signups: allSignups(),
+      flash: url.searchParams.get("flash"),
+      error: url.searchParams.get("error"),
+    }));
+  }
+
+  return new Response("Not found", { status: 404 });
+}
+
 async function handleAdmin(req, url) {
   const { pathname } = url;
   const method = req.method;
 
-  if (pathname === "/admin/login" && method === "POST") {
-    const form = await req.formData();
-    // Check both before deciding, so a wrong username costs the same as a wrong password.
-    const userOk = safeEqual(String(form.get("username") || "").trim().toLowerCase(), ADMIN_USER.toLowerCase());
-    const passOk = safeEqual(String(form.get("password") || ""), ADMIN_PASSWORD);
-    if (!userOk || !passOk) {
-      return html(adminLoginPage("That username and password do not match."), 401);
-    }
-    return redirect("/admin", {
-      "set-cookie": `dandan_admin=${sessionToken()}; Path=/; HttpOnly; SameSite=Lax; Max-Age=2592000`,
-    });
-  }
-
-  if (!isAdmin(req)) return html(adminLoginPage(), pathname === "/admin" ? 200 : 401);
-
-  if (pathname === "/admin/logout" && method === "POST") {
-    return redirect("/admin", { "set-cookie": "dandan_admin=; Path=/; HttpOnly; Max-Age=0" });
-  }
-
-  if (pathname === "/admin/signups.csv") {
-    return new Response(signupsCsv(), {
-      headers: {
-        "content-type": "text/csv; charset=utf-8",
-        "content-disposition": `attachment; filename="dandan-signups-${new Date().toISOString().slice(0, 10)}.csv"`,
-      },
-    });
-  }
+  if (!isAdmin(req)) return html(passwordPage({ next: "/admin" }), pathname === "/admin" ? 200 : 401);
 
   if (method === "POST") {
     if (pathname === "/admin/events") {
@@ -161,38 +196,13 @@ async function handleAdmin(req, url) {
       return redirect("/admin");
     }
 
-    if (pathname === "/admin/signups") {
-      const fields = contactFields(await req.formData());
-      if (!fields.name) return redirect("/admin?error=A+contact+needs+a+name.&add=1#contacts");
-      addSignup(fields);
-      writeSignupsCsv();
-      return redirect(`/admin?flash=${encodeURIComponent(`Added ${fields.name}.`)}#contacts`);
-    }
-
-    if ((m = pathname.match(/^\/admin\/signups\/(\d+)$/))) {
-      const id = Number(m[1]);
-      const fields = contactFields(await req.formData());
-      if (!fields.name) return redirect(`/admin?error=A+contact+needs+a+name.&edit=${id}#contacts`);
-      updateSignup(id, fields);
-      writeSignupsCsv();
-      return redirect(`/admin?flash=${encodeURIComponent(`Updated ${fields.name}.`)}#contacts`);
-    }
-
-    if ((m = pathname.match(/^\/admin\/signups\/(\d+)\/delete$/))) {
-      deleteSignup(Number(m[1]));
-      writeSignupsCsv();
-      return redirect("/admin?flash=Contact+deleted.#contacts");
-    }
   }
 
   if (pathname === "/admin") {
     return html(adminPage({
       events: db.query("SELECT * FROM events ORDER BY start_date DESC").all(),
-      signups: allSignups(),
       flash: url.searchParams.get("flash"),
       error: url.searchParams.get("error"),
-      editing: url.searchParams.get("edit"),
-      addOpen: url.searchParams.get("add") === "1",
     }));
   }
 
@@ -209,6 +219,11 @@ const server = Bun.serve({
     const ip = req.headers.get("x-forwarded-for")?.split(",")[0].trim() || srv.requestIP(req)?.address || "unknown";
 
     try {
+      if (url.pathname === "/login" && req.method === "POST") return await handleLogin(req);
+      if (url.pathname === "/logout" && req.method === "POST") {
+        return redirect("/", { "set-cookie": "dandan_admin=; Path=/; HttpOnly; Max-Age=0" });
+      }
+      if (url.pathname === "/list" || url.pathname.startsWith("/list/")) return await handleList(req, url);
       if (url.pathname.startsWith("/admin")) return await handleAdmin(req, url);
 
       if (url.pathname === "/signup" && req.method === "POST") return await handleSignup(req, ip);
