@@ -1,0 +1,13 @@
+{
+  "name": "dandan",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "bun run server.js",
+    "dev": "bun --watch server.js",
+    "add": "bun run scripts/add-event.js",
+    "sync": "bun run scripts/sync.js",
+    "export": "bun run scripts/export-csv.js"
+  }
+}
