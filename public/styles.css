@@ -167,6 +167,18 @@ img { max-width: 100%; display: block; }
   padding: 1.1rem 1.15rem; border-radius: 14px;
   background: var(--surface); border: 1px solid var(--line);
   border-left: 3px solid var(--c);
+  overflow: hidden;
+}
+.idea__media {
+  position: relative; margin: -1.1rem -1.15rem .55rem; aspect-ratio: 3 / 2;
+  background: color-mix(in srgb, var(--c) 14%, var(--surface));
+}
+.idea__media img { width: 100%; height: 100%; object-fit: cover; }
+.idea__media figcaption {
+  position: absolute; right: .4rem; bottom: .4rem;
+  padding: .1rem .4rem; border-radius: 4px;
+  background: rgba(20,17,15,.55); color: rgba(255,255,255,.85);
+  font-size: .6rem; letter-spacing: .01em; backdrop-filter: blur(4px);
 }
 .idea[data-category="mahjong"] { --c: var(--c-mahjong); }
 .idea[data-category="hikes"]   { --c: var(--c-hikes); }

@@ -39,8 +39,21 @@ until a real event exists:
 ```bash
 bun run idea hikes lands-end-coastal-trail "Lands End Coastal Trail" \
   "3.4 miles · 350 ft gain · out-and-back from the Lands End Lookout." \
-  "Lands End Lookout · San Francisco"
+  "Lands End Lookout · San Francisco" \
+  "/img/lands-end.jpg" "Niranjan Arminius · CC BY-SA 4.0"
 ```
+
+The last two arguments are optional. The image is a path under `public/img/`;
+a `-thumb.jpg` beside it is used for archive rows. To prepare a pair:
+
+```bash
+convert source.jpg -resize 900x600^  -gravity center -extent 900x600 -strip -quality 80 public/img/name.jpg
+convert source.jpg -resize 224x224^  -gravity center -extent 224x224 -strip -quality 78 public/img/name-thumb.jpg
+```
+
+The credit shows in the corner of the image. The hike photos currently on the
+site come from Wikimedia Commons under CC BY / CC BY-SA, which require it —
+keep the credit accurate if you swap them out.
 
 Refresh cached data for every event (safe to put on a cron):
 

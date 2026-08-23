@@ -191,9 +191,9 @@ const server = Bun.serve({
       if (url.pathname === "/health") return Response.json({ ok: true, events: allEvents().length });
 
       // Static assets
-      if (/^\/[a-z0-9._-]+\.(css|js|png|jpg|svg|ico|webp)$/i.test(url.pathname)) {
+      if (/^\/(img\/)?[a-z0-9._-]+\.(css|js|png|jpg|jpeg|svg|ico|webp)$/i.test(url.pathname)) {
         const file = Bun.file(new URL("." + url.pathname, PUBLIC_DIR));
-        if (await file.exists()) return new Response(file, { headers: { "cache-control": "public, max-age=300" } });
+        if (await file.exists()) return new Response(file, { headers: { "cache-control": "public, max-age=3600" } });
       }
 
       return new Response("Not found", { status: 404 });
