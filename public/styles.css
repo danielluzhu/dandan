@@ -138,6 +138,7 @@ img { max-width: 100%; display: block; }
   background: rgba(20,17,15,.78); color: #fff; backdrop-filter: blur(6px);
   font-size: .75rem; font-weight: 600;
 }
+.card__soon--tbd { background: rgba(20,17,15,.62); font-weight: 500; }
 
 .card__body { padding: 1.25rem; display: flex; flex-direction: column; gap: .65rem; flex: 1; }
 .card__when { display: flex; align-items: baseline; gap: .5rem; color: var(--c); font-weight: 600; font-size: .85rem; }
