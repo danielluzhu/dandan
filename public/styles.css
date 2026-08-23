@@ -368,6 +368,71 @@ img { max-width: 100%; display: block; }
 .hint { margin: .75rem 0 0; font-size: .82rem; color: var(--ink-soft); }
 .hint code { background: var(--bg-alt); padding: .1rem .35rem; border-radius: 5px; }
 
+/* ---------- admin contacts ---------- */
+.adder { margin-bottom: 1.25rem; border: 1px dashed var(--line); border-radius: 12px; }
+.adder > summary {
+  cursor: pointer; padding: .7rem 1rem; font-size: .9rem; font-weight: 600;
+  list-style: none; color: var(--accent);
+}
+.adder > summary::-webkit-details-marker { display: none; }
+.adder > summary::before { content: "+\00a0"; font-weight: 700; }
+.adder[open] > summary::before { content: "\2212\00a0"; }
+.adder[open] > summary { border-bottom: 1px solid var(--line); color: var(--ink); }
+
+.contacts { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.contact { border-bottom: 1px solid var(--line); }
+.contact:last-child { border-bottom: 0; }
+.contact > details > summary {
+  display: grid; align-items: center; gap: .35rem 1rem; cursor: pointer;
+  grid-template-columns: minmax(7rem, 1fr) minmax(9rem, 1.2fr) minmax(0, 1.6fr) auto auto;
+  padding: .7rem 1rem; list-style: none;
+}
+.contact > details > summary::-webkit-details-marker { display: none; }
+.contact > details > summary:hover { background: var(--bg-alt); }
+.contact > details[open] > summary { background: var(--bg-alt); border-bottom: 1px solid var(--line); }
+.contact__name { font-weight: 600; }
+.contact__contact { font-size: .85rem; color: var(--ink-soft); overflow-wrap: anywhere; }
+.contact__tags { display: flex; flex-wrap: wrap; gap: .25rem; }
+.contact__when { font-size: .8rem; color: var(--ink-soft); white-space: nowrap; }
+.contact__edit { font-size: .8rem; font-weight: 600; color: var(--accent); white-space: nowrap; }
+.contact > details[open] .contact__edit { visibility: hidden; }
+.contact__note { margin: 0; padding: .75rem 1rem 0; font-size: .88rem; color: var(--ink-soft); font-style: italic; }
+
+.tag {
+  --c: var(--accent);
+  font-size: .7rem; font-weight: 600; padding: .1rem .45rem; border-radius: 999px; white-space: nowrap;
+  background: color-mix(in srgb, var(--c) 16%, var(--surface)); color: var(--c);
+}
+.tag[data-category="mahjong"] { --c: var(--c-mahjong); }
+.tag[data-category="hikes"]   { --c: var(--c-hikes); }
+.tag[data-category="film"]    { --c: var(--c-film); }
+.tag[data-category="cabin"]   { --c: var(--c-cabin); }
+.tag[data-category="parties"] { --c: var(--c-parties); }
+.tag[data-category="homeless"]{ --c: var(--c-homeless); }
+.tag[data-category="dining"]  { --c: var(--c-dining); }
+.tag[data-category="tasting"] { --c: var(--c-tasting); }
+.tag--none { background: var(--bg-alt); color: var(--ink-soft); font-weight: 500; font-style: italic; }
+
+.cform { display: flex; flex-direction: column; gap: .9rem; padding: 1rem; }
+.cform__row { display: grid; gap: .75rem; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); }
+.cform label { display: flex; flex-direction: column; gap: .3rem; font-size: .85rem; font-weight: 500; }
+.cform input, .cform textarea {
+  font: inherit; font-size: .9rem; padding: .5rem .65rem; width: 100%;
+  border: 1px solid var(--line); border-radius: 9px; background: var(--bg); color: var(--ink);
+}
+.cform input:focus, .cform textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; border-color: transparent; }
+.cform textarea { resize: vertical; }
+.cform__cats { border: 0; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: .45rem; }
+.cform__cats legend { width: 100%; font-size: .85rem; font-weight: 500; padding: 0; margin-bottom: .45rem; }
+.cform .checkcard { padding: .35rem .7rem; font-size: .85rem; }
+.cform__actions { display: flex; align-items: center; gap: 1rem; }
+
+@media (max-width: 52rem) {
+  .contact > details > summary { grid-template-columns: 1fr auto; }
+  .contact__tags, .contact__contact { grid-column: 1 / -1; }
+  .contact__when { display: none; }
+}
+
 .tblwrap { overflow-x: auto; }
 .tbl { width: 100%; min-width: 34rem; border-collapse: collapse; font-size: .9rem; }
 .tbl th, .tbl td { text-align: left; padding: .6rem .5rem; border-bottom: 1px solid var(--line); vertical-align: top; }

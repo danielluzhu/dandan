@@ -1,5 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { db, allSignups, allEvents, upcomingEvents, undatedEvents, pastEvents, addSignup, upsertEvent, CATEGORIES } from "./lib/db.js";
+import { db, allSignups, allEvents, upcomingEvents, undatedEvents, pastEvents, addSignup, updateSignup, deleteSignup, upsertEvent, CATEGORIES } from "./lib/db.js";
 import { fetchPartifulEvent } from "./lib/partiful.js";
 import { signupsCsv, writeSignupsCsv } from "./lib/csv.js";
 import { homePage, adminLoginPage, adminPage } from "./lib/render.js";
@@ -67,6 +67,16 @@ async function handleSignup(req, ip) {
   addSignup({ name, email, phone, categories, note });
   writeSignupsCsv();
   return redirect("/?thanks=1#keep-in-touch");
+}
+
+function contactFields(form) {
+  return {
+    name: String(form.get("name") || "").trim().slice(0, 80),
+    email: String(form.get("email") || "").trim().slice(0, 120),
+    phone: String(form.get("phone") || "").trim().slice(0, 40),
+    note: String(form.get("note") || "").trim().slice(0, 600),
+    categories: form.getAll("categories").map(String).filter((c) => VALID_SLUGS.has(c)),
+  };
 }
 
 async function syncAll() {
@@ -146,10 +156,27 @@ async function handleAdmin(req, url) {
       return redirect("/admin");
     }
 
-    if ((m = pathname.match(/^\/admin\/signups\/(\d+)\/delete$/))) {
-      db.query("DELETE FROM signups WHERE id = ?").run(Number(m[1]));
+    if (pathname === "/admin/signups") {
+      const fields = contactFields(await req.formData());
+      if (!fields.name) return redirect("/admin?error=A+contact+needs+a+name.&add=1#contacts");
+      addSignup(fields);
       writeSignupsCsv();
-      return redirect("/admin");
+      return redirect(`/admin?flash=${encodeURIComponent(`Added ${fields.name}.`)}#contacts`);
+    }
+
+    if ((m = pathname.match(/^\/admin\/signups\/(\d+)$/))) {
+      const id = Number(m[1]);
+      const fields = contactFields(await req.formData());
+      if (!fields.name) return redirect(`/admin?error=A+contact+needs+a+name.&edit=${id}#contacts`);
+      updateSignup(id, fields);
+      writeSignupsCsv();
+      return redirect(`/admin?flash=${encodeURIComponent(`Updated ${fields.name}.`)}#contacts`);
+    }
+
+    if ((m = pathname.match(/^\/admin\/signups\/(\d+)\/delete$/))) {
+      deleteSignup(Number(m[1]));
+      writeSignupsCsv();
+      return redirect("/admin?flash=Contact+deleted.#contacts");
     }
   }
 
@@ -159,6 +186,8 @@ async function handleAdmin(req, url) {
       signups: allSignups(),
       flash: url.searchParams.get("flash"),
       error: url.searchParams.get("error"),
+      editing: url.searchParams.get("edit"),
+      addOpen: url.searchParams.get("add") === "1",
     }));
   }
 

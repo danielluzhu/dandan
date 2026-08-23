@@ -65,14 +65,20 @@ bun run sync
 under "On the list". An event moves to the archive automatically, 6 hours after
 its start time.
 
-## Signups
+## Contacts
 
-The form on the home page writes to the `signups` table and mirrors every submission to
-`data/signups.csv`, which opens directly in Excel, Numbers or Google Sheets. The dashboard also has
-a **Download spreadsheet (CSV)** button, and `bun run export` rewrites the file on demand.
+The form on the home page writes to the `signups` table. The **Contacts** panel in `/admin` is the
+private view of that list: who they are, how to reach them, and which categories they said they
+would come to. Contacts can also be added and edited by hand there — click a row to open its form,
+change anything including the category tags, then save. Deleting is on the same form.
 
-Signups are only visible behind the `/admin` password — nothing about them is public.
-The form has a hidden honeypot field and a per-IP rate limit to keep bots out.
+Every change mirrors to `data/signups.csv`, which opens directly in Excel, Numbers or Google
+Sheets. The dashboard has a **Download spreadsheet (CSV)** button, and `bun run export` rewrites
+the file on demand.
+
+Contacts are only visible behind the `/admin` password — nothing about them is public, and the
+whole `/admin/*` tree including the contact routes returns 401 without the session cookie. The
+public form has a hidden honeypot field and a per-IP rate limit to keep bots out.
 
 ## Layout
 
