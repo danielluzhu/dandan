@@ -370,11 +370,25 @@ img { max-width: 100%; display: block; }
 
 .admin__lede { margin: -.5rem 0 1.25rem; color: var(--ink-soft); max-width: 44rem; }
 .login__blurb { margin: -.4rem 0 0; font-size: .9rem; color: var(--ink-soft); }
-.tally {
-  display: flex; flex-wrap: wrap; align-items: center; gap: .4rem;
+.toolbar {
   margin-bottom: 1.25rem; padding: .85rem 1rem;
   background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
 }
+.tally { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; }
+.toolbar__row {
+  display: flex; flex-wrap: wrap; align-items: flex-end; gap: .75rem;
+  margin-top: .85rem; padding-top: .85rem; border-top: 1px solid var(--line);
+}
+.field { display: flex; flex-direction: column; gap: .25rem; font-size: .85rem; font-weight: 500; }
+.field .lbl { font-size: .7rem; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-soft); }
+.field--search { flex: 1 1 14rem; }
+.field input, .field select {
+  font: inherit; font-size: .9rem; padding: .45rem .65rem;
+  border: 1px solid var(--line); border-radius: 9px; background: var(--bg); color: var(--ink);
+}
+.field input:focus, .field select:focus { outline: 2px solid var(--accent); outline-offset: 1px; border-color: transparent; }
+.field input[type="search"] { width: 100%; }
+.toolbar__count { margin: 0 0 .4rem auto; font-size: .82rem; color: var(--ink-soft); white-space: nowrap; }
 .tally .tag {
   border: 1px solid transparent; font: inherit; font-size: .78rem; font-weight: 600;
   padding: .3rem .7rem; cursor: pointer; transition: border-color .15s ease, filter .15s ease;

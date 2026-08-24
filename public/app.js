@@ -57,31 +57,80 @@
   box.hidden = false;
 })();
 
-// Filter the contact list by interest
+// Filter and sort the contact list
 (() => {
-  const chips = document.querySelectorAll(".tally .tag");
-  const rows = document.querySelectorAll(".contact");
-  const empty = document.querySelector(".contacts__empty");
-  if (!chips.length || !rows.length) return;
+  const list = document.querySelector(".contacts");
+  if (!list) return;
 
-  const apply = (want) => {
-    let shown = 0;
-    rows.forEach((row) => {
-      const has = want === "all" || (row.dataset.categories || "").split(",").includes(want);
-      row.hidden = !has;
-      // Collapse any row being hidden, so a filter change never leaves an edit form open off-screen.
-      if (!has) row.querySelector("details")?.removeAttribute("open");
-      if (has) shown++;
-    });
-    if (empty) empty.hidden = shown > 0;
+  const rows = [...list.querySelectorAll(".contact")];
+  const chips = [...document.querySelectorAll(".tally .tag")];
+  const q = document.querySelector("#q");
+  const missing = document.querySelector("#missing");
+  const sort = document.querySelector("#sort");
+  const empty = document.querySelector(".contacts__empty");
+  const count = document.querySelector(".toolbar__count");
+
+  let category = "all";
+
+  const comparators = {
+    name: (a, b) => a.dataset.name.localeCompare(b.dataset.name),
+    added: (a, b) => a.dataset.added.localeCompare(b.dataset.added),
+    interests: (a, b) =>
+      Number(a.dataset.interests) - Number(b.dataset.interests) ||
+      a.dataset.name.localeCompare(b.dataset.name),
   };
 
+  function apply() {
+    const term = (q?.value || "").trim().toLowerCase();
+    const want = missing?.value || "";
+
+    let shown = 0;
+    for (const row of rows) {
+      const d = row.dataset;
+      const keep =
+        (category === "all" || d.categories.split(",").includes(category)) &&
+        (!term || d.search.includes(term)) &&
+        (want === "" ||
+          (want === "instagram" && d.hasInstagram === "0") ||
+          (want === "phone" && d.hasPhone === "0") ||
+          (want === "any" && d.hasInstagram === "0" && d.hasPhone === "0"));
+
+      row.hidden = !keep;
+      // Collapse anything being hidden, so an edit form never stays open off-screen.
+      if (!keep) row.querySelector("details")?.removeAttribute("open");
+      if (keep) shown++;
+    }
+
+    const key = sort?.value || "name";
+    const desc = key.startsWith("-");
+    const cmp = comparators[desc ? key.slice(1) : key];
+    if (cmp) {
+      const ordered = [...rows].sort((a, b) => (desc ? -cmp(a, b) : cmp(a, b)));
+      // Re-appending in order is enough; hidden rows keep their place but stay hidden.
+      for (const row of ordered) list.append(row);
+    }
+
+    if (empty) empty.hidden = shown > 0;
+    if (count) {
+      count.textContent =
+        shown === rows.length
+          ? `${rows.length} ${rows.length === 1 ? "person" : "people"}`
+          : `${shown} of ${rows.length}`;
+    }
+  }
+
   chips.forEach((chip) => chip.addEventListener("click", () => {
+    category = chip.dataset.filter;
     chips.forEach((c) => {
       const on = c === chip;
       c.classList.toggle("is-active", on);
       c.setAttribute("aria-pressed", String(on));
     });
-    apply(chip.dataset.filter);
+    apply();
   }));
+
+  q?.addEventListener("input", apply);
+  missing?.addEventListener("change", apply);
+  sort?.addEventListener("change", apply);
+  apply();
 })();

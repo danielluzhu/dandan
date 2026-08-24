@@ -244,7 +244,14 @@ const server = Bun.serve({
       // Static assets
       if (/^\/(img\/)?[a-z0-9._-]+\.(css|js|png|jpg|jpeg|svg|ico|webp)$/i.test(url.pathname)) {
         const file = Bun.file(new URL("." + url.pathname, PUBLIC_DIR));
-        if (await file.exists()) return new Response(file, { headers: { "cache-control": "public, max-age=3600" } });
+        if (await file.exists()) {
+          // Hashed ?v= URLs can be cached hard; anything requested without one must not be,
+          // or an edit to styles.css sits behind a stale copy until the cache expires.
+          const versioned = url.searchParams.has("v");
+          return new Response(file, {
+            headers: { "cache-control": versioned ? "public, max-age=31536000, immutable" : "no-cache" },
+          });
+        }
       }
 
       return new Response("Not found", { status: 404 });

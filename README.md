@@ -68,8 +68,11 @@ its start time.
 ## The List
 
 `/list` is the private view of everyone who has asked to hear about an event: who they are, how to
-reach them, and which categories they said they would come to. The tally along the top doubles as a
-filter — click a category to see just the people up for it, or **Everyone** to go back. The form on the home page writes here, and contacts can also be added and edited by hand —
+reach them, and which categories they said they would come to. The toolbar filters and sorts it:
+click a category in the tally to narrow to those people, search across name, handle, phone and
+note, pick out anyone with a contact detail missing, and sort by name, when they were added, or how
+many things they are up for. The filters combine, and the count on the right says how many of the
+list you are looking at. The form on the home page writes here, and contacts can also be added and edited by hand —
 click a row to open its form, change anything including the category tags, then save. Deleting is
 on the same form.
 
