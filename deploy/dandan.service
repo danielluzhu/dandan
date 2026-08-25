@@ -1,0 +1,49 @@
+# The events site, kept running by systemd.
+#
+#   sudo cp deploy/dandan.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now dandan
+#
+# Logs: journalctl -u dandan -f
+
+[Unit]
+Description=dandan — events site
+Documentation=https://github.com/danielluzhu/dandan
+After=network-online.target
+Wants=network-online.target
+# Don't give up if it crash-loops: a bad deploy should recover on its own once fixed.
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/workspace
+
+# No EnvironmentFile on purpose. Bun reads /workspace/.env itself, and a real
+# environment variable takes precedence over the file — so letting systemd parse
+# it too would mean two parsers on one file, with systemd's reading of an
+# unquoted SITE_TAGLINE silently winning over Bun's.
+ExecStart=/home/ubuntu/.bun/bin/bun run /workspace/server.js
+
+Restart=always
+RestartSec=2
+
+# The site keeps no state in memory worth preserving; a clean stop is instant.
+KillSignal=SIGINT
+TimeoutStopSec=10
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectControlGroups=true
+ProtectKernelTunables=true
+# The SQLite file, its WAL, the CSV mirror and the publish log all live here.
+ReadWritePaths=/workspace
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=dandan
+
+[Install]
+WantedBy=multi-user.target

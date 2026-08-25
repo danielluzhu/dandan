@@ -31,6 +31,29 @@ bun run start             # http://localhost:4321
 bun run dev               # same, with auto-reload
 ```
 
+### Keeping it up
+
+`deploy/dandan.service` runs the site under systemd, so it starts on boot and comes back on its
+own if it dies:
+
+```bash
+sudo cp deploy/dandan.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now dandan
+
+systemctl status dandan
+sudo journalctl -u dandan -f     # logs
+sudo systemctl restart dandan    # after changing .env or the code
+```
+
+The unit deliberately has no `EnvironmentFile`: Bun reads `/workspace/.env` itself, and a real
+environment variable beats the file, so pointing systemd at it too would put two parsers on one
+file with systemd's reading of an unquoted `SITE_TAGLINE` quietly winning.
+
+The machine proxies the port at `https://<hostname>-4321.another.ac`, behind an
+[another](https://access.anothercomputer.co/) sign-in unless the port is opened publicly in the
+dashboard. The public page on GitHub Pages needs none of that.
+
 ## Adding events
 
 Either paste the Partiful link into the admin dashboard at `/admin`, or from the terminal:
@@ -160,6 +183,7 @@ public/             styles.css, app.js
 scripts/            add-event.js, add-idea.js, add-recap.js, import-contacts.js,
                     sync.js, export-csv.js, build-docs.js, publish.js
 docs/               the static copy published to GitHub Pages
+deploy/             the systemd unit
 data/               events.db + signups.csv (gitignored — never committed)
 ```
 
