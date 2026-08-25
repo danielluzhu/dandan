@@ -334,6 +334,7 @@ img { max-width: 100%; display: block; }
 
 .foot { padding: 3rem 1.25rem; text-align: center; color: var(--ink-soft); font-size: .85rem; border-top: 1px solid var(--line); }
 .foot p { margin: 0; }
+.foot__mine { margin-top: 1rem !important; display: flex; gap: .5rem; justify-content: center; }
 
 /* ---------- admin ---------- */
 .admin-login { display: grid; place-items: center; min-height: 100vh; padding: 1.5rem; }

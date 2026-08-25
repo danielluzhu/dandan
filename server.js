@@ -262,6 +262,8 @@ const server = Bun.serve({
           ideas: undatedEvents(),
           past: pastEvents(),
           thanks: url.searchParams.get("thanks") === "1",
+          // Already unlocked? Then the events page is worth offering too.
+          admin: isAdmin(req),
         }), 200, { "cache-control": "no-store" });
       }
 
