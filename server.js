@@ -1,5 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { db, allSignups, allEvents, upcomingEvents, undatedEvents, pastEvents, addSignup, updateSignup, deleteSignup, normalizeInstagram, upsertEvent, CATEGORIES } from "./lib/db.js";
+import { db, allSignups, allEvents, upcomingEvents, undatedEvents, pastEvents, addSignup, upsertSignup, updateSignup, deleteSignup, normalizeInstagram, upsertEvent, CATEGORIES } from "./lib/db.js";
 import { fetchPartifulEvent } from "./lib/partiful.js";
 import { syncEvents, syncStatus, startAutoSync } from "./lib/sync.js";
 import { signupsCsv, writeSignupsCsv } from "./lib/csv.js";
@@ -67,7 +67,8 @@ async function handleSignup(req, ip) {
   // A handle that survives normalising is the only proof the field held something usable.
   if (!instagram) return redirect("/?error=instagram#keep-in-touch");
 
-  addSignup({ name, instagram, phone, categories, note });
+  // Someone filling the form a second time is the same person, not a second contact.
+  upsertSignup({ name, instagram, phone, categories, note });
   writeSignupsCsv();
   return redirect("/?thanks=1#keep-in-touch");
 }
