@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>dandan — a small site for the events I host</title>
+<meta name="description" content="dandan pulls events in from Partiful, shows what's next, keeps an archive of everything that already happened, and keeps a private list of who wants in.">
+<meta property="og:title" content="dandan">
+<meta property="og:description" content="A small site for the events I host — mahjong, hikes, film nights, cabin trips and parties. Built on Bun and SQLite, synced from Partiful.">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%F0%9F%8E%89</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  /* Same tokens as public/styles.css, so the project page looks like the project. */
+  :root {
+    --bg: #fbf7f0; --bg-alt: #f4ece0; --surface: #fff;
+    --ink: #241d18; --ink-soft: #6b5f55; --line: #e6dbcb;
+    --accent: #6c5ad8; --accent-ink: #fff;
+    --shadow: 0 1px 2px rgba(36,29,24,.06), 0 12px 28px -14px rgba(36,29,24,.28);
+    --radius: 18px;
+    --c-mahjong:#1f8a5c; --c-hikes:#c2703d; --c-film:#6c5ad8; --c-cabin:#2f6f8f;
+    --c-parties:#d94f86; --c-homeless:#5f6b1a; --c-dining:#b3392c; --c-tasting:#7b2d55;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg:#14110f; --bg-alt:#1c1815; --surface:#221d1a;
+      --ink:#f4ece2; --ink-soft:#a9998b; --line:#362e29;
+      --accent:#9b8cf0; --accent-ink:#17120c;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 16px 32px -16px rgba(0,0,0,.7);
+      --c-mahjong:#4fc08a; --c-hikes:#e0955f; --c-film:#9b8cf0; --c-cabin:#62a6c6;
+      --c-parties:#f279ab; --c-homeless:#b9c95f; --c-dining:#ef8175; --c-tasting:#d59bc4;
+    }
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 400 16px/1.6 Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3 { font-family: Fraunces, ui-serif, Georgia, serif; font-weight: 700; line-height: 1.1; margin: 0; }
+  a { color: inherit; }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .9em;
+         background: var(--bg-alt); padding: .12rem .38rem; border-radius: 5px; }
+  .wrap { width: min(58rem, 100% - 2.5rem); margin-inline: auto; }
+
+  .hero { padding: 5rem 0 3.5rem; text-align: center; border-bottom: 1px solid var(--line); }
+  .hero__eyebrow { margin: 0 0 .6rem; text-transform: uppercase; letter-spacing: .16em;
+                   font-size: .74rem; font-weight: 600; color: var(--ink-soft); }
+  .hero h1 { font-size: clamp(3rem, 9vw, 5rem); }
+  .hero__tagline { margin: 1rem auto 0; max-width: 34rem; color: var(--ink-soft); font-size: 1.06rem; }
+  .hero__cta { display: flex; flex-wrap: wrap; gap: .7rem; justify-content: center; margin-top: 2rem; }
+  .btn {
+    display: inline-block; padding: .7rem 1.3rem; border-radius: 999px; text-decoration: none;
+    font-weight: 600; font-size: .92rem; background: var(--accent); color: var(--accent-ink);
+    border: 1px solid transparent; box-shadow: var(--shadow);
+  }
+  .btn--ghost { background: var(--surface); color: var(--ink); border-color: var(--line); box-shadow: none; }
+
+  section { padding: 3.25rem 0; border-bottom: 1px solid var(--line); }
+  section h2 { font-size: 1.6rem; }
+  section > .wrap > p { color: var(--ink-soft); max-width: 42rem; }
+
+  .cats { display: flex; flex-wrap: wrap; gap: .55rem; margin-top: 1.5rem; padding: 0; list-style: none; }
+  .cats li {
+    display: flex; align-items: center; gap: .45rem; padding: .5rem .9rem;
+    border-radius: 999px; background: var(--surface); border: 1px solid var(--line); font-size: .9rem;
+  }
+  .cats .dot { width: .55rem; height: .55rem; border-radius: 50%; background: var(--c); }
+
+  .grid { display: grid; gap: 1rem; margin-top: 1.75rem;
+          grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); }
+  .card { padding: 1.35rem; border-radius: var(--radius); background: var(--surface);
+          border: 1px solid var(--line); box-shadow: var(--shadow); }
+  .card h3 { font-size: 1.05rem; margin-bottom: .5rem; }
+  .card p { margin: 0; color: var(--ink-soft); font-size: .93rem; }
+
+  .stack { margin-top: 1.5rem; padding: 0; list-style: none; display: grid; gap: .8rem; }
+  .stack li { display: grid; grid-template-columns: 11rem 1fr; gap: 1rem; align-items: baseline;
+              padding-bottom: .8rem; border-bottom: 1px solid var(--line); font-size: .94rem; }
+  .stack li:last-child { border-bottom: 0; }
+  .stack code { background: none; padding: 0; color: var(--accent); font-weight: 600; }
+  .stack span { color: var(--ink-soft); }
+  @media (max-width: 34rem) { .stack li { grid-template-columns: 1fr; gap: .2rem; } }
+
+  pre { margin: 1.5rem 0 0; padding: 1.1rem 1.25rem; overflow-x: auto;
+        border-radius: var(--radius); background: var(--surface); border: 1px solid var(--line);
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .87rem; line-height: 1.7; }
+  pre .c { color: var(--ink-soft); }
+
+  .foot { padding: 2.75rem 0 3.5rem; text-align: center; color: var(--ink-soft); font-size: .86rem; }
+  .foot a { font-weight: 600; }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <p class="hero__eyebrow">You're invited</p>
+    <h1>dandan</h1>
+    <p class="hero__tagline">
+      A small site for the events I host — mahjong, hikes, film nights, cabin trips and parties.
+      It pulls events in from Partiful, shows what's next, keeps an archive of everything that
+      already happened, and keeps a private list of who wants in.
+    </p>
+    <div class="hero__cta">
+      <a class="btn" href="https://github.com/danielluzhu/dandan">View the source</a>
+      <a class="btn btn--ghost" href="https://github.com/danielluzhu/dandan#running-it">Run it yourself</a>
+    </div>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <h2>Eight kinds of evening</h2>
+    <p>Every event belongs to a series. The home page shows what's coming up in each, soonest first,
+       and ideas with no date yet wait below under “On the list”.</p>
+    <ul class="cats">
+      <li style="--c: var(--c-mahjong)"><span class="dot"></span>🀄 Mahjong</li>
+      <li style="--c: var(--c-hikes)"><span class="dot"></span>🥾 Hikes</li>
+      <li style="--c: var(--c-film)"><span class="dot"></span>🎬 Film Night</li>
+      <li style="--c: var(--c-cabin)"><span class="dot"></span>🛖 Cabin Trips</li>
+      <li style="--c: var(--c-parties)"><span class="dot"></span>🎉 Parties</li>
+      <li style="--c: var(--c-homeless)"><span class="dot"></span>🧳 Homeless</li>
+      <li style="--c: var(--c-dining)"><span class="dot"></span>🍜 Dining</li>
+      <li style="--c: var(--c-tasting)"><span class="dot"></span>🍷 Drink Tasting</li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>How it works</h2>
+    <p>Partiful sends <code>x-frame-options: SAMEORIGIN</code>, so its pages cannot be put in an iframe.
+       Instead, dandan reads the <code>__NEXT_DATA__</code> JSON that every Partiful event page ships and
+       caches the title, date, cover image, location and RSVP count in SQLite — then renders its own
+       cards and links out to the real RSVP page.</p>
+    <div class="grid">
+      <div class="card">
+        <h3>Syncs itself</h3>
+        <p>A background loop refreshes every event that is still ahead of us, hourly, so a date moved
+           on Partiful shows up here without anyone pressing a button.</p>
+      </div>
+      <div class="card">
+        <h3>Up next &amp; the archive</h3>
+        <p>Scheduled events sit at the top, soonest first. Six hours after an event starts it moves
+           itself into the archive, grouped by year.</p>
+      </div>
+      <div class="card">
+        <h3>The list</h3>
+        <p>People leave a name, an Instagram handle and the series they'd come to. The list is private,
+           searchable and sortable, and mirrors to a spreadsheet you can open in Excel.</p>
+      </div>
+      <div class="card">
+        <h3>Nothing leaves the machine</h3>
+        <p>Contacts live in a local SQLite file that is never committed. <code>/list</code> and
+           <code>/admin</code> sit behind one password; the public form has a honeypot and a rate limit.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Built on</h2>
+    <ul class="stack">
+      <li><code>Bun</code><span>The HTTP server, the test-free small-project runtime, and <code>bun:sqlite</code>.</span></li>
+      <li><code>SQLite</code><span>One file holding events and contacts. WAL mode, no ORM.</span></li>
+      <li><code>No framework</code><span>Server-rendered HTML from template literals, one stylesheet, one small script.</span></li>
+      <li><code>Partiful</code><span>Still where the RSVPs happen — this is the front door, not a replacement.</span></li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Running it</h2>
+    <pre><span class="c"># set ADMIN_PASSWORD and SESSION_SECRET</span>
+cp .env.example .env
+
+bun run start          <span class="c"># http://localhost:4321</span>
+bun run add https://partiful.com/e/xxxxxxxx
+bun run sync           <span class="c"># refresh the cache by hand</span></pre>
+  </div>
+</section>
+
+<footer class="foot">
+  <div class="wrap">
+    <p>Built in San Francisco · <a href="https://github.com/danielluzhu/dandan">github.com/danielluzhu/dandan</a></p>
+  </div>
+</footer>
+
+</body>
+</html>
