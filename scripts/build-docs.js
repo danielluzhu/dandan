@@ -282,9 +282,6 @@ function render() {
   const ideas = undatedEvents();
   const past = pastEvents();
 
-  const stamp = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/Los_Angeles", month: "long", day: "numeric", year: "numeric",
-  }).format(new Date());
 
   return `
 ${renderFilters([...upcoming, ...ideas, ...past])}
@@ -319,7 +316,9 @@ ${past.length ? `
   </div>
 </section>` : ""}
 
-<p class="stamp">Snapshot of ${upcoming.length + ideas.length + past.length} events, published ${esc(stamp)}.</p>
+${/* No build date here on purpose: it would rewrite the page every day and the
+      cron would commit a "change" that is nothing but a new timestamp. */""}
+<p class="stamp">${upcoming.length + ideas.length + past.length} events, republished from the live site whenever they change.</p>
 `;
 }
 
