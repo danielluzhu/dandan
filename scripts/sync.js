@@ -1,18 +1,14 @@
 #!/usr/bin/env bun
-/** Refresh cached Partiful data for every event. Safe to run on a cron. */
-import { db, upsertEvent } from "../lib/db.js";
-import { fetchPartifulEvent } from "../lib/partiful.js";
+/**
+ * Refresh cached Partiful data for every event, once, from the terminal.
+ * The server does this on its own every SYNC_INTERVAL_MINUTES; this is for
+ * cron on another machine, or for when you want the archive refreshed now.
+ */
+import { syncEvents } from "../lib/sync.js";
 
-const rows = db.query("SELECT id, url, category FROM events WHERE url != ''").all();
-let ok = 0;
-for (const row of rows) {
-  try {
-    const ev = await fetchPartifulEvent(row.url);
-    upsertEvent(ev, row.category);
-    console.log(`✓ ${ev.title}`);
-    ok++;
-  } catch (err) {
-    console.error(`✗ ${row.url}: ${err.message}`);
-  }
-}
-console.log(`Synced ${ok}/${rows.length} events.`);
+const scope = process.argv.includes("--active") ? "active" : "all";
+const { count, total, errors } = await syncEvents({ scope, trigger: "cli" });
+
+for (const err of errors) console.error(`✗ ${err}`);
+console.log(`Synced ${count}/${total} events.`);
+process.exit(errors.length && !count ? 1 : 0);

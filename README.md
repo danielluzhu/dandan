@@ -1,5 +1,7 @@
 # dandan
 
+**[danielluzhu.github.io/dandan](https://danielluzhu.github.io/dandan)** — what this is, at a glance.
+
 A small site for the events I host — mahjong, hikes, film nights, cabin trips and parties.
 Events live on Partiful; this site pulls them in, shows the next one in each category, keeps an
 archive of everything that already happened, and collects contact info from people who want in.
@@ -11,6 +13,15 @@ Instead, `lib/partiful.js` reads the `__NEXT_DATA__` JSON that every Partiful ev
 caches the title, date, timezone, cover image, location and RSVP count in SQLite. The site renders
 its own cards from that data and links out to the real RSVP page. Re-syncing refreshes the cache,
 so edits made on Partiful show up here.
+
+The server re-syncs on its own: ten seconds after it starts, and every hour after that. Each pass
+refreshes only the events that can still change — everything upcoming, everything undated, and
+anything that started in the last 48 hours, so the final RSVP count lands — and leaves the rest of
+the archive alone. `/admin` shows when data last arrived and whatever failed on the way. Set
+`SYNC_INTERVAL_MINUTES` in `.env` to change the hour, or `0` to turn the loop off and sync by hand.
+**Re-sync from Partiful** in the dashboard refreshes *every* event, archive included; the timer and
+the button share one run, so pressing it mid-sync joins the run in progress rather than doubling
+the requests.
 
 ## Running it
 
@@ -58,7 +69,8 @@ keep the credit accurate if you swap them out.
 Refresh cached data for every event (safe to put on a cron):
 
 ```bash
-bun run sync
+bun run sync            # every event
+bun run sync --active   # just the ones still ahead
 ```
 
 "Up next" lists every scheduled event, soonest first; undated ones sit below it
@@ -108,11 +120,20 @@ session cookie. The public form has a hidden honeypot field and a per-IP rate li
 server.js           routes, password gate, static files
 lib/db.js           SQLite schema, categories, queries
 lib/partiful.js     fetch + parse a Partiful event
+lib/sync.js         the hourly refresh loop and its status
 lib/render.js       HTML for the public site, /list and /admin
 lib/csv.js          spreadsheet export
 public/             styles.css, app.js
 scripts/            add-event.js, add-idea.js, import-contacts.js, sync.js, export-csv.js
+docs/               the project page published to GitHub Pages
 data/               events.db + signups.csv (gitignored — never committed)
 ```
+
+## The project page
+
+`docs/index.html` is a standalone page describing the project — no events, no contacts, nothing
+from the database. `.github/workflows/pages.yml` publishes it to
+[danielluzhu.github.io/dandan](https://danielluzhu.github.io/dandan) on every push to `main` that
+touches `docs/`. It needs one setting turned on once: **Settings → Pages → Source: GitHub Actions**.
 
 `data/` and `.env` stay out of git, so no contact info or passwords leave this machine.

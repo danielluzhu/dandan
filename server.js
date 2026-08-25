@@ -1,6 +1,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { db, allSignups, allEvents, upcomingEvents, undatedEvents, pastEvents, addSignup, updateSignup, deleteSignup, normalizeInstagram, upsertEvent, CATEGORIES } from "./lib/db.js";
 import { fetchPartifulEvent } from "./lib/partiful.js";
+import { syncEvents, syncStatus, startAutoSync } from "./lib/sync.js";
 import { signupsCsv, writeSignupsCsv } from "./lib/csv.js";
 import { homePage, passwordPage, adminPage, listPage } from "./lib/render.js";
 
@@ -79,19 +80,6 @@ function contactFields(form) {
     note: String(form.get("note") || "").trim().slice(0, 600),
     categories: form.getAll("categories").map(String).filter((c) => VALID_SLUGS.has(c)),
   };
-}
-
-async function syncAll() {
-  const rows = db.query("SELECT id, url, category FROM events WHERE url != ''").all();
-  const errors = [];
-  for (const row of rows) {
-    try {
-      upsertEvent(await fetchPartifulEvent(row.url), row.category);
-    } catch (err) {
-      errors.push(`${row.url}: ${err.message}`);
-    }
-  }
-  return { count: rows.length - errors.length, errors };
 }
 
 const SAFE_NEXT = /^\/(list|admin)$/;
@@ -177,7 +165,7 @@ async function handleAdmin(req, url) {
     }
 
     if (pathname === "/admin/sync") {
-      const { count, errors } = await syncAll();
+      const { count, errors } = await syncEvents({ scope: "all", trigger: "manual" });
       const q = errors.length
         ? `error=${encodeURIComponent(`Synced ${count}; failed: ${errors.join(" | ")}`)}`
         : `flash=${encodeURIComponent(`Synced ${count} event${count === 1 ? "" : "s"} from Partiful.`)}`;
@@ -203,6 +191,7 @@ async function handleAdmin(req, url) {
   if (pathname === "/admin") {
     return html(adminPage({
       events: db.query("SELECT * FROM events ORDER BY start_date DESC").all(),
+      sync: syncStatus(),
       flash: url.searchParams.get("flash"),
       error: url.searchParams.get("error"),
     }));
@@ -239,7 +228,9 @@ const server = Bun.serve({
         }), 200, { "cache-control": "no-store" });
       }
 
-      if (url.pathname === "/health") return Response.json({ ok: true, events: allEvents().length });
+      if (url.pathname === "/health") {
+        return Response.json({ ok: true, events: allEvents().length, lastSync: syncStatus().at });
+      }
 
       // Static assets
       if (/^\/(img\/)?[a-z0-9._-]+\.(css|js|png|jpg|jpeg|svg|ico|webp)$/i.test(url.pathname)) {
@@ -263,3 +254,4 @@ const server = Bun.serve({
 });
 
 console.log(`dandan running on http://localhost:${server.port}  (admin at /admin)`);
+startAutoSync();
