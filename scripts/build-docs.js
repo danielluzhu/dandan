@@ -17,6 +17,8 @@ import { buildIcs } from "../lib/ics.js";
 
 const DOCS = new URL("../docs/", import.meta.url);
 const PAGE = new URL("index.html", DOCS);
+/** Pages serves this repo from a subpath, and og:image only accepts absolute URLs. */
+const BASE = "https://danielluzhu.github.io/dandan/";
 
 const year = (iso, tz) =>
   new Intl.DateTimeFormat("en-US", { timeZone: tz || "America/Los_Angeles", year: "numeric" }).format(new Date(iso));
@@ -109,6 +111,35 @@ function archiveSection(past) {
       </div>`).join("\n");
 }
 
+/**
+ * What a link to this page looks like when it is pasted somewhere. Without an
+ * og:image, a site whose whole appeal is the cover art previews as grey text —
+ * so the next event's cover becomes the preview, and the description says what
+ * is actually coming up rather than describing the software.
+ */
+function renderOg(next) {
+  const image = next?.image_url
+    ? (next.image_url.startsWith("/") ? BASE + next.image_url.slice(1) : next.image_url)
+    : null;
+  const description = next
+    ? `Next up: ${next.title}${next.start_date ? ` · ${fmtLong(next.start_date, next.timezone)}` : ""}${next.location ? ` · ${next.location}` : ""}`
+    : "Mahjong, dinners, tastings, hikes, film nights, cabin trips and parties — hosted in San Francisco.";
+
+  return `
+<meta property="og:site_name" content="dandan">
+<meta property="og:title" content="dandan">
+<meta property="og:description" content="${esc(description)}">
+<meta property="og:type" content="website">
+<meta property="og:url" content="${esc(BASE)}">
+${image ? `<meta property="og:image" content="${esc(image)}">
+<meta property="og:image:width" content="900">
+<meta property="og:image:height" content="600">
+<meta name="twitter:card" content="summary_large_image">` : `<meta name="twitter:card" content="summary">`}
+<meta name="twitter:title" content="dandan">
+<meta name="twitter:description" content="${esc(description)}">
+${image ? `<meta name="twitter:image" content="${esc(image)}">` : ""}`;
+}
+
 function render() {
   const upcoming = upcomingEvents();
   const ideas = undatedEvents();
@@ -156,18 +187,23 @@ ${past.length ? `
 
 /* ---------- write ---------- */
 
-const START = "<!-- events:start -->";
-const END = "<!-- events:end -->";
-
-const page = readFileSync(PAGE, "utf8");
-const a = page.indexOf(START);
-const b = page.indexOf(END);
-if (a === -1 || b === -1) {
-  console.error(`docs/index.html is missing the ${START} / ${END} markers.`);
-  process.exit(1);
+/** Replace everything between a pair of markers, leaving the hand-written page alone. */
+function inject(page, name, content) {
+  const start = `<!-- ${name}:start -->`;
+  const end = `<!-- ${name}:end -->`;
+  const a = page.indexOf(start);
+  const b = page.indexOf(end);
+  if (a === -1 || b === -1) {
+    console.error(`docs/index.html is missing the ${start} / ${end} markers.`);
+    process.exit(1);
+  }
+  return page.slice(0, a + start.length) + content + page.slice(b);
 }
 
-writeFileSync(PAGE, page.slice(0, a + START.length) + render() + page.slice(b));
+let page = readFileSync(PAGE, "utf8");
+page = inject(page, "events", render());
+page = inject(page, "og", renderOg(upcomingEvents()[0]));
+writeFileSync(PAGE, page);
 
 /**
  * One feed for everything upcoming, plus a single-event file per card. The
