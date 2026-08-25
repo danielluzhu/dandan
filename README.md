@@ -73,6 +73,19 @@ bun run sync            # every event
 bun run sync --active   # just the ones still ahead
 ```
 
+### Photos from the night
+
+The archive is otherwise a list of names and dates. Attach one picture per event and it becomes
+worth scrolling:
+
+```bash
+bun run recap <event-id|partiful-url> photo.jpg "Photographer · CC BY 4.0"
+```
+
+It writes the same two sizes the covers use into `public/img/recaps/`. Wherever an event has one,
+the archive shows it instead of the invite's cover art — the night itself rather than how it was
+advertised — on the live site and the public page both.
+
 "Up next" lists every scheduled event, soonest first; undated ones sit below it
 under "On the list". An event moves to the archive automatically, 6 hours after
 its start time.
@@ -109,6 +122,25 @@ Every change mirrors to `data/signups.csv`, which opens directly in Excel, Numbe
 Sheets. The dashboard has a **Download spreadsheet (CSV)** button, and `bun run export` rewrites
 the file on demand.
 
+Someone who fills the public form twice is the same person, not a second contact: a repeat
+submission is matched on the Instagram handle, unions the categories onto the existing row, keeps
+whatever the new one left blank, and joins the notes. Adding a contact by hand in `/list` is a
+deliberate act, so that one is left alone.
+
+### Inviting people
+
+`/list/invite` is the join between the list and the calendar — pick an event and get exactly the
+people who ticked that series, with the message already written: title, date, place, RSVP link.
+
+- **Copy handles** — comma-separated, ready to paste into a new Instagram group DM
+- **Copy message**, or **copy both** at once
+- **Text everyone** — opens Messages with the numbers of everyone still checked
+- Everyone else is listed below, unchecked, for anyone you want to add anyway
+
+It says how many of the selected people you can actually reach. A list imported from a spreadsheet
+is mostly names, and a "copy handles" button that copies an empty string is worse than one that
+says so.
+
 `/list` and `/admin` are both behind one password, `ADMIN_PASSWORD` in `.env`. Visiting either
 unlocked shows a password prompt; unlocking one unlocks both, and **Lock** in the header clears it.
 Nothing about contacts is public — every `/list/*` and `/admin/*` route returns 401 without the
@@ -121,10 +153,12 @@ server.js           routes, password gate, static files
 lib/db.js           SQLite schema, categories, queries
 lib/partiful.js     fetch + parse a Partiful event
 lib/sync.js         the hourly refresh loop and its status
+lib/ics.js          the calendar feed
 lib/render.js       HTML for the public site, /list and /admin
 lib/csv.js          spreadsheet export
 public/             styles.css, app.js
-scripts/            add-event.js, add-idea.js, import-contacts.js, sync.js, export-csv.js, build-docs.js
+scripts/            add-event.js, add-idea.js, add-recap.js, import-contacts.js,
+                    sync.js, export-csv.js, build-docs.js, publish.js
 docs/               the static copy published to GitHub Pages
 data/               events.db + signups.csv (gitignored — never committed)
 ```
@@ -132,23 +166,41 @@ data/               events.db + signups.csv (gitignored — never committed)
 ## The public page
 
 The site itself only runs on this machine. [danielluzhu.github.io/dandan](https://danielluzhu.github.io/dandan)
-is a second, static copy of the events — up next, on the list and the whole archive — that anyone
-can open without the machine being up.
+is a static copy of the events that anyone can open whether or not the machine is up. It carries:
+
+- **Up next, on the list and the whole archive**, filterable by series — the chips filter every
+  section at once, and the choice goes in the URL so a filtered view can be sent to someone
+- **A calendar to subscribe to** at `dandan.ics` — one subscription, and every event added later
+  turns up on its own — plus a single `.ics` per upcoming event
+- **A page per event** at `e/<id>.html`, each with its own preview tags, so sharing one night
+  previews that night instead of the whole site
+- **A link preview** built from the next event's cover and details
+- **A way to reach you**, if `HOST_INSTAGRAM` is set in `.env`. Left blank the section does not
+  render — better than a link pointing at whoever owns the handle you guessed
 
 Pages serves files and cannot reach the database here, so the events are baked in and committed:
 
 ```bash
-bun run publish      # sync from Partiful, then rebuild the page
-git add docs && git commit -m "Republish events" && git push
+bun run publish            # sync, rebuild, commit and push if anything changed
+bun run publish --dry-run  # everything except the commit
+bun run build:docs         # rebuild only
 ```
 
-`bun run build:docs` does the rebuild alone. It rewrites `docs/index.html` between the
-`<!-- events:start -->` and `<!-- events:end -->` markers, so the hand-written parts of that page
-stay editable and re-running is safe. `.github/workflows/pages.yml` publishes on every push to
+`publish` is safe on a cron, and one is installed — daily at 07:15, logging to `data/publish.log`:
+
+```
+15 7 * * * bun run publish >> /workspace/data/publish.log 2>&1
+```
+
+Run `crontab -e` to change or remove it. It only ever commits `docs/`: `data/` and `.env` are
+gitignored, and a dirty tree elsewhere is someone mid-edit rather than something to sweep into an
+automated commit. The build is deterministic — no clocks in the calendar files, no build date on
+the page — so an unchanged calendar never produces a commit that says nothing.
+
+`build:docs` rewrites `docs/index.html` between marker comments, so the hand-written parts of that
+page stay editable and re-running is safe. `.github/workflows/pages.yml` deploys on every push to
 `main` that touches `docs/`. Pages needs one setting, once: **Settings → Pages → Source: GitHub Actions**.
 
 Only what Partiful already shows publicly goes on it — title, date, location, cover image and RSVP
-count — and photo credits travel with the pictures that need them. **The contact list is never
-read by the build**: nothing about who signed up leaves this machine.
-
-`data/` and `.env` stay out of git, so no contact info or passwords leave this machine.
+count — and photo credits travel with the pictures that need them. **The contact list is never read
+by the build**: nothing about who signed up leaves this machine.
