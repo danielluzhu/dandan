@@ -109,7 +109,9 @@ function archiveSection(past) {
             const tag = ev.url ? "a" : "div";
             const href = ev.url ? ` href="${esc(ev.url)}" target="_blank" rel="noopener"` : "";
             return `<li data-category="${esc(ev.category)}"><${tag} class="past__row"${href} style="--c: var(--c-${esc(ev.category)})">
-            <span class="past__dot"></span>
+            ${ev.recap_thumb
+              ? `<img class="past__pic" src="${esc(src(ev.recap_thumb))}" alt="" width="56" height="56" loading="lazy" decoding="async"${ev.recap_credit ? ` title="${esc(ev.recap_credit)}"` : ""}>`
+              : `<span class="past__dot"></span>`}
             <span class="past__title">${esc(ev.title)}</span>
             <span class="past__cat">${cat.emoji} ${esc(cat.label)}</span>
             <time class="past__date">${ev.start_date ? esc(shortDate(ev.start_date, ev.timezone)) : "—"}</time>

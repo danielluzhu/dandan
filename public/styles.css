@@ -370,6 +370,9 @@ img { max-width: 100%; display: block; }
 
 .admin__lede { margin: -.5rem 0 1.25rem; color: var(--ink-soft); max-width: 44rem; }
 
+/* A recap photo is the night itself, not the invite art — it earns a warmer frame. */
+.past__thumb--recap img { box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 45%, transparent); }
+
 /* How fresh the cached Partiful data is; turns warm when it has gone stale or a run failed. */
 .syncbar {
   margin: -.35rem 0 1.25rem; font-size: .82rem; color: var(--ink-soft);

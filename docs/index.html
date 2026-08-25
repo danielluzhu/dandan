@@ -148,6 +148,9 @@
   }
   a.past__row:hover { background: var(--bg-alt); border-radius: 10px; }
   .past__dot { width: .5rem; height: .5rem; border-radius: 50%; background: var(--c); }
+  /* A photo from the night takes the dot's place once there is one. */
+  .past__pic { width: 2.6rem; height: 2.6rem; border-radius: 8px; object-fit: cover;
+               margin: -.25rem 0; box-shadow: 0 0 0 1px var(--line); }
   .past__title { font-weight: 500; font-size: .94rem; }
   .past__cat, .past__date { font-size: .82rem; color: var(--ink-soft); white-space: nowrap; }
   @media (max-width: 34rem) {

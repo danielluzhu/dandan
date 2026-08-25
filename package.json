@@ -12,6 +12,7 @@
     "idea": "bun run scripts/add-idea.js",
     "import": "bun run scripts/import-contacts.js",
     "build:docs": "bun run scripts/build-docs.js",
-    "publish": "bun run sync && bun run build:docs"
+    "publish": "bun run sync && bun run build:docs",
+    "recap": "bun run scripts/add-recap.js"
   }
 }
