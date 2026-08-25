@@ -13,6 +13,7 @@
 import { cpSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { upcomingEvents, undatedEvents, pastEvents, categoryBySlug } from "../lib/db.js";
 import { esc, fmtLong, countdown } from "../lib/render.js";
+import { buildIcs } from "../lib/ics.js";
 
 const DOCS = new URL("../docs/", import.meta.url);
 const PAGE = new URL("index.html", DOCS);
@@ -53,6 +54,7 @@ function eventCard(ev, i) {
           ${ev.location ? `<p class="ev__where">${esc(ev.location)}</p>` : ""}
           <p class="ev__foot">
             <a class="btn btn--sm" href="${esc(ev.url)}" target="_blank" rel="noopener">RSVP on Partiful</a>
+            <a class="ev__cal" href="e/${esc(ev.id)}.ics" download>Add to calendar</a>
             ${ev.going_count ? `<span class="ev__going">${ev.going_count} going</span>` : ""}
           </p>
         </div>
@@ -123,7 +125,11 @@ function render() {
     <p>${upcoming.length
       ? "Everything on the calendar, soonest first. RSVPs happen on Partiful."
       : "Nothing on the calendar right now — the next one goes up here when it does."}</p>
-    ${upcoming.length ? `<div class="evs">${upcoming.map(eventCard).join("\n")}\n    </div>` : ""}
+    ${upcoming.length ? `<p class="sub">
+      <a class="btn btn--ghost btn--sm" href="webcal://danielluzhu.github.io/dandan/dandan.ics">Subscribe in your calendar</a>
+      <span class="sub__hint">One subscription — every event after this one turns up on its own. <a href="dandan.ics" download>Download the file</a> if webcal does not open.</span>
+    </p>
+    <div class="evs">${upcoming.map(eventCard).join("\n")}\n    </div>` : ""}
   </div>
 </section>
 ${ideas.length ? `
@@ -163,9 +169,24 @@ if (a === -1 || b === -1) {
 
 writeFileSync(PAGE, page.slice(0, a + START.length) + render() + page.slice(b));
 
+/**
+ * One feed for everything upcoming, plus a single-event file per card. The
+ * subscription is the point; the per-event files are for people who want just
+ * the one night and not a standing subscription.
+ */
+const scheduled = upcomingEvents();
+mkdirSync(new URL("e/", DOCS), { recursive: true });
+writeFileSync(new URL("dandan.ics", DOCS), buildIcs(scheduled, {
+  name: "dandan",
+  description: "Mahjong, dinners, tastings, hikes, film nights, cabin trips and parties.",
+}));
+for (const ev of scheduled) {
+  writeFileSync(new URL(`e/${ev.id}.ics`, DOCS), buildIcs([ev], { name: ev.title }));
+}
+
 // Ideas use cover images kept in the repo; the remote ones load from Partiful's CDN.
 mkdirSync(new URL("img/", DOCS), { recursive: true });
 cpSync(new URL("../public/img/", import.meta.url), new URL("img/", DOCS), { recursive: true });
 
 const total = upcomingEvents().length + undatedEvents().length + pastEvents().length;
-console.log(`Wrote docs/index.html with ${total} events. Commit docs/ and push to publish.`);
+console.log(`Wrote docs/index.html with ${total} events and ${scheduled.length} calendar file${scheduled.length === 1 ? "" : "s"}. Commit docs/ and push to publish.`);

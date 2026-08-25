@@ -117,7 +117,11 @@
   .ev__when { margin: 0; font-size: .9rem; font-weight: 500; }
   .ev__where, .ev__desc { margin: 0; font-size: .86rem; color: var(--ink-soft); }
   .ev__foot { margin: auto 0 0; padding-top: .85rem; display: flex; align-items: center; gap: .75rem; }
-  .ev__going { font-size: .82rem; color: var(--ink-soft); }
+  .ev__going { font-size: .82rem; color: var(--ink-soft); margin-left: auto; }
+  .ev__cal { font-size: .82rem; color: var(--ink-soft); text-decoration: none; border-bottom: 1px solid var(--line); }
+  .ev__cal:hover { color: var(--ink); border-color: currentColor; }
+  .sub { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .9rem; margin: 1.5rem 0 0; }
+  .sub__hint { font-size: .82rem; color: var(--ink-soft); }
   .btn--sm { padding: .45rem .95rem; font-size: .84rem; box-shadow: none; }
   .ev--idea .ev__body { padding-bottom: 1.25rem; }
 
@@ -171,6 +175,10 @@
   <div class="wrap">
     <h2>Up next</h2>
     <p>Everything on the calendar, soonest first. RSVPs happen on Partiful.</p>
+    <p class="sub">
+      <a class="btn btn--ghost btn--sm" href="webcal://danielluzhu.github.io/dandan/dandan.ics">Subscribe in your calendar</a>
+      <span class="sub__hint">One subscription — every event after this one turns up on its own. <a href="dandan.ics" download>Download the file</a> if webcal does not open.</span>
+    </p>
     <div class="evs">
       <article class="ev" style="--c: var(--c-homeless)">
         <figure class="ev__media"><img src="https://partiful.imgix.net/external/user/oBXhxzeQAUSQgKwGKhT9pd0Cw7u2/vMWixiP2qEnTgaDS6_oJ-?w=900&amp;h=600&amp;fit=crop&amp;auto=format,compress" alt="" width="900" height="600" fetchpriority="high"></figure>
@@ -184,6 +192,7 @@
           <p class="ev__where">Grand Canyon Village, AZ</p>
           <p class="ev__foot">
             <a class="btn btn--sm" href="https://partiful.com/e/Xb5WqqDDo5cUoagp2rpl" target="_blank" rel="noopener">RSVP on Partiful</a>
+            <a class="ev__cal" href="e/Xb5WqqDDo5cUoagp2rpl.ics" download>Add to calendar</a>
             <span class="ev__going">2 going</span>
           </p>
         </div>
