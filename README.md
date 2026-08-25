@@ -124,16 +124,31 @@ lib/sync.js         the hourly refresh loop and its status
 lib/render.js       HTML for the public site, /list and /admin
 lib/csv.js          spreadsheet export
 public/             styles.css, app.js
-scripts/            add-event.js, add-idea.js, import-contacts.js, sync.js, export-csv.js
-docs/               the project page published to GitHub Pages
+scripts/            add-event.js, add-idea.js, import-contacts.js, sync.js, export-csv.js, build-docs.js
+docs/               the static copy published to GitHub Pages
 data/               events.db + signups.csv (gitignored — never committed)
 ```
 
-## The project page
+## The public page
 
-`docs/index.html` is a standalone page describing the project — no events, no contacts, nothing
-from the database. `.github/workflows/pages.yml` publishes it to
-[danielluzhu.github.io/dandan](https://danielluzhu.github.io/dandan) on every push to `main` that
-touches `docs/`. It needs one setting turned on once: **Settings → Pages → Source: GitHub Actions**.
+The site itself only runs on this machine. [danielluzhu.github.io/dandan](https://danielluzhu.github.io/dandan)
+is a second, static copy of the events — up next, on the list and the whole archive — that anyone
+can open without the machine being up.
+
+Pages serves files and cannot reach the database here, so the events are baked in and committed:
+
+```bash
+bun run publish      # sync from Partiful, then rebuild the page
+git add docs && git commit -m "Republish events" && git push
+```
+
+`bun run build:docs` does the rebuild alone. It rewrites `docs/index.html` between the
+`<!-- events:start -->` and `<!-- events:end -->` markers, so the hand-written parts of that page
+stay editable and re-running is safe. `.github/workflows/pages.yml` publishes on every push to
+`main` that touches `docs/`. Pages needs one setting, once: **Settings → Pages → Source: GitHub Actions**.
+
+Only what Partiful already shows publicly goes on it — title, date, location, cover image and RSVP
+count — and photo credits travel with the pictures that need them. **The contact list is never
+read by the build**: nothing about who signed up leaves this machine.
 
 `data/` and `.env` stay out of git, so no contact info or passwords leave this machine.

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>dandan — a small site for the events I host</title>
-<meta name="description" content="dandan pulls events in from Partiful, shows what's next, keeps an archive of everything that already happened, and keeps a private list of who wants in.">
+<meta name="description" content="The events I host in San Francisco — mahjong, hikes, film nights, dinners, tastings, cabin trips and parties. What is coming up, and everything that already happened.">
 <meta property="og:title" content="dandan">
 <meta property="og:description" content="A small site for the events I host — mahjong, hikes, film nights, cabin trips and parties. Built on Bun and SQLite, synced from Partiful.">
 <meta property="og:type" content="website">
@@ -89,6 +89,61 @@
         font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .87rem; line-height: 1.7; }
   pre .c { color: var(--ink-soft); }
 
+  /* ---------- events ---------- */
+  .evs { display: grid; gap: 1.15rem; margin-top: 1.75rem;
+         grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr)); }
+  .ev {
+    display: flex; flex-direction: column; overflow: hidden;
+    border-radius: var(--radius); background: var(--surface);
+    border: 1px solid var(--line); box-shadow: var(--shadow);
+    border-top: 3px solid var(--c);
+  }
+  .ev__media { position: relative; aspect-ratio: 3 / 2; margin: 0; background: var(--bg-alt);
+               display: grid; place-items: center; }
+  .ev__media figcaption {
+    position: absolute; inset: auto 0 0 0; padding: .3rem .6rem;
+    font-size: .66rem; color: #fff; background: linear-gradient(transparent, rgba(0,0,0,.6));
+  }
+  .ev__media img { width: 100%; height: 100%; object-fit: cover; }
+  .ev__fallback { font-size: 2.5rem; }
+  .ev__body { padding: 1.1rem 1.2rem 1.25rem; display: flex; flex-direction: column; gap: .4rem; flex: 1; }
+  .ev__meta { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin: 0; }
+  .ev__cat { font-size: .78rem; font-weight: 600; color: var(--c); }
+  .ev__soon {
+    font-size: .7rem; font-weight: 600; text-transform: uppercase; letter-spacing: .07em;
+    padding: .18rem .5rem; border-radius: 999px; background: var(--bg-alt); color: var(--ink-soft);
+  }
+  .ev__title { font-size: 1.14rem; margin: .1rem 0 0; }
+  .ev__when { margin: 0; font-size: .9rem; font-weight: 500; }
+  .ev__where, .ev__desc { margin: 0; font-size: .86rem; color: var(--ink-soft); }
+  .ev__foot { margin: auto 0 0; padding-top: .85rem; display: flex; align-items: center; gap: .75rem; }
+  .ev__going { font-size: .82rem; color: var(--ink-soft); }
+  .btn--sm { padding: .45rem .95rem; font-size: .84rem; box-shadow: none; }
+  .ev--idea .ev__body { padding-bottom: 1.25rem; }
+
+  .count { font: 500 .8rem/1 Inter, sans-serif; vertical-align: middle; color: var(--ink-soft);
+           background: var(--bg-alt); padding: .3rem .55rem; border-radius: 999px; margin-left: .4rem; }
+
+  .yr { margin-top: 2rem; }
+  .yr__label { font-size: 1.05rem; color: var(--ink-soft); }
+  .past { list-style: none; margin: .7rem 0 0; padding: 0; }
+  .past li + li { border-top: 1px solid var(--line); }
+  .past__row {
+    display: grid; grid-template-columns: auto 1fr auto auto; gap: .9rem; align-items: center;
+    padding: .7rem .3rem; text-decoration: none; color: inherit;
+  }
+  a.past__row:hover { background: var(--bg-alt); border-radius: 10px; }
+  .past__dot { width: .5rem; height: .5rem; border-radius: 50%; background: var(--c); }
+  .past__title { font-weight: 500; font-size: .94rem; }
+  .past__cat, .past__date { font-size: .82rem; color: var(--ink-soft); white-space: nowrap; }
+  @media (max-width: 34rem) {
+    .past__row { grid-template-columns: auto 1fr auto; }
+    .past__cat { display: none; }
+  }
+
+  .stamp { width: min(58rem, 100% - 2.5rem); margin: 1.5rem auto 0;
+           font-size: .8rem; color: var(--ink-soft); }
+
   .foot { padding: 2.75rem 0 3.5rem; text-align: center; color: var(--ink-soft); font-size: .86rem; }
   .foot a { font-weight: 600; }
 </style>
@@ -100,22 +155,284 @@
     <p class="hero__eyebrow">You're invited</p>
     <h1>dandan</h1>
     <p class="hero__tagline">
-      A small site for the events I host — mahjong, hikes, film nights, cabin trips and parties.
-      It pulls events in from Partiful, shows what's next, keeps an archive of everything that
-      already happened, and keeps a private list of who wants in.
+      Mahjong, dinners, tastings, hikes, film nights, cabin trips, Homeless weekends and parties —
+      hosted in San Francisco. Here is what's coming up, and everything that already happened.
     </p>
     <div class="hero__cta">
-      <a class="btn" href="https://github.com/danielluzhu/dandan">View the source</a>
-      <a class="btn btn--ghost" href="https://github.com/danielluzhu/dandan#running-it">Run it yourself</a>
+      <a class="btn" href="#up-next">See what's next</a>
+      <a class="btn btn--ghost" href="#archive">Past events</a>
+      <a class="btn btn--ghost" href="https://github.com/danielluzhu/dandan">View the source</a>
     </div>
   </div>
 </header>
 
+<!-- events:start -->
+<section id="up-next">
+  <div class="wrap">
+    <h2>Up next</h2>
+    <p>Everything on the calendar, soonest first. RSVPs happen on Partiful.</p>
+    <div class="evs">
+      <article class="ev" style="--c: var(--c-homeless)">
+        <figure class="ev__media"><img src="https://partiful.imgix.net/external/user/oBXhxzeQAUSQgKwGKhT9pd0Cw7u2/vMWixiP2qEnTgaDS6_oJ-?w=900&amp;h=600&amp;fit=crop&amp;auto=format,compress" alt="" width="900" height="600" fetchpriority="high"></figure>
+        <div class="ev__body">
+          <p class="ev__meta">
+            <span class="ev__cat">🧳 Homeless</span>
+            <span class="ev__soon">In 7 weeks</span>
+          </p>
+          <h3 class="ev__title">bois are still homeless</h3>
+          <p class="ev__when">Thu, Oct 15 · 5:00 PM</p>
+          <p class="ev__where">Grand Canyon Village, AZ</p>
+          <p class="ev__foot">
+            <a class="btn btn--sm" href="https://partiful.com/e/Xb5WqqDDo5cUoagp2rpl" target="_blank" rel="noopener">RSVP on Partiful</a>
+            <span class="ev__going">2 going</span>
+          </p>
+        </div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<section id="on-the-list">
+  <div class="wrap">
+    <h2>On the list</h2>
+    <p>Picked, but not yet on the calendar. Some already have an invite up; the rest are waiting for a date.</p>
+    <div class="evs">
+      <article class="ev ev--idea" style="--c: var(--c-film)">
+        <figure class="ev__media"><img src="https://partiful.imgix.net/external/user/ek1zy9rCAJQnNoH4pDRZho8uvmi1/XlbOQcypx619UDRTHKb0w?w=900&amp;h=600&amp;fit=crop&amp;auto=format,compress" alt="" width="900" height="600" loading="lazy" decoding="async"></figure>
+        <div class="ev__body">
+          <p class="ev__meta">
+            <span class="ev__cat">🎬 Film Night</span>
+            <span class="ev__soon">Date TBD</span>
+          </p>
+          <h3 class="ev__title">2046</h3>
+          <p class="ev__desc">Film night
+
+Wong Kar Wai &quot;2046&quot; (2004). A loose thematic sequel of &quot;In the Mood for Love&quot;.</p>
+          
+          <p class="ev__foot">
+            <a class="btn btn--sm" href="https://partiful.com/e/8wUmsZTUjEPxLokWKmQ6" target="_blank" rel="noopener">See it on Partiful</a>
+          </p>
+        </div>
+      </article>
+
+      <article class="ev ev--idea" style="--c: var(--c-hikes)">
+        <figure class="ev__media"><img src="img/steep-ravine.jpg" alt="" width="900" height="600" loading="lazy" decoding="async"><figcaption>Frank Schulenburg · CC BY-SA 3.0</figcaption></figure>
+        <div class="ev__body">
+          <p class="ev__meta">
+            <span class="ev__cat">🥾 Hikes</span>
+            <span class="ev__soon">Date TBD</span>
+          </p>
+          <h3 class="ev__title">Steep Ravine, Dipsea &amp; Matt Davis Loop</h3>
+          <p class="ev__desc">6.9 miles · 1,650 ft gain · loop from Pantoll Campground. Redwood canyon and a ladder on the Steep Ravine descent, ocean bluffs on the Dipsea, then Matt Davis back up through the coastal grassland. Half a day, moderate.</p>
+          <p class="ev__where">Pantoll Campground · Mt Tamalpais State Park</p>
+          
+        </div>
+      </article>
+
+      <article class="ev ev--idea" style="--c: var(--c-hikes)">
+        <figure class="ev__media"><img src="img/alamere-falls.jpg" alt="" width="900" height="600" loading="lazy" decoding="async"><figcaption>Akos Kokai · CC BY 2.0</figcaption></figure>
+        <div class="ev__body">
+          <p class="ev__meta">
+            <span class="ev__cat">🥾 Hikes</span>
+            <span class="ev__soon">Date TBD</span>
+          </p>
+          <h3 class="ev__title">Alamere Falls via Coast Trail</h3>
+          <p class="ev__desc">13 miles · 1,050 ft gain · out-and-back from the Palomarin Trailhead. Long but gentle, past Bass and Pelican Lakes to a waterfall that drops straight onto the beach. Time it with low tide and bring more water than you think.</p>
+          <p class="ev__where">Palomarin Trailhead · Point Reyes National Seashore</p>
+          
+        </div>
+      </article>
+
+      <article class="ev ev--idea" style="--c: var(--c-hikes)">
+        <figure class="ev__media"><img src="img/lands-end.jpg" alt="" width="900" height="600" loading="lazy" decoding="async"><figcaption>Niranjan Arminius · CC BY-SA 4.0</figcaption></figure>
+        <div class="ev__body">
+          <p class="ev__meta">
+            <span class="ev__cat">🥾 Hikes</span>
+            <span class="ev__soon">Date TBD</span>
+          </p>
+          <h3 class="ev__title">Lands End Coastal Trail</h3>
+          <p class="ev__desc">3.4 miles · 350 ft gain · out-and-back from the Lands End Lookout. Cypress groves, the Sutro Baths ruins, shipwreck views and the Golden Gate straight ahead. Easy, and the one to bring people on who say they don&#39;t hike.</p>
+          <p class="ev__where">Lands End Lookout · San Francisco</p>
+          
+        </div>
+      </article>
+
+      <article class="ev ev--idea" style="--c: var(--c-hikes)">
+        <figure class="ev__media"><img src="img/angel-island.jpg" alt="" width="900" height="600" loading="lazy" decoding="async"><figcaption>Richard N Horne · CC BY-SA 4.0</figcaption></figure>
+        <div class="ev__body">
+          <p class="ev__meta">
+            <span class="ev__cat">🥾 Hikes</span>
+            <span class="ev__soon">Date TBD</span>
+          </p>
+          <h3 class="ev__title">Angel Island: North Ridge &amp; Sunset Trail Loop</h3>
+          <p class="ev__desc">5.5 miles · 1,150 ft gain · loop from Ayala Cove, reached by ferry from Tiburon or the SF Ferry Building. Climbs to Mount Livermore for a full 360 of the bay — city, bridges and Marin all at once. Check the ferry timetable before the last descent.</p>
+          <p class="ev__where">Ayala Cove · Angel Island State Park</p>
+          
+        </div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<section id="archive">
+  <div class="wrap">
+    <h2>Already happened <span class="count">19</span></h2>
+    <p>Every night that has been. Links still open the original invite.</p>
+    
+      <div class="yr">
+        <h3 class="yr__label">2026</h3>
+        <ul class="past">
+          <li><a class="past__row" href="https://partiful.com/e/qnziRLq7nvNn40ep0pqo" target="_blank" rel="noopener" style="--c: var(--c-mahjong)">
+            <span class="past__dot"></span>
+            <span class="past__title">13 Orphans</span>
+            <span class="past__cat">🀄 Mahjong</span>
+            <time class="past__date">Aug 24</time>
+          </a></li>
+          <li><a class="past__row" href="https://partiful.com/e/1tF5B6yU2NgbCrybRd6F" target="_blank" rel="noopener" style="--c: var(--c-parties)">
+            <span class="past__dot"></span>
+            <span class="past__title">LEHANGA &amp; SOJU @ Rhode Island (SF)</span>
+            <span class="past__cat">🎉 Parties</span>
+            <time class="past__date">Aug 15</time>
+          </a></li>
+          <li><a class="past__row" href="https://partiful.com/e/403qBdIizfLiTUTYHdNE" target="_blank" rel="noopener" style="--c: var(--c-parties)">
+            <span class="past__dot"></span>
+            <span class="past__title">long noodle day</span>
+            <span class="past__cat">🎉 Parties</span>
+            <time class="past__date">Apr 18</time>
+          </a></li>
+        </ul>
+      </div>
+
+      <div class="yr">
+        <h3 class="yr__label">2025</h3>
+        <ul class="past">
+          <li><a class="past__row" href="https://partiful.com/e/8h5faFORBV05Iuz3aHxe" target="_blank" rel="noopener" style="--c: var(--c-cabin)">
+            <span class="past__dot"></span>
+            <span class="past__title">Countdown Cabin</span>
+            <span class="past__cat">🛖 Cabin Trips</span>
+            <time class="past__date">Dec 26</time>
+          </a></li>
+          <li><a class="past__row" href="https://partiful.com/e/dhxOfjLOo85CWJOlk0JE" target="_blank" rel="noopener" style="--c: var(--c-parties)">
+            <span class="past__dot"></span>
+            <span class="past__title">UnsugarBaby in the Bay</span>
+            <span class="past__cat">🎉 Parties</span>
+            <time class="past__date">Apr 11</time>
+          </a></li>
+        </ul>
+      </div>
+
+      <div class="yr">
+        <h3 class="yr__label">2024</h3>
+        <ul class="past">
+          <li><a class="past__row" href="https://partiful.com/e/mdzbdGe0gu56Jb7PM0V1" target="_blank" rel="noopener" style="--c: var(--c-parties)">
+            <span class="past__dot"></span>
+            <span class="past__title">Chasing Tomorrow</span>
+            <span class="past__cat">🎉 Parties</span>
+            <time class="past__date">Dec 31</time>
+          </a></li>
+          <li><a class="past__row" href="https://partiful.com/e/8h9kKPOJ4y4wfMVHnumP" target="_blank" rel="noopener" style="--c: var(--c-parties)">
+            <span class="past__dot"></span>
+            <span class="past__title">Freakmont</span>
+            <span class="past__cat">🎉 Parties</span>
+            <time class="past__date">Nov 29</time>
+          </a></li>
+          <li><a class="past__row" href="https://partiful.com/e/u5ARDVgtGAv3pfyusMYs" target="_blank" rel="noopener" style="--c: var(--c-homeless)">
+            <span class="past__dot"></span>
+            <span class="past__title">Still Thankful</span>
+            <span class="past__cat">🧳 Homeless</span>
+            <time class="past__date">Nov 28</time>
+          </a></li>
+          <li><a class="past__row" href="https://partiful.com/e/3mFZQ8kU3YVlf32CKIhi" target="_blank" rel="noopener" style="--c: var(--c-tasting)">
+            <span class="past__dot"></span>
+            <span class="past__title">hella highballs</span>
+            <span class="past__cat">🍷 Drink Tasting</span>
+            <time class="past__date">Nov 12</time>
+          </a></li>
+          <li><a class="past__row" href="https://partiful.com/e/FU8y6bY37tX4oaNg01bi" target="_blank" rel="noopener" style="--c: var(--c-cabin)">
+            <span class="past__dot"></span>
+            <span class="past__title">Dan Dan Day</span>
+            <span class="past__cat">🛖 Cabin Trips</span>
+            <time class="past__date">Apr 18</time>
+          </a></li>
+        </ul>
+      </div>
+
+      <div class="yr">
+        <h3 class="yr__label">2023</h3>
+        <ul class="past">
+          <li><a class="past__row" href="https://partiful.com/e/BRacSqEMMX3oxOkJstem" target="_blank" rel="noopener" style="--c: var(--c-homeless)">
+            <span class="past__dot"></span>
+            <span class="past__title">Thankful</span>
+            <span class="past__cat">🧳 Homeless</span>
+            <time class="past__date">Nov 23</time>
+          </a></li>
+          <li><a class="past__row" href="https://partiful.com/e/v4jTCdNbPn1bnvX168eW" target="_blank" rel="noopener" style="--c: var(--c-dining)">
+            <span class="past__dot"></span>
+            <span class="past__title">Dan Dan Dinner</span>
+            <span class="past__cat">🍜 Dining</span>
+            <time class="past__date">Oct 3</time>
+          </a></li>
+          <li><a class="past__row" href="https://partiful.com/e/Hi0RWxUqG0xYEAHb2Quz" target="_blank" rel="noopener" style="--c: var(--c-dining)">
+            <span class="past__dot"></span>
+            <span class="past__title">Dinner</span>
+            <span class="past__cat">🍜 Dining</span>
+            <time class="past__date">Aug 25</time>
+          </a></li>
+          <li><a class="past__row" href="https://partiful.com/e/SNsJGNmfTXk2ONTxvrkm" target="_blank" rel="noopener" style="--c: var(--c-parties)">
+            <span class="past__dot"></span>
+            <span class="past__title">DanDan in Canada Land</span>
+            <span class="past__cat">🎉 Parties</span>
+            <time class="past__date">Jul 14</time>
+          </a></li>
+          <li><a class="past__row" href="https://partiful.com/e/qu8BVvXijNuR7TdFOFzi" target="_blank" rel="noopener" style="--c: var(--c-parties)">
+            <span class="past__dot"></span>
+            <span class="past__title">Dan NYC</span>
+            <span class="past__cat">🎉 Parties</span>
+            <time class="past__date">May 22</time>
+          </a></li>
+          <li><a class="past__row" href="https://partiful.com/e/v4dKaUkGw9nNu3SkOJsT" target="_blank" rel="noopener" style="--c: var(--c-parties)">
+            <span class="past__dot"></span>
+            <span class="past__title">Dan BDay Bay</span>
+            <span class="past__cat">🎉 Parties</span>
+            <time class="past__date">Apr 29</time>
+          </a></li>
+          <li><a class="past__row" href="https://partiful.com/e/KPdUeEAIehdtB6f4SFBH" target="_blank" rel="noopener" style="--c: var(--c-parties)">
+            <span class="past__dot"></span>
+            <span class="past__title">Dan BDay LA</span>
+            <span class="past__cat">🎉 Parties</span>
+            <time class="past__date">Apr 22</time>
+          </a></li>
+          <li><a class="past__row" href="https://partiful.com/e/fZOzFLzRiW7YwL5km993" target="_blank" rel="noopener" style="--c: var(--c-parties)">
+            <span class="past__dot"></span>
+            <span class="past__title">Dan Bday SEA</span>
+            <span class="past__cat">🎉 Parties</span>
+            <time class="past__date">Apr 8</time>
+          </a></li>
+        </ul>
+      </div>
+
+      <div class="yr">
+        <h3 class="yr__label">2022</h3>
+        <ul class="past">
+          <li><a class="past__row" href="https://partiful.com/e/5RYpwc4Y51eOdKiPZ1Zq" target="_blank" rel="noopener" style="--c: var(--c-parties)">
+            <span class="past__dot"></span>
+            <span class="past__title">EOY PARTY AT DAN DAN’s</span>
+            <span class="past__cat">🎉 Parties</span>
+            <time class="past__date">Dec 30</time>
+          </a></li>
+        </ul>
+      </div>
+  </div>
+</section>
+
+<p class="stamp">Snapshot of 25 events, published August 25, 2026.</p>
+<!-- events:end -->
+
 <section>
   <div class="wrap">
     <h2>Eight kinds of evening</h2>
-    <p>Every event belongs to a series. The home page shows what's coming up in each, soonest first,
-       and ideas with no date yet wait below under “On the list”.</p>
+    <p>Every event above belongs to one of these series. What follows is about the site itself —
+       how it is built, and how to run your own.</p>
     <ul class="cats">
       <li style="--c: var(--c-mahjong)"><span class="dot"></span>🀄 Mahjong</li>
       <li style="--c: var(--c-hikes)"><span class="dot"></span>🥾 Hikes</li>
@@ -145,7 +462,7 @@
       <div class="card">
         <h3>Up next &amp; the archive</h3>
         <p>Scheduled events sit at the top, soonest first. Six hours after an event starts it moves
-           itself into the archive, grouped by year.</p>
+           itself into the archive, grouped by year — the same lists you scrolled through above.</p>
       </div>
       <div class="card">
         <h3>The list</h3>

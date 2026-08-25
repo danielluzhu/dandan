@@ -10,6 +10,8 @@
     "sync": "bun run scripts/sync.js",
     "export": "bun run scripts/export-csv.js",
     "idea": "bun run scripts/add-idea.js",
-    "import": "bun run scripts/import-contacts.js"
+    "import": "bun run scripts/import-contacts.js",
+    "build:docs": "bun run scripts/build-docs.js",
+    "publish": "bun run sync && bun run build:docs"
   }
 }
