@@ -3,7 +3,7 @@ import { db, allSignups, allEvents, upcomingEvents, undatedEvents, pastEvents, a
 import { fetchPartifulEvent } from "./lib/partiful.js";
 import { syncEvents, syncStatus, startAutoSync } from "./lib/sync.js";
 import { signupsCsv, writeSignupsCsv } from "./lib/csv.js";
-import { homePage, passwordPage, adminPage, listPage } from "./lib/render.js";
+import { homePage, passwordPage, adminPage, listPage, invitePage, fmtLong } from "./lib/render.js";
 
 const PORT = Number(process.env.PORT || 4321);
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
@@ -133,6 +133,42 @@ async function handleList(req, url) {
       writeSignupsCsv();
       return redirect("/list?flash=Contact+deleted.#contacts");
     }
+  }
+
+  /**
+   * Invite mode: the join between the list and the calendar. Everyone who ticked
+   * this event's series, with the message already written.
+   */
+  if (pathname === "/list/invite" || pathname.startsWith("/list/invite/")) {
+    const upcoming = [...upcomingEvents(), ...undatedEvents()];
+    if (!upcoming.length) {
+      return html(listPage({
+        signups: allSignups(),
+        error: "Nothing upcoming to invite anyone to yet.",
+        flash: null,
+      }));
+    }
+
+    const wanted = pathname.slice("/list/invite/".length);
+    const event = upcoming.find((e) => e.id === wanted) || upcoming[0];
+    const everyone = allSignups();
+    const wants = (s) => s.categories.split(",").includes(event.category);
+
+    const when = event.start_date ? fmtLong(event.start_date, event.timezone) : null;
+    const message = [
+      `${event.title} — ${when || "date to be confirmed"}${event.location ? `, ${event.location}` : ""}.`,
+      event.url ? `RSVP: ${event.url}` : "",
+      "Would love to see you there.",
+    ].filter(Boolean).join("\n\n");
+
+    return html(invitePage({
+      event,
+      guests: everyone.filter(wants),
+      others: everyone.filter((s) => !wants(s)),
+      upcoming,
+      message,
+      flash: url.searchParams.get("flash"),
+    }));
   }
 
   if (pathname === "/list") {

@@ -134,3 +134,72 @@
   sort?.addEventListener("change", apply);
   apply();
 })();
+
+/* ---------- invite mode ---------- */
+(() => {
+  const table = document.querySelector(".invite__tbl");
+  if (!table) return;
+
+  const msg = document.getElementById("msg");
+  const count = document.getElementById("n");
+  const all = document.getElementById("all");
+  const picks = () => [...document.querySelectorAll(".pick")];
+  const chosen = () => picks().filter((p) => p.checked);
+
+  const handles = () =>
+    chosen().map((p) => p.dataset.handle).filter(Boolean).join(", ");
+  const numbers = () =>
+    chosen().map((p) => p.dataset.phone).filter(Boolean);
+
+  function refresh() {
+    if (count) count.textContent = String(chosen().length);
+    const sms = document.getElementById("sms-all");
+    if (sms) {
+      const nums = numbers();
+      // iOS wants &body=, Android wants ?body=; the comma-joined list is what both read.
+      sms.href = nums.length ? `sms:${nums.join(",")}&body=${encodeURIComponent(msg?.value || "")}` : "#";
+      sms.classList.toggle("is-off", nums.length === 0);
+      sms.title = nums.length ? `${nums.length} with a number` : "Nobody selected has a phone number";
+    }
+  }
+
+  /** Clipboard needs a user gesture and a secure context; say so rather than failing silently. */
+  async function copy(text, button) {
+    if (!text) {
+      // Silently copying nothing looks like the button is broken.
+      const was = button.textContent;
+      button.textContent = "Nothing to copy";
+      setTimeout(() => { button.textContent = was; }, 1600);
+      return;
+    }
+    const said = button.textContent;
+    try {
+      await navigator.clipboard.writeText(text);
+      button.textContent = "Copied";
+    } catch {
+      button.textContent = "Press ⌘C";
+      // Fall back to a selection the person can copy themselves.
+      const box = document.createElement("textarea");
+      box.value = text;
+      document.body.append(box);
+      box.select();
+      setTimeout(() => box.remove(), 8000);
+    }
+    setTimeout(() => { button.textContent = said; }, 1600);
+  }
+
+  document.getElementById("copy-msg")?.addEventListener("click", (e) => copy(msg?.value || "", e.target));
+  document.getElementById("copy-handles")?.addEventListener("click", (e) => copy(handles(), e.target));
+  document.getElementById("copy-both")?.addEventListener("click", (e) =>
+    copy([handles(), msg?.value || ""].filter(Boolean).join("\n\n"), e.target));
+
+  all?.addEventListener("change", () => {
+    // The header checkbox governs its own table only, not the "everyone else" one.
+    table.querySelectorAll(".pick").forEach((p) => { p.checked = all.checked; });
+    refresh();
+  });
+
+  document.addEventListener("change", (e) => { if (e.target.classList?.contains("pick")) refresh(); });
+  msg?.addEventListener("input", refresh);
+  refresh();
+})();

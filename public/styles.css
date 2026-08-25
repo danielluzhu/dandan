@@ -370,6 +370,21 @@ img { max-width: 100%; display: block; }
 
 .admin__lede { margin: -.5rem 0 1.25rem; color: var(--ink-soft); max-width: 44rem; }
 
+/* ---------- invite ---------- */
+.invite__pick { margin-bottom: .9rem; }
+.invite__what { margin: 0 0 1.1rem; font-size: .95rem; }
+.field--msg textarea {
+  width: 100%; padding: .7rem .85rem; border-radius: 12px; resize: vertical;
+  border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+  font: 400 .92rem/1.6 Inter, ui-sans-serif, system-ui, sans-serif;
+}
+.invite__acts { display: flex; flex-wrap: wrap; align-items: center; gap: .55rem; margin-top: .9rem; }
+.invite__count { font-size: .85rem; color: var(--ink-soft); margin-left: auto; }
+.invite__tbl td { vertical-align: middle; }
+.invite__tbl .dim td:not(:first-child) { opacity: .62; }
+.muted { color: var(--ink-soft); }
+.is-off { opacity: .45; pointer-events: none; }
+
 /* A recap photo is the night itself, not the invite art — it earns a warmer frame. */
 .past__thumb--recap img { box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 45%, transparent); }
 
