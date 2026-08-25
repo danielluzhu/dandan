@@ -59,7 +59,7 @@ function eventCard(ev, i) {
             <span class="ev__cat">${cat.emoji} ${esc(cat.label)}</span>
             ${soon ? `<span class="ev__soon">${esc(soon)}</span>` : ""}
           </p>
-          <h3 class="ev__title">${esc(ev.title)}</h3>
+          <h3 class="ev__title"><a href="e/${esc(ev.id)}.html">${esc(ev.title)}</a></h3>
           <p class="ev__when">${esc(fmtLong(ev.start_date, ev.timezone))}</p>
           ${ev.location ? `<p class="ev__where">${esc(ev.location)}</p>` : ""}
           <p class="ev__foot">
@@ -81,7 +81,7 @@ function ideaCard(ev) {
             <span class="ev__cat">${cat.emoji} ${esc(cat.label)}</span>
             <span class="ev__soon">Date TBD</span>
           </p>
-          <h3 class="ev__title">${esc(ev.title)}</h3>
+          <h3 class="ev__title"><a href="e/${esc(ev.id)}.html">${esc(ev.title)}</a></h3>
           ${ev.description ? `<p class="ev__desc">${esc(ev.description)}</p>` : ""}
           ${ev.location ? `<p class="ev__where">${esc(ev.location)}</p>` : ""}
           ${ev.url ? `<p class="ev__foot">
@@ -106,8 +106,8 @@ function archiveSection(past) {
         <ul class="past">
           ${evs.map((ev) => {
             const cat = categoryBySlug[ev.category] || { emoji: "\u2022", label: ev.category };
-            const tag = ev.url ? "a" : "div";
-            const href = ev.url ? ` href="${esc(ev.url)}" target="_blank" rel="noopener"` : "";
+            const tag = "a";
+            const href = ` href="e/${esc(ev.id)}.html"`;
             return `<li data-category="${esc(ev.category)}"><${tag} class="past__row"${href} style="--c: var(--c-${esc(ev.category)})">
             ${ev.recap_thumb
               ? `<img class="past__pic" src="${esc(src(ev.recap_thumb))}" alt="" width="56" height="56" loading="lazy" decoding="async"${ev.recap_credit ? ` title="${esc(ev.recap_credit)}"` : ""}>`
@@ -148,6 +148,89 @@ ${image ? `<meta property="og:image" content="${esc(image)}">
 <meta name="twitter:title" content="dandan">
 <meta name="twitter:description" content="${esc(description)}">
 ${image ? `<meta name="twitter:image" content="${esc(image)}">` : ""}`;
+}
+
+/**
+ * One page per event, so that sharing a single night previews that night rather
+ * than the whole site. These are generated from the page shell, so they inherit
+ * its styles and theme without a second stylesheet to keep in step.
+ */
+function eventPage(ev, shell, hasIcs) {
+  const cat = categoryBySlug[ev.category] || { emoji: "\u2022", label: ev.category };
+  const image = ev.image_url
+    ? (ev.image_url.startsWith("/") ? BASE + ev.image_url.slice(1) : ev.image_url)
+    : null;
+  const when = ev.start_date ? fmtLong(ev.start_date, ev.timezone) : "Date to be decided";
+  const description = [when, ev.location, ev.description].filter(Boolean).join(" · ").slice(0, 300);
+
+  const head = `
+<meta property="og:site_name" content="dandan">
+<meta property="og:title" content="${esc(ev.title)}">
+<meta property="og:description" content="${esc(description)}">
+<meta property="og:type" content="article">
+<meta property="og:url" content="${esc(BASE)}e/${esc(ev.id)}.html">
+${image ? `<meta property="og:image" content="${esc(image)}">
+<meta property="og:image:width" content="900">
+<meta property="og:image:height" content="600">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="${esc(image)}">` : `<meta name="twitter:card" content="summary">`}
+<meta name="twitter:title" content="${esc(ev.title)}">
+<meta name="twitter:description" content="${esc(description)}">`;
+
+  const body = `
+<header class="hero hero--one">
+  <div class="wrap">
+    <p class="hero__eyebrow"><a href="../">dandan</a> · ${cat.emoji} ${esc(cat.label)}</p>
+    <h1>${esc(ev.title)}</h1>
+    <p class="hero__tagline">${esc(when)}${ev.location ? ` · ${esc(ev.location)}` : ""}</p>
+    <div class="hero__cta">
+      ${ev.url ? `<a class="btn" href="${esc(ev.url)}" target="_blank" rel="noopener">RSVP on Partiful</a>` : ""}
+      ${/* Only events still ahead of us get a calendar file; offering one for a
+             night that already happened would link to nothing. */""}
+      ${hasIcs ? `<a class="btn btn--ghost" href="${esc(ev.id)}.ics" download>Add to calendar</a>` : ""}
+      <a class="btn btn--ghost" href="../">Everything else</a>
+    </div>
+  </div>
+</header>
+
+<section>
+  <div class="wrap one">
+    ${ev.image_url ? `<figure class="one__media">
+      <img src="${esc(ev.image_url.startsWith("/") ? ".." + ev.image_url : ev.image_url)}" alt="" width="900" height="600">
+      ${ev.image_credit ? `<figcaption>${esc(ev.image_credit)}</figcaption>` : ""}
+    </figure>` : ""}
+    ${ev.description ? `<p class="one__desc">${esc(ev.description)}</p>` : ""}
+    ${ev.going_count ? `<p class="one__going">${ev.going_count} going.</p>` : ""}
+  </div>
+</section>
+
+<footer class="foot">
+  <div class="wrap">
+    <p><a href="../">All the events</a> · <a href="https://github.com/danielluzhu/dandan">source</a></p>
+  </div>
+</footer>`;
+
+  // Same <head> and <style> as the index; only the meta block and body differ.
+  const styles = shell.slice(shell.indexOf("<style>"), shell.indexOf("</style>") + 8);
+  const fonts = shell.slice(shell.indexOf('<link rel="preconnect"'), shell.indexOf("<style>"));
+
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${esc(ev.title)} · dandan</title>
+<meta name="description" content="${esc(description)}">
+<link rel="canonical" href="${esc(BASE)}e/${esc(ev.id)}.html">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%F0%9F%8E%89</text></svg>">
+${fonts}${styles}
+${head}
+</head>
+<body>
+${body}
+</body>
+</html>
+`;
 }
 
 function renderContact() {
@@ -274,6 +357,12 @@ writeFileSync(new URL("dandan.ics", DOCS), buildIcs(scheduled, {
 }));
 for (const ev of scheduled) {
   writeFileSync(new URL(`e/${ev.id}.ics`, DOCS), buildIcs([ev], { name: ev.title }));
+}
+
+const withIcs = new Set(scheduled.map((e) => e.id));
+const everyEvent = [...upcomingEvents(), ...undatedEvents(), ...pastEvents()];
+for (const ev of everyEvent) {
+  writeFileSync(new URL(`e/${ev.id}.html`, DOCS), eventPage(ev, page, withIcs.has(ev.id)));
 }
 
 // Ideas use cover images kept in the repo; the remote ones load from Partiful's CDN.
