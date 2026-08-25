@@ -20,6 +20,14 @@ const PAGE = new URL("index.html", DOCS);
 /** Pages serves this repo from a subpath, and og:image only accepts absolute URLs. */
 const BASE = "https://danielluzhu.github.io/dandan/";
 
+/**
+ * Whoever lands on this page has no way to reach me otherwise — the signup form
+ * lives on the machine at home, which is not always up. Set HOST_INSTAGRAM in
+ * .env to switch the invitation on; left unset, the page says nothing rather
+ * than shipping a link to a stranger's profile.
+ */
+const HANDLE = (process.env.HOST_INSTAGRAM || "").trim().replace(/^@+/, "");
+
 const year = (iso, tz) =>
   new Intl.DateTimeFormat("en-US", { timeZone: tz || "America/Los_Angeles", year: "numeric" }).format(new Date(iso));
 const shortDate = (iso, tz) =>
@@ -140,6 +148,23 @@ ${image ? `<meta property="og:image" content="${esc(image)}">
 ${image ? `<meta name="twitter:image" content="${esc(image)}">` : ""}`;
 }
 
+function renderContact() {
+  if (!HANDLE) return "";
+  return `
+<section id="keep-in-touch" class="ask">
+  <div class="wrap">
+    <h2>Want in on the next one?</h2>
+    <p>Most of these are small, and word of mouth is how they fill. Say hello and say which of
+       the eight you'd come to — mahjong, a hike, a film, dinner, a tasting, a cabin, a Homeless
+       weekend, a party — and you'll hear about the next one.</p>
+    <p class="ask__cta">
+      <a class="btn" href="https://ig.me/m/${esc(HANDLE)}" target="_blank" rel="noopener">Message me on Instagram</a>
+      <span class="ask__hint">@${esc(HANDLE)}</span>
+    </p>
+  </div>
+</section>`;
+}
+
 function render() {
   const upcoming = upcomingEvents();
   const ideas = undatedEvents();
@@ -203,6 +228,7 @@ function inject(page, name, content) {
 let page = readFileSync(PAGE, "utf8");
 page = inject(page, "events", render());
 page = inject(page, "og", renderOg(upcomingEvents()[0]));
+page = inject(page, "contact", renderContact());
 writeFileSync(PAGE, page);
 
 /**
@@ -225,4 +251,5 @@ mkdirSync(new URL("img/", DOCS), { recursive: true });
 cpSync(new URL("../public/img/", import.meta.url), new URL("img/", DOCS), { recursive: true });
 
 const total = upcomingEvents().length + undatedEvents().length + pastEvents().length;
+if (!HANDLE) console.log("HOST_INSTAGRAM is not set — the page has no way for anyone to reach you.");
 console.log(`Wrote docs/index.html with ${total} events and ${scheduled.length} calendar file${scheduled.length === 1 ? "" : "s"}. Commit docs/ and push to publish.`);
