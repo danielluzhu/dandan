@@ -243,7 +243,10 @@ function renderContact() {
        the eight you'd come to — mahjong, a hike, a film, dinner, a tasting, a cabin, a Homeless
        weekend, a party — and you'll hear about the next one.</p>
     <p class="ask__cta">
-      <a class="btn" href="https://ig.me/m/${esc(HANDLE)}" target="_blank" rel="noopener">Message me on Instagram</a>
+      ${/* ig.me/m/<handle> is the "message me" deep link, but it only resolves on mobile —
+             a desktop browser gets a Facebook error page. The profile works everywhere, and
+             has the Message button on it. */""}
+      <a class="btn" href="https://instagram.com/${esc(HANDLE)}" target="_blank" rel="noopener">Message me on Instagram</a>
       <span class="ask__hint">@${esc(HANDLE)}</span>
     </p>
   </div>
