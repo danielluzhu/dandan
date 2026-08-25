@@ -52,7 +52,7 @@ function eventCard(ev, i) {
   const cat = categoryBySlug[ev.category] || { emoji: "\u2022", label: ev.category };
   const soon = countdown(ev.start_date);
   return `
-      <article class="ev" style="--c: var(--c-${esc(ev.category)})">
+      <article class="ev" data-category="${esc(ev.category)}" style="--c: var(--c-${esc(ev.category)})">
         <figure class="ev__media">${cover(ev, cat, i < 2)}</figure>
         <div class="ev__body">
           <p class="ev__meta">
@@ -74,7 +74,7 @@ function eventCard(ev, i) {
 function ideaCard(ev) {
   const cat = categoryBySlug[ev.category] || { emoji: "\u2022", label: ev.category };
   return `
-      <article class="ev ev--idea" style="--c: var(--c-${esc(ev.category)})">
+      <article class="ev ev--idea" data-category="${esc(ev.category)}" style="--c: var(--c-${esc(ev.category)})">
         <figure class="ev__media">${cover(ev, cat, false)}</figure>
         <div class="ev__body">
           <p class="ev__meta">
@@ -108,7 +108,7 @@ function archiveSection(past) {
             const cat = categoryBySlug[ev.category] || { emoji: "\u2022", label: ev.category };
             const tag = ev.url ? "a" : "div";
             const href = ev.url ? ` href="${esc(ev.url)}" target="_blank" rel="noopener"` : "";
-            return `<li><${tag} class="past__row"${href} style="--c: var(--c-${esc(ev.category)})">
+            return `<li data-category="${esc(ev.category)}"><${tag} class="past__row"${href} style="--c: var(--c-${esc(ev.category)})">
             <span class="past__dot"></span>
             <span class="past__title">${esc(ev.title)}</span>
             <span class="past__cat">${cat.emoji} ${esc(cat.label)}</span>
@@ -165,6 +165,33 @@ function renderContact() {
 </section>`;
 }
 
+/**
+ * Chips for filtering, built from the events that are actually here — a series
+ * with nothing in it would otherwise get a chip that filters to an empty page.
+ * The counts come from the same pass, so they cannot drift from the lists below.
+ */
+function renderFilters(events) {
+  const counts = new Map();
+  for (const ev of events) counts.set(ev.category, (counts.get(ev.category) || 0) + 1);
+  if (counts.size < 2) return "";
+
+  const chips = [...counts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .map(([slug, n]) => {
+      const cat = categoryBySlug[slug] || { emoji: "\u2022", label: slug };
+      return `<button class="chip" type="button" data-filter="${esc(slug)}" aria-pressed="false"
+        style="--c: var(--c-${esc(slug)})">${cat.emoji} ${esc(cat.label)} <span class="chip__n">${n}</span></button>`;
+    }).join("\n      ");
+
+  return `
+  <div class="filters" hidden>
+    <div class="wrap">
+      <button class="chip chip--all is-on" type="button" data-filter="" aria-pressed="true">Everything <span class="chip__n">${events.length}</span></button>
+      ${chips}
+    </div>
+  </div>`;
+}
+
 function render() {
   const upcoming = upcomingEvents();
   const ideas = undatedEvents();
@@ -175,6 +202,7 @@ function render() {
   }).format(new Date());
 
   return `
+${renderFilters([...upcoming, ...ideas, ...past])}
 <section id="up-next">
   <div class="wrap">
     <h2>Up next</h2>
