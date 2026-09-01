@@ -27,7 +27,7 @@ the requests.
 
 ```bash
 cp .env.example .env      # then set ADMIN_PASSWORD and SESSION_SECRET
-bun run start             # http://localhost:4321
+bun run start             # http://localhost:3000
 bun run dev               # same, with auto-reload
 ```
 
@@ -50,7 +50,7 @@ The unit deliberately has no `EnvironmentFile`: Bun reads `/workspace/.env` itse
 environment variable beats the file, so pointing systemd at it too would put two parsers on one
 file with systemd's reading of an unquoted `SITE_TAGLINE` quietly winning.
 
-The machine proxies the port at `https://<hostname>-4321.another.ac`, behind an
+The machine proxies the port at `https://<hostname>-3000.another.ac`, behind an
 [another](https://access.anothercomputer.co/) sign-in unless the port is opened publicly in the
 dashboard. The public page on GitHub Pages needs none of that.
 

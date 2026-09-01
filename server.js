@@ -5,7 +5,7 @@ import { syncEvents, syncStatus, startAutoSync } from "./lib/sync.js";
 import { signupsCsv, writeSignupsCsv } from "./lib/csv.js";
 import { homePage, passwordPage, adminPage, listPage, invitePage, fmtLong } from "./lib/render.js";
 
-const PORT = Number(process.env.PORT || 4321);
+const PORT = Number(process.env.PORT || 3000);
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 const SESSION_SECRET = process.env.SESSION_SECRET || "dev-only-secret";
 const VALID_SLUGS = new Set(CATEGORIES.map((c) => c.slug));
