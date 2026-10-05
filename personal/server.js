@@ -60,11 +60,14 @@ const server = Bun.serve({
 
     const file = Bun.file(new URL(path, PUBLIC_DIR));
     if (await file.exists()) {
-      return new Response(file, {
-        headers: {
-          "cache-control": path === "index.html" ? "no-cache" : "public, max-age=86400",
-        },
-      });
+      // Photos get replaced under the same filenames, so revalidate rather than
+      // pinning a stale copy in the browser for a day.
+      const lastModified = new Date(file.lastModified).toUTCString();
+      const headers = { "cache-control": "no-cache", "last-modified": lastModified };
+      if (req.headers.get("if-modified-since") === lastModified) {
+        return new Response(null, { status: 304, headers });
+      }
+      return new Response(file, { headers });
     }
     return new Response("Not found", { status: 404 });
   },

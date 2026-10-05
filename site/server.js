@@ -93,9 +93,15 @@ const server = Bun.serve({
 
     const file = Bun.file(new URL(path, PUBLIC_DIR));
     if (await file.exists()) {
-      return new Response(file, {
-        headers: { "cache-control": path === "index.html" ? "no-cache" : "public, max-age=3600" },
-      });
+      // Assets keep their filenames when they're edited, so a long max-age pins
+      // a stale copy in the browser until it expires. Revalidate every time
+      // instead: unchanged files cost a 304, and edits show up on reload.
+      const lastModified = new Date(file.lastModified).toUTCString();
+      const headers = { "cache-control": "no-cache", "last-modified": lastModified };
+      if (req.headers.get("if-modified-since") === lastModified) {
+        return new Response(null, { status: 304, headers });
+      }
+      return new Response(file, { headers });
     }
 
     return new Response("Not found", { status: 404 });
