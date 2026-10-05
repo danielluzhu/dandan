@@ -1,0 +1,41 @@
+# The personal site, kept running by systemd.
+#
+#   sudo cp deploy/dz-personal.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now dz-personal
+#
+# Logs: journalctl -u dz-personal -f
+
+[Unit]
+Description=dz-personal — Dan Zhu personal site (port 3002)
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/workspace/personal
+ExecStart=/home/ubuntu/.bun/bin/bun run /workspace/personal/server.js
+
+Restart=always
+RestartSec=2
+
+KillSignal=SIGINT
+TimeoutStopSec=10
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectControlGroups=true
+ProtectKernelTunables=true
+# Reads data/events.db; writes nothing.
+ReadWritePaths=/workspace
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=dz-personal
+
+[Install]
+WantedBy=multi-user.target
