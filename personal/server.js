@@ -16,14 +16,11 @@ function hostingStats() {
   const totals = db
     .query("SELECT COUNT(*) events, COALESCE(SUM(going_count),0) rsvps FROM events WHERE hidden = 0")
     .get();
-  const years = db
-    .query("SELECT MIN(substr(start_date,1,4)) first FROM events WHERE hidden = 0 AND start_date IS NOT NULL")
-    .get();
   const byCat = db
     .query(`SELECT category, COUNT(*) n FROM events WHERE hidden = 0 GROUP BY category ORDER BY n DESC`)
     .all()
     .map((r) => ({ ...r, label: CATEGORY_LABEL[r.category] || r.category }));
-  return { ...totals, since: years?.first || null, byCat };
+  return { ...totals, byCat };
 }
 
 function recentEvents(limit = 8) {

@@ -16,14 +16,6 @@ for (const a of document.querySelectorAll('a[href^="http://localhost:3001"], .js
 }
 
 /* Hosting numbers and recent events, read live from the events database. */
-const fmtDate = (iso) => {
-  try {
-    return new Date(iso).toLocaleDateString("en-US", { month: "short", year: "numeric" });
-  } catch {
-    return "";
-  }
-};
-
 const esc = (s) =>
   String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
@@ -45,12 +37,11 @@ async function loadHosting() {
     return;
   }
 
-  const { events: n, rsvps, byCat, since } = data.stats;
+  const { events: n, rsvps, byCat } = data.stats;
   const cells = [
     [n, "gatherings"],
     [rsvps, "people through the door"],
     [byCat.length, "kinds of trouble"],
-    [since || "—", "since"],
   ];
   tally.innerHTML = cells.map(([v, l]) => `<li><b>${esc(v)}</b><span>${esc(l)}</span></li>`).join("");
 
@@ -66,9 +57,7 @@ async function loadHosting() {
   events.innerHTML = data.recent
     .map((e) => {
       const img = e.image_thumb || e.image_url;
-      const when = fmtDate(e.start_date);
-      const who = e.going_count ? `${e.going_count} went` : "";
-      const meta = [when, who].filter(Boolean).join(" · ");
+      const meta = e.going_count ? `${e.going_count} went` : "";
       return `<article class="ev">
         <img src="${esc(img)}" alt="" loading="lazy" decoding="async">
         <div class="ev-body">
