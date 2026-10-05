@@ -1,0 +1,11 @@
+{
+  "name": "dz-site",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "bun run server.js",
+    "dev": "bun --watch server.js",
+    "pitches": "bun run scripts/pitches.js"
+  }
+}
