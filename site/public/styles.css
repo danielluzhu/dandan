@@ -282,10 +282,5 @@ h2{margin:0;font-size:clamp(2.1rem,6vw,4.2rem);line-height:.98;font-weight:700;l
 .logo img{height:30px;width:auto;max-width:132px;object-fit:contain}
 /* The EvoEco mark is a low-resolution stacked lockup; it holds up better small. */
 .logo-evoeco img{height:21px}
-/* Fallback for companies whose logo file we don't have yet. */
-.logo-mark::before{
-  content:attr(data-mark);
-  display:grid;place-items:center;height:30px;min-width:30px;padding:0 .6rem;
-  border:1px solid var(--line-2);border-radius:8px;
-  font-family:var(--mono);font-size:.8rem;letter-spacing:.06em;color:var(--fg-2);
-}
+/* A tall icon-only mark would tower over the wordmarks at a shared height. */
+.logo-tall img{height:34px}
