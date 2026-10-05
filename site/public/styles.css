@@ -86,10 +86,15 @@ a{color:inherit}
 .eyebrow .dot{color:var(--accent-2);margin:0 .35rem}
 
 h1{
-  margin:0;font-size:clamp(3.1rem,11.5vw,8.6rem);line-height:.92;
+  margin:0;font-size:clamp(3rem,9vw,6.4rem);line-height:.95;
   font-weight:700;letter-spacing:-.045em;
 }
-h1 .accent{
+.tagline{
+  margin:clamp(.9rem,2vw,1.3rem) 0 0;max-width:20ch;
+  font-size:clamp(1.7rem,4.4vw,3rem);line-height:1.08;
+  font-weight:500;letter-spacing:-.035em;color:var(--fg);
+}
+.accent{
   background:linear-gradient(96deg,var(--accent-2) 0%,var(--hot) 92%);
   -webkit-background-clip:text;background-clip:text;color:transparent;
 }
@@ -121,18 +126,6 @@ h1 .accent{
 .facts b{display:block;font-size:1.6rem;letter-spacing:-.03em;line-height:1.1}
 .facts span{font-family:var(--mono);font-size:.7rem;text-transform:uppercase;letter-spacing:.12em;color:var(--fg-3)}
 
-/* ===================== marquee ===================== */
-.marquee{
-  border-top:1px solid var(--line);border-bottom:1px solid var(--line);
-  background:var(--bg-2);overflow:hidden;padding:.9rem 0;
-}
-.marquee-track{
-  display:flex;gap:2rem;width:max-content;
-  animation:slide 44s linear infinite;
-  font-family:var(--mono);font-size:.78rem;text-transform:uppercase;letter-spacing:.14em;color:var(--fg-3);
-}
-.marquee-track span:nth-child(even){color:var(--accent)}
-@keyframes slide{to{transform:translateX(-50%)}}
 
 /* ===================== sections ===================== */
 .section{max-width:var(--max);margin:0 auto;padding:clamp(4.5rem,10vw,8rem) var(--pad)}
@@ -150,7 +143,9 @@ h2{margin:0;font-size:clamp(2.1rem,6vw,4.2rem);line-height:.98;font-weight:700;l
 .sec-sub{max-width:62ch;margin:1.3rem 0 0;color:var(--fg-2);font-size:clamp(1rem,1.3vw,1.1rem)}
 
 /* ===================== track record ===================== */
-.track{list-style:none;margin:0;padding:0;display:grid;gap:1.25rem;grid-template-columns:repeat(auto-fit,minmax(290px,1fr))}
+.track{list-style:none;margin:0;padding:0;display:grid;gap:1.25rem;grid-template-columns:repeat(4,1fr)}
+@media(max-width:1040px){.track{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:600px){.track{grid-template-columns:1fr}}
 .card{
   position:relative;padding:2rem 1.75rem 1.75rem;border-radius:18px;
   background:var(--bg-2);border:1px solid var(--line);overflow:hidden;
@@ -162,9 +157,11 @@ h2{margin:0;font-size:clamp(2.1rem,6vw,4.2rem);line-height:.98;font-weight:700;l
 .card-amazon::before{background:linear-gradient(90deg,var(--accent),var(--accent-2))}
 .card-evoeco::before{background:linear-gradient(90deg,var(--lime),#6fd36f)}
 .card-reach::before{background:linear-gradient(90deg,var(--hot),#FFB03A)}
+.card-blue::before{background:linear-gradient(90deg,#3BA7D6,#5FD6C4)}
 .card-amazon:hover{border-color:var(--accent)}
 .card-evoeco:hover{border-color:var(--lime)}
 .card-reach:hover{border-color:var(--hot)}
+.card-blue:hover{border-color:#3BA7D6}
 .card .num{
   display:block;font-family:var(--mono);font-size:.74rem;letter-spacing:.14em;color:var(--fg-3);margin-bottom:1.1rem;
 }
