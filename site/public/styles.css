@@ -133,13 +133,11 @@ h1{
 .band>*{max-width:var(--max);margin-inline:auto}
 
 .sec-head{margin-bottom:clamp(2.5rem,5vw,4rem)}
-.sec-head.sub{margin-top:clamp(4rem,8vw,6rem)}
 .kicker{
   margin:0 0 1rem;font-family:var(--mono);font-size:.74rem;
   text-transform:uppercase;letter-spacing:.16em;color:var(--accent-2);
 }
 h2{margin:0;font-size:clamp(2.1rem,6vw,4.2rem);line-height:.98;font-weight:700;letter-spacing:-.04em}
-.h2-small{font-size:clamp(1.7rem,4vw,2.8rem)}
 .sec-sub{max-width:62ch;margin:1.3rem 0 0;color:var(--fg-2);font-size:clamp(1rem,1.3vw,1.1rem)}
 
 /* ===================== track record ===================== */
@@ -203,15 +201,6 @@ h2{margin:0;font-size:clamp(2.1rem,6vw,4.2rem);line-height:.98;font-weight:700;l
 .checks li::before{
   content:"→";position:absolute;left:0;top:.7rem;color:var(--accent-2);font-family:var(--mono);font-size:.85rem;
 }
-
-/* ===================== projects ===================== */
-.proj-grid{display:grid;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:18px;overflow:hidden;grid-template-columns:repeat(3,1fr)}
-@media(max-width:900px){.proj-grid{grid-template-columns:repeat(2,1fr)}}
-@media(max-width:560px){.proj-grid{grid-template-columns:1fr}}
-.proj{background:var(--bg);padding:1.7rem 1.5rem;transition:background .22s ease}
-.proj:hover{background:var(--bg-2)}
-.proj h4{margin:0 0 .55rem;font-size:1.08rem;letter-spacing:-.02em}
-.proj p{margin:0;color:var(--fg-3);font-size:.92rem}
 
 /* ===================== timeline ===================== */
 .timeline{list-style:none;margin:0;padding:0}
@@ -295,23 +284,20 @@ h2{margin:0;font-size:clamp(2.1rem,6vw,4.2rem);line-height:.98;font-weight:700;l
 }
 
 /* ===================== logos ===================== */
-/* Each background card carries its company mark above the role label. */
-.logo{height:34px;display:flex;align-items:center;margin-bottom:1.1rem}
-.logo img{max-height:100%;width:auto;max-width:150px;object-fit:contain}
-/* Amazon's wordmark is black artwork; knock it back to white for the dark card. */
-.logo-invert img{filter:brightness(0) invert(1);opacity:.92}
-/* A stacked lockup reads heavier than a wordmark at the same height. */
-.logo-evoeco img{max-height:24px}
-
+/* Every company gets the same plate so four different marks — a wide wordmark,
+   a square stacked lockup, and two lettermarks — read at one optical size.
+   The plate is white because the artwork is dark and full-colour. */
+.logo{
+  width:96px;height:44px;margin-bottom:1.1rem;padding:7px;
+  display:grid;place-items:center;overflow:hidden;
+  background:#fff;border-radius:10px;
+}
+/* Pixel height on purpose: a percentage needs a definite parent to resolve
+   against, and without one the mark falls back to its natural size. */
+.logo img{width:100%;height:30px;object-fit:contain}
 /* Fallback for companies whose logo file we don't have yet. */
 .logo-mark::before{
   content:attr(data-mark);
-  display:grid;place-items:center;height:34px;min-width:34px;padding:0 .55rem;
-  border:1px solid var(--line-2);border-radius:9px;
-  font-family:var(--mono);font-size:.82rem;letter-spacing:.06em;color:var(--fg-2);
+  font-family:var(--mono);font-size:.95rem;font-weight:500;
+  letter-spacing:.06em;color:#231d17;
 }
-
-/* UW mark beside the education heading */
-.h2-logo{display:flex;align-items:center;gap:.85rem;flex-wrap:wrap}
-/* UW purple (#4B2E83) is very low contrast on the near-black page. */
-.uw{height:clamp(2rem,4.5vw,3rem);width:auto;filter:brightness(1.5)}
