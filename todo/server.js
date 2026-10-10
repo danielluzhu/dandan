@@ -26,7 +26,18 @@ db.exec(`
     created_at   TEXT NOT NULL DEFAULT (datetime('now'))
   );
   CREATE INDEX IF NOT EXISTS todos_project ON todos(project_id);
+  CREATE TABLE IF NOT EXISTS sections (
+    id          INTEGER PRIMARY KEY,
+    project_id  INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    name        TEXT NOT NULL,
+    position    INTEGER NOT NULL DEFAULT 0,
+    collapsed   INTEGER NOT NULL DEFAULT 0,
+    created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+  );
 `);
+// Subsections arrived after todos; deleting one drops its tasks back to "no subsection".
+if (!db.query("SELECT 1 FROM pragma_table_info('todos') WHERE name = 'section_id'").get())
+  db.exec("ALTER TABLE todos ADD COLUMN section_id INTEGER REFERENCES sections(id) ON DELETE SET NULL");
 
 const LABELS = new Set(["urgent", "north_star", null]);
 
@@ -57,6 +68,8 @@ function cleanTodo(body, partial) {
       throw new BadRequest("No such project");
     out.project_id = pid;
   }
+  if ("section_id" in body)
+    out.section_id = body.section_id == null || body.section_id === "" ? null : Number(body.section_id);
   if ("done" in body) {
     out.done = body.done ? 1 : 0;
     out.completed_at = body.done ? new Date().toISOString() : null;
@@ -79,6 +92,47 @@ function cleanProject(body, partial) {
   return out;
 }
 
+/* A task's subsection must belong to its project; moving projects clears it. */
+function fitSection(fields, existing) {
+  const projectId = "project_id" in fields ? fields.project_id : existing?.project_id ?? null;
+  if ("project_id" in fields && !("section_id" in fields) && existing?.section_id != null &&
+      fields.project_id !== existing.project_id) fields.section_id = null;
+  if (fields.section_id != null) {
+    const sec = db.query("SELECT project_id FROM sections WHERE id = ?").get(fields.section_id);
+    if (!sec || sec.project_id !== projectId) throw new BadRequest("That subsection isn't in this task's project");
+  }
+  return fields;
+}
+
+function cleanSection(body, partial) {
+  const out = {};
+  if (!partial || "name" in body) {
+    const name = String(body.name ?? "").trim();
+    if (!name) throw new BadRequest("Name is required");
+    out.name = name.slice(0, 200);
+  }
+  if (!partial) {
+    const pid = Number(body.project_id);
+    if (!db.query("SELECT 1 FROM projects WHERE id = ?").get(pid)) throw new BadRequest("No such project");
+    out.project_id = pid;
+    out.position = db.query("SELECT COALESCE(MAX(position), -1) + 1 AS n FROM sections WHERE project_id = ?").get(pid).n;
+  }
+  if ("collapsed" in body) out.collapsed = body.collapsed ? 1 : 0;
+  return out;
+}
+
+/* Swap a subsection with its neighbour; positions are renumbered so gaps never matter. */
+function moveSection(id, dir) {
+  const sec = db.query("SELECT * FROM sections WHERE id = ?").get(id);
+  if (!sec) return null;
+  const ids = db.query("SELECT id FROM sections WHERE project_id = ? ORDER BY position, id").all(sec.project_id).map((r) => r.id);
+  const i = ids.indexOf(id), j = i + dir;
+  if (j >= 0 && j < ids.length) [ids[i], ids[j]] = [ids[j], ids[i]];
+  const set = db.query("UPDATE sections SET position = ? WHERE id = ?");
+  db.transaction(() => ids.forEach((sid, n) => set.run(n, sid)))();
+  return db.query("SELECT * FROM sections WHERE id = ?").get(id);
+}
+
 function insert(table, fields) {
   const keys = Object.keys(fields);
   const sql = `INSERT INTO ${table} (${keys.join(",")}) VALUES (${keys.map(() => "?").join(",")}) RETURNING *`;
@@ -99,6 +153,8 @@ const listProjects = () =>
       (SELECT COUNT(*) FROM todos t WHERE t.project_id = p.id) AS total_count
     FROM projects p ORDER BY p.created_at, p.id`).all();
 
+const listSections = () => db.query("SELECT * FROM sections ORDER BY project_id, position, id").all();
+
 const listTodos = () => db.query("SELECT * FROM todos ORDER BY done, created_at DESC, id DESC").all();
 
 const json = (body, status = 200) =>
@@ -115,7 +171,7 @@ async function api(req, url) {
   const id = rawId === undefined ? null : Number(rawId);
   const body = ["POST", "PATCH"].includes(req.method) ? await req.json().catch(() => ({})) : null;
 
-  if (resource === "state" && req.method === "GET") return json({ projects: listProjects(), todos: listTodos() });
+  if (resource === "state" && req.method === "GET") return json({ projects: listProjects(), sections: listSections(), todos: listTodos() });
 
   if (resource === "projects") {
     if (id === null) {
@@ -131,13 +187,33 @@ async function api(req, url) {
     }
   }
 
+  if (resource === "sections") {
+    if (id === null) {
+      if (req.method === "GET") return json(listSections());
+      if (req.method === "POST") return json(insert("sections", cleanSection(body, false)), 201);
+    } else {
+      if (req.method === "PATCH") {
+        if (body.move === -1 || body.move === 1) return json(moveSection(id, body.move));
+        return json(update("sections", id, cleanSection(body, true)) ?? null);
+      }
+      if (req.method === "DELETE") {
+        const r = db.query("DELETE FROM sections WHERE id = ?").run(id);
+        return r.changes ? json({ ok: true }) : notFound();
+      }
+    }
+  }
+
   if (resource === "todos") {
     if (id === null) {
       if (req.method === "GET") return json(listTodos());
-      if (req.method === "POST") return json(insert("todos", cleanTodo(body, false)), 201);
+      if (req.method === "POST") return json(insert("todos", fitSection(cleanTodo(body, false), null)), 201);
     } else {
       if (req.method === "GET") return json(db.query("SELECT * FROM todos WHERE id = ?").get(id) ?? null);
-      if (req.method === "PATCH") return json(update("todos", id, cleanTodo(body, true)) ?? null);
+      if (req.method === "PATCH") {
+        const existing = db.query("SELECT * FROM todos WHERE id = ?").get(id);
+        if (!existing) return notFound();
+        return json(update("todos", id, fitSection(cleanTodo(body, true), existing)));
+      }
       if (req.method === "DELETE") {
         const r = db.query("DELETE FROM todos WHERE id = ?").run(id);
         return r.changes ? json({ ok: true }) : notFound();

@@ -9,12 +9,17 @@ const COLORS = ["#6c5ad8", "#3b82f6", "#0ea5a4", "#16a34a", "#ca8a04", "#ea580c"
 
 const state = {
   projects: [],
+  sections: [],         // project subsections
   todos: [],
   view: "all",          // all | inbox | urgent | north_star | p<id>
   openId: null,         // todo whose editor is expanded
   showDone: false,
   query: "",
   newLabel: null,
+  addingSection: false, // the "+ Add subsection" input is showing
+  renamingSection: null,
+  confirmSection: null, // subsection whose delete is awaiting confirmation
+  quickAdd: null,       // subsection key ("none" or id) with an inline add-task box open
 };
 
 /* ---------- helpers ---------- */
@@ -57,6 +62,8 @@ function toast(msg, action) {
 const fail = (err) => toast(err.message || "Something went wrong");
 
 const projectById = (id) => state.projects.find((p) => p.id === id);
+const sectionById = (id) => state.sections.find((s) => s.id === id);
+const sectionsOf = (projectId) => state.sections.filter((s) => s.project_id === projectId);
 const currentProject = () => (state.view.startsWith("p") ? projectById(Number(state.view.slice(1))) : null);
 
 function todayISO() {
@@ -89,6 +96,7 @@ function byOpenOrder(a, b) {
 async function load() {
   const data = await api("GET", "state");
   state.projects = data.projects;
+  state.sections = data.sections;
   state.todos = data.todos;
   if (state.view.startsWith("p") && !currentProject()) state.view = "all";
   render();
@@ -151,7 +159,10 @@ function renderHeader() {
   };
   $("#view-desc").textContent = p ? p.description : descs[state.view] || "";
   $("#head-actions").replaceChildren(
-    ...(p ? [h("button", { class: "btn small", onclick: () => openProjectDialog(p) }, "Edit project")] : []),
+    ...(p ? [
+      h("button", { class: "btn small", onclick: startAddSection }, "+ Subsection"),
+      h("button", { class: "btn small", onclick: () => openProjectDialog(p) }, "Edit project"),
+    ] : []),
   );
   document.title = `${p ? p.name : titles[state.view]} · Todo`;
 }
@@ -175,6 +186,13 @@ function renderComposer() {
   );
   sel.value = p ? String(p.id) : state.view === "inbox" ? "" : prev && projectById(Number(prev)) ? prev : "";
   sel.hidden = !!p;
+
+  const secSel = $("#new-section-select");
+  const secs = p ? sectionsOf(p.id) : [];
+  const prevSec = secSel.value;
+  secSel.replaceChildren(h("option", { value: "" }, "No subsection"), ...secs.map((s) => h("option", { value: s.id }, s.name)));
+  secSel.value = secs.some((s) => String(s.id) === prevSec) ? prevSec : "";
+  secSel.hidden = !secs.length;
 }
 
 function section(key, title, todos, opts = {}) {
@@ -201,11 +219,23 @@ function renderList() {
       state.query ? "No tasks match that filter."
         : p ? "This project has no tasks yet. Add the first one above."
         : "Nothing to do. Add a task above, or create a project in the sidebar."));
+    if (!state.query && p && !sectionsOf(p.id).length) list.append(addSectionEl());
+    if (!state.query && p && sectionsOf(p.id).length) { list.replaceChildren(...sectionsOf(p.id).map((s) => blockEl(s, [])), addSectionEl()); }
+    list.querySelector("[data-autofocus]")?.focus();
     return;
   }
 
   const parts = [];
-  if (state.view === "urgent" || state.view === "north_star") {
+  const p = currentProject();
+  const secs = p ? sectionsOf(p.id) : [];
+  if (secs.length) {
+    const loose = open.filter((t) => t.section_id == null);
+    if (loose.length) parts.push(blockEl(null, loose));
+    for (const s of secs) {
+      const mine = open.filter((t) => t.section_id === s.id);
+      if (!state.query || mine.length) parts.push(blockEl(s, mine));
+    }
+  } else if (state.view === "urgent" || state.view === "north_star") {
     parts.push(section("", "To do", open, { hint: "All clear." }));
   } else {
     const star = open.filter((t) => t.label === "north_star");
@@ -215,11 +245,131 @@ function renderList() {
     parts.push(section("urgent", "⚡ Urgent", urgent, { drop: "urgent", hint: "Nothing urgent. Nice." }));
     parts.push(section("", "Unlabeled", rest, { drop: "none", hint: "Nothing else on the list." }));
   }
+  if (p) parts.push(addSectionEl());
   if (done.length) parts.push(section("", "Completed", done, { collapsible: true }));
   list.replaceChildren(...parts);
+  list.querySelector("[data-autofocus]")?.focus();
 
   const focusEl = list.querySelector(".todo.open .e-title");
   if (focusEl && state.focusEditor) { focusEl.focus(); state.focusEditor = false; }
+}
+
+/* A project subsection (or the tasks in no subsection, when s is null): a header with
+   rename/reorder/delete, then the task's label groups. Every part is a drop target —
+   the block itself keeps the label, each label group and header pill sets it. */
+const LANES = [
+  { key: "north_star", v: "north_star", title: "★ North Star" },
+  { key: "urgent", v: "urgent", title: "⚡ Urgent" },
+  { key: "none", v: null, title: "Unlabeled" },
+];
+
+function blockEl(s, todos) {
+  const sid = s ? String(s.id) : "none";
+  const collapsed = s && s.collapsed && !state.query;
+  const name = s ? s.name : "No subsection";
+
+  let headMain;
+  if (s && state.renamingSection === s.id) {
+    headMain = h("input", {
+      class: "block-rename", value: s.name, maxlength: 200, "aria-label": "Subsection name", "data-autofocus": true,
+      onkeydown: (e) => {
+        if (e.key === "Enter") e.target.blur();
+        if (e.key === "Escape") { state.renamingSection = null; renderList(); }
+      },
+      onblur: (e) => {
+        if (state.renamingSection !== s.id) return;
+        state.renamingSection = null;
+        const v = e.target.value.trim();
+        if (v && v !== s.name) patchSection(s.id, { name: v }); else renderList();
+      },
+    });
+  } else {
+    headMain = h("button", {
+      class: "block-toggle", disabled: !s, title: s ? (collapsed ? "Expand" : "Collapse") : null,
+      onclick: () => patchSection(s.id, { collapsed: !s.collapsed }),
+    }, s && h("span", { class: "chev" }, "▾"), h("span", { class: "block-name" }, name), h("span", { class: "n" }, todos.length));
+  }
+
+  const pills = h("span", { class: "drop-pills" },
+    LANES.map((l) => h("span", { class: `drop-pill ${l.key}`, "data-drop": l.key, "data-section": sid }, l.title)));
+
+  const tools = s && h("span", { class: "block-tools" },
+    h("button", { class: "icon-btn sm", title: "Rename", "aria-label": "Rename subsection", onclick: () => { state.renamingSection = s.id; renderList(); } }, "✎"),
+    h("button", { class: "icon-btn sm", title: "Move up", "aria-label": "Move subsection up", onclick: () => patchSection(s.id, { move: -1 }) }, "↑"),
+    h("button", { class: "icon-btn sm", title: "Move down", "aria-label": "Move subsection down", onclick: () => patchSection(s.id, { move: 1 }) }, "↓"),
+    h("button", { class: "icon-btn sm", title: "Delete subsection", "aria-label": "Delete subsection", onclick: () => { state.confirmSection = s.id; renderList(); } }, "🗑"));
+
+  const head = h("div", { class: "block-head" + (collapsed ? " collapsed" : "") }, headMain, pills, h("span", { class: "spacer" }), tools);
+
+  const confirm = s && state.confirmSection === s.id && h("div", { class: "block-confirm" },
+    h("span", {}, todos.length
+      ? `Delete “${s.name}”? Its ${todos.length} open task${todos.length === 1 ? "" : "s"} move to No subsection.`
+      : `Delete “${s.name}”?`),
+    h("button", { class: "btn danger solid small", onclick: () => deleteSection(s) }, "Delete"),
+    h("button", { class: "btn small", onclick: () => { state.confirmSection = null; renderList(); } }, "Cancel"));
+
+  const lanes = [];
+  if (!collapsed) {
+    for (const l of LANES) {
+      const items = todos.filter((t) => (t.label || null) === l.v);
+      if (!items.length) continue;
+      lanes.push(h("div", { class: "lane", "data-drop": l.key, "data-section": sid },
+        h("div", { class: `lane-head ${l.key}` }, l.title), items.map(todoEl)));
+    }
+    if (!todos.length) lanes.push(h("div", { class: "section-hint" }, "Empty — drag tasks here, or add one."));
+    if (s) lanes.push(quickAddEl(s));
+  }
+
+  return h("div", { class: "block", "data-drop": "keep", "data-section": sid }, head, confirm, ...lanes);
+}
+
+function quickAddEl(s) {
+  if (state.quickAdd !== s.id) {
+    return h("button", { class: "quick-add-btn", onclick: () => { state.quickAdd = s.id; renderList(); } }, "+ Add task");
+  }
+  return h("form", {
+    class: "quick-add",
+    onsubmit: async (e) => {
+      e.preventDefault();
+      const input = e.target.querySelector("input");
+      const title = input.value.trim();
+      if (!title) return;
+      try {
+        state.todos.unshift(await api("POST", "todos", { title, project_id: s.project_id, section_id: s.id }));
+        await refreshProjects();
+        render();
+      } catch (err) { fail(err); }
+    },
+  }, h("input", {
+    placeholder: `Add to ${s.name}…  (Enter to add, Esc to close)`, maxlength: 500, "data-autofocus": true, "aria-label": `Add task to ${s.name}`,
+    onkeydown: (e) => { if (e.key === "Escape") { state.quickAdd = null; renderList(); } },
+    onblur: (e) => { if (!e.target.value.trim()) setTimeout(() => { if (state.quickAdd === s.id) { state.quickAdd = null; renderList(); } }, 150); },
+  }));
+}
+
+function addSectionEl() {
+  if (!state.addingSection) {
+    return h("button", { class: "add-section-btn", onclick: startAddSection }, "+ Add subsection");
+  }
+  const p = currentProject();
+  return h("form", {
+    class: "add-section",
+    onsubmit: async (e) => {
+      e.preventDefault();
+      const name = e.target.querySelector("input").value.trim();
+      if (!name) return;
+      try {
+        state.sections.push(await api("POST", "sections", { project_id: p.id, name }));
+        render();  // stays open so several can be added in a row
+      } catch (err) { fail(err); }
+    },
+  },
+    h("input", {
+      placeholder: "Subsection name, e.g. Design", maxlength: 200, "data-autofocus": true, "aria-label": "New subsection name",
+      onkeydown: (e) => { if (e.key === "Escape") { state.addingSection = false; renderList(); } },
+    }),
+    h("button", { class: "btn primary small" }, "Add"),
+    h("button", { type: "button", class: "btn small", onclick: () => { state.addingSection = false; renderList(); } }, "Done"));
 }
 
 const checkSvg = () => {
@@ -239,7 +389,8 @@ function todoEl(t) {
 
   const meta = h("div", { class: "meta" },
     showLabelPill && h("span", { class: `pill ${t.label}` }, labelInfo.icon, labelInfo.text),
-    showProject && h("span", { class: "chip" }, h("span", { class: "dot", style: `background:${p.color}` }), p.name),
+    showProject && h("span", { class: "chip" }, h("span", { class: "dot", style: `background:${p.color}` }), p.name,
+      t.section_id != null && sectionById(t.section_id) && ` › ${sectionById(t.section_id).name}`),
     due && !t.done && h("span", { class: `due ${due.cls}` }, "📅 " + due.text),
     t.notes && !isOpen && h("span", { title: t.notes }, "📝 Notes"),
   );
@@ -295,6 +446,12 @@ function editorEl(t) {
     state.projects.map((p) => h("option", { value: p.id }, p.name)));
   proj.value = t.project_id == null ? "" : String(t.project_id);
 
+  const tSecs = t.project_id != null ? sectionsOf(t.project_id) : [];
+  const sec = tSecs.length && h("select", { "aria-label": "Subsection", onchange: (e) => save({ section_id: e.target.value || null }) },
+    h("option", { value: "" }, "No subsection"),
+    tSecs.map((s) => h("option", { value: s.id }, s.name)));
+  if (sec) sec.value = t.section_id == null ? "" : String(t.section_id);
+
   const due = h("input", { type: "date", "aria-label": "Due date", value: t.due_date || "", onchange: (e) => save({ due_date: e.target.value || null }) });
   const clearDue = t.due_date && h("button", { class: "btn ghost small", type: "button", onclick: () => save({ due_date: null }) }, "Clear date");
 
@@ -305,7 +462,7 @@ function editorEl(t) {
 
   return h("div", { class: "editor", onclick: (e) => e.stopPropagation() },
     title, notes,
-    h("div", { class: "editor-opts" }, seg, proj, due, clearDue),
+    h("div", { class: "editor-opts" }, seg, proj, sec, due, clearDue),
     h("div", { class: "editor-actions" },
       h("span", { class: "stamp" }, stamp),
       h("span", { class: "spacer" }),
@@ -318,6 +475,8 @@ function editorEl(t) {
 function go(view) {
   state.view = view;
   state.openId = null;
+  state.addingSection = false;
+  state.quickAdd = state.renamingSection = state.confirmSection = null;
   if (view !== "urgent" && view !== "north_star" && ["urgent", "north_star"].includes(state.newLabel)) state.newLabel = null;
   $("#sidebar").classList.remove("show");
   render();
@@ -353,6 +512,30 @@ async function patchTodo(id, fields) {
   } catch (err) { fail(err); }
 }
 
+function startAddSection() {
+  state.addingSection = true;
+  renderList();
+}
+
+async function patchSection(id, fields) {
+  try {
+    const updated = await api("PATCH", `sections/${id}`, fields);
+    // A move renumbers its neighbours too, so refetch rather than patch locally.
+    if ("move" in fields) state.sections = await api("GET", "sections");
+    else state.sections = state.sections.map((s) => (s.id === id ? updated : s));
+    render();
+  } catch (err) { fail(err); }
+}
+
+async function deleteSection(s) {
+  try {
+    await api("DELETE", `sections/${s.id}`);
+    state.confirmSection = null;
+    await load();
+    toast(`Deleted subsection “${s.name}”`);
+  } catch (err) { fail(err); }
+}
+
 async function toggleDone(t) {
   const done = !t.done;
   // Optimistic: flip it locally first so the click feels instant.
@@ -376,6 +559,7 @@ async function deleteTodo(t) {
           const restored = await api("POST", "todos", {
             title: t.title, notes: t.notes, label: t.label, due_date: t.due_date,
             project_id: projectById(t.project_id) ? t.project_id : null,
+            section_id: projectById(t.project_id) && sectionById(t.section_id) ? t.section_id : null,
           });
           if (t.done) await api("PATCH", `todos/${restored.id}`, { done: true });
           await load();
@@ -396,6 +580,7 @@ $("#composer").addEventListener("submit", async (e) => {
       title,
       label: state.newLabel,
       project_id: p ? p.id : $("#new-project-select").value || null,
+      section_id: p ? $("#new-section-select").value || null : null,
       due_date: $("#new-due").value || null,
     });
     state.todos.unshift(todo);
@@ -503,11 +688,12 @@ function pressTodo(e, t) {
 
 function startDrag(e) {
   const rect = drag.row.getBoundingClientRect();
-  drag.dx = e.clientX - rect.left;
-  drag.dy = e.clientY - rect.top;
+  // A compact ghost held near its left edge, so it doesn't hide the drop targets.
+  drag.dx = Math.min(e.clientX - rect.left, 24);
+  drag.dy = Math.min(e.clientY - rect.top, 20);
   drag.ghost = drag.row.cloneNode(true);
   drag.ghost.classList.add("drag-ghost");
-  drag.ghost.style.width = rect.width + "px";
+  drag.ghost.style.width = Math.min(rect.width, 320) + "px";
   document.body.append(drag.ghost);
   drag.row.classList.add("dragging");
   document.body.classList.add("is-dragging");
@@ -546,15 +732,27 @@ document.addEventListener("pointerup", () => {
   const { t, over, active } = drag;
   endDrag();
   if (!active || !over) return;
-  const label = over.dataset.drop === "none" ? null : over.dataset.drop;
-  if (label === t.label && !t.done) return;
+  // data-drop is a label (or "keep" to leave it); data-section, when present, is a subsection.
+  const fields = {};
+  const where = [];
+  if (over.dataset.drop !== "keep") {
+    const label = over.dataset.drop === "none" ? null : over.dataset.drop;
+    if (label !== (t.label || null)) fields.label = label;
+    where.push(DROP_NAMES[over.dataset.drop]);
+  }
+  if ("section" in over.dataset) {
+    const sid = over.dataset.section === "none" ? null : Number(over.dataset.section);
+    if (sid !== t.section_id) fields.section_id = sid;
+    where.unshift(sid == null ? "No subsection" : sectionById(sid)?.name);
+  }
   // Dropping a finished task into an active section brings it back.
-  const fields = t.done ? { label, done: false } : { label };
-  const before = { label: t.label, done: !!t.done };
-  replaceTodo({ ...t, label, done: 0, completed_at: null });
+  if (t.done) fields.done = false;
+  if (!Object.keys(fields).length) return;
+  const before = { label: t.label, section_id: t.section_id, done: !!t.done };
+  replaceTodo({ ...t, ...fields, done: 0, completed_at: null });
   render();
   patchTodo(t.id, fields);
-  toast(`Moved to ${DROP_NAMES[over.dataset.drop]}`, { label: "Undo", run: () => patchTodo(t.id, before) });
+  toast(`Moved to ${where.join(" · ")}`, { label: "Undo", run: () => patchTodo(t.id, before) });
 });
 
 document.addEventListener("pointercancel", endDrag);
@@ -573,3 +771,8 @@ document.addEventListener("keydown", (e) => {
 const initial = location.hash.slice(1);
 if (/^(inbox|urgent|north_star|p\d+)$/.test(initial)) state.view = initial;
 load().catch(fail);
+
+window.addEventListener("hashchange", () => {
+  const v = location.hash.slice(1) || "all";
+  if (v !== state.view && /^(all|inbox|urgent|north_star|p\d+)$/.test(v)) go(v);
+});
