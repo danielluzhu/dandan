@@ -6,6 +6,11 @@ A to-do list app on port **1242** — tasks, projects, and labels.
 - **Projects**: create, edit (name, description, color), delete — deleting a project deletes its tasks.
 - **Subsections**: split a project into named parts (e.g. Design, Build) — rename, reorder, collapse,
   delete (its tasks move to *No subsection*). Each has its own quick “+ Add task”.
+- **North Stars are sub-projects**: tasks can live inside a North Star (drag one onto it, use its
+  “+ Add task”, or pick it in a task's editor). It shows progress, folds open/closed, appears under
+  its project in the sidebar, and has its own page (“Open ›”). Tasks inside can be Urgent or
+  unlabeled, and follow the North Star if it moves project or subsection. A North Star with tasks
+  inside keeps its label until they're moved out; deleting it deletes them (with undo).
 - **Labels**: every task is **North Star**, **Urgent**, or unlabeled. Project pages group tasks by label (inside each subsection, if it has any);
   the sidebar's North Star and Urgent views collect them across every project.
 - Drag a task between the North Star, Urgent and Unlabeled sections (or onto North Star / Urgent in
@@ -32,7 +37,7 @@ sudo systemctl daemon-reload && sudo systemctl enable --now dz-todo
 | GET | `/api/state` | all projects (with open/total counts) and todos |
 | GET, POST | `/api/projects` | list / create `{name, description?, color?}` |
 | GET, PATCH, DELETE | `/api/projects/:id` | |
-| GET, POST | `/api/todos` | list / create `{title, notes?, label?, project_id?, section_id?, due_date?}` |
+| GET, POST | `/api/todos` | list / create `{title, notes?, label?, project_id?, section_id?, parent_id?, due_date?}` |
 | GET, PATCH, DELETE | `/api/todos/:id` | PATCH also takes `{done}` |
 | GET, POST | `/api/sections` | list / create `{project_id, name}` |
 | PATCH, DELETE | `/api/sections/:id` | `{name}`, `{collapsed}`, or `{move: -1 \| 1}` |

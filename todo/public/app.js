@@ -19,8 +19,16 @@ const state = {
   addingSection: false, // the "+ Add subsection" input is showing
   renamingSection: null,
   confirmSection: null, // subsection whose delete is awaiting confirmation
-  quickAdd: null,       // subsection key ("none" or id) with an inline add-task box open
+  quickAdd: null,       // "s<id>" (subsection) or "n<id>" (North Star) with an inline add-task box open
+  nsCollapsed: new Set(readCollapsed()),  // North Stars whose tasks are folded away
 };
+
+function readCollapsed() {
+  try { return JSON.parse(localStorage.getItem("todo.nsCollapsed") || "[]"); } catch { return []; }
+}
+function saveCollapsed() {
+  try { localStorage.setItem("todo.nsCollapsed", JSON.stringify([...state.nsCollapsed])); } catch {}
+}
 
 /* ---------- helpers ---------- */
 const $ = (sel) => document.querySelector(sel);
@@ -65,6 +73,16 @@ const projectById = (id) => state.projects.find((p) => p.id === id);
 const sectionById = (id) => state.sections.find((s) => s.id === id);
 const sectionsOf = (projectId) => state.sections.filter((s) => s.project_id === projectId);
 const currentProject = () => (state.view.startsWith("p") ? projectById(Number(state.view.slice(1))) : null);
+const todoById = (id) => state.todos.find((t) => t.id === id);
+const childrenOf = (id) => state.todos.filter((t) => t.parent_id === id);
+const isStar = (t) => t && t.label === "north_star" && t.parent_id == null;
+// The North Star whose own page is showing (view "n<id>").
+const currentStar = () => {
+  if (!state.view.startsWith("n") || state.view === "north_star") return null;
+  const t = todoById(Number(state.view.slice(1)));
+  return isStar(t) ? t : null;
+};
+const VIEW_RE = /^(all|inbox|urgent|north_star|p\d+|n\d+)$/;
 
 function todayISO() {
   const d = new Date();
@@ -99,16 +117,23 @@ async function load() {
   state.sections = data.sections;
   state.todos = data.todos;
   if (state.view.startsWith("p") && !currentProject()) state.view = "all";
+  if (/^n\d/.test(state.view) && !currentStar()) state.view = "all";
   render();
 }
 
 function viewTodos() {
   const v = state.view;
+  const q = state.query.trim().toLowerCase();
+  const star = currentStar();
   let list = state.todos;
-  if (v === "inbox") list = list.filter((t) => t.project_id == null);
+  // Tasks inside a North Star render nested under it — except in the flat Urgent view, a
+  // North Star's own page, and while filtering.
+  if (star) list = list.filter((t) => t.parent_id === star.id);
+  else if (v !== "urgent" && !q) list = list.filter((t) => t.parent_id == null);
+  if (star) {}
+  else if (v === "inbox") list = list.filter((t) => t.project_id == null);
   else if (v === "urgent" || v === "north_star") list = list.filter((t) => t.label === v);
   else if (v.startsWith("p")) list = list.filter((t) => t.project_id === Number(v.slice(1)));
-  const q = state.query.trim().toLowerCase();
   if (q) list = list.filter((t) => (t.title + " " + t.notes).toLowerCase().includes(q));
   return list;
 }
@@ -129,6 +154,20 @@ function navItem(view, icon, name, count) {
   }, icon, h("span", { class: "name" }, name), h("span", { class: "count" }, count || ""));
 }
 
+function starNavs(projectId) {
+  return state.todos
+    .filter((t) => isStar(t) && !t.done && t.project_id === projectId)
+    .sort((a, b) => a.id - b.id)
+    .map((t) => {
+      const el = navItem("n" + t.id, h("span", { class: "nav-icon", style: "color:var(--star)" }, "★"), t.title,
+        childrenOf(t.id).filter((c) => !c.done).length);
+      el.classList.add("nav-sub");
+      el.dataset.drop = "into";
+      el.dataset.parent = t.id;
+      return el;
+    });
+}
+
 function renderSidebar() {
   const open = state.todos.filter((t) => !t.done);
   const starNav = navItem("north_star", h("span", { class: "nav-icon", style: "color:var(--star)" }, "★"), "North Star", open.filter((t) => t.label === "north_star").length);
@@ -138,15 +177,41 @@ function renderSidebar() {
   $("#views").replaceChildren(
     navItem("all", h("span", { class: "nav-icon" }, "☰"), "All tasks", open.length),
     navItem("inbox", h("span", { class: "nav-icon" }, "📥"), "Inbox", open.filter((t) => t.project_id == null).length),
+    ...starNavs(null),
     starNav,
     urgentNav,
   );
-  const projects = state.projects.map((p) =>
-    navItem("p" + p.id, h("span", { class: "dot", style: `background:${p.color}` }), p.name, p.open_count));
+  const projects = state.projects.flatMap((p) => [
+    navItem("p" + p.id, h("span", { class: "dot", style: `background:${p.color}` }), p.name, p.open_count),
+    ...starNavs(p.id),
+  ]);
   $("#projects").replaceChildren(...(projects.length ? projects : [h("div", { class: "side-empty" }, "No projects yet — add one with +")]));
 }
 
+function progressEl(kids) {
+  const done = kids.filter((k) => k.done).length;
+  const pct = kids.length ? Math.round((done / kids.length) * 100) : 0;
+  return h("span", { class: "progress", title: `${done} of ${kids.length} done` },
+    h("span", { class: "bar" }, h("span", { style: `width:${pct}%` })), `${done}/${kids.length}`);
+}
+
+function renderStarHeader(t) {
+  const p = t.project_id != null ? projectById(t.project_id) : null;
+  const sec = t.section_id != null ? sectionById(t.section_id) : null;
+  $("#view-title").replaceChildren(h("span", { class: "star-glyph" }, "★"), t.title);
+  const crumb = h("span", { class: "crumb" }, "North Star in ",
+    h("a", { href: "#" + (p ? "p" + p.id : "inbox") }, p ? p.name : "Inbox"), sec && ` › ${sec.name}`);
+  const kids = childrenOf(t.id);
+  $("#view-desc").replaceChildren(crumb, kids.length ? h("span", {}, " · ", progressEl(kids)) : "", t.notes ? h("span", { class: "star-notes" }, t.notes) : "");
+  $("#head-actions").replaceChildren(
+    h("button", { class: "btn small", onclick: () => { state.openId = t.id; state.focusEditor = true; renderList(); } }, "Edit"),
+    h("button", { class: "btn small", onclick: () => toggleDone(t) }, t.done ? "Reopen" : "Complete"));
+  document.title = `★ ${t.title} · Todo`;
+}
+
 function renderHeader() {
+  const star = currentStar();
+  if (star) return renderStarHeader(star);
   const p = currentProject();
   const titles = { all: "All tasks", inbox: "Inbox", urgent: "Urgent", north_star: "North Star" };
   const title = $("#view-title");
@@ -170,7 +235,10 @@ function renderHeader() {
 function renderComposer() {
   // Label picker: prefilled from Urgent / North Star views.
   if (state.view === "urgent" || state.view === "north_star") state.newLabel = state.view;
-  $("#new-label").replaceChildren(...LABELS.map((l) =>
+  const star = currentStar();
+  // Inside a North Star, tasks can be Urgent or unlabeled but not North Stars themselves.
+  if (star && state.newLabel === "north_star") state.newLabel = null;
+  $("#new-label").replaceChildren(...LABELS.filter((l) => !star || l.v !== "north_star").map((l) =>
     h("button", {
       type: "button", role: "radio", "data-v": l.v ?? "",
       "aria-checked": String(state.newLabel === l.v),
@@ -185,7 +253,7 @@ function renderComposer() {
     ...state.projects.map((pr) => h("option", { value: pr.id }, pr.name)),
   );
   sel.value = p ? String(p.id) : state.view === "inbox" ? "" : prev && projectById(Number(prev)) ? prev : "";
-  sel.hidden = !!p;
+  sel.hidden = !!p || !!star;
 
   const secSel = $("#new-section-select");
   const secs = p ? sectionsOf(p.id) : [];
@@ -193,6 +261,7 @@ function renderComposer() {
   secSel.replaceChildren(h("option", { value: "" }, "No subsection"), ...secs.map((s) => h("option", { value: s.id }, s.name)));
   secSel.value = secs.some((s) => String(s.id) === prevSec) ? prevSec : "";
   secSel.hidden = !secs.length;
+  $("#new-title").placeholder = star ? `Add a task to ★ ${star.title}…  (press N)` : "Add a task…  (press N)";
 }
 
 function section(key, title, todos, opts = {}) {
@@ -202,7 +271,7 @@ function section(key, title, todos, opts = {}) {
       ? h("button", { onclick: () => { state.showDone = !state.showDone; renderList(); } },
           h("span", { class: "chev" }, "▾"), title, h("span", { class: "n" }, todos.length))
       : [title, h("span", { class: "n" }, todos.length)]);
-  const body = collapsed ? [] : todos.length ? todos.map(todoEl) : [h("div", { class: "section-hint" }, opts.hint || "Nothing here.")];
+  const body = collapsed ? [] : todos.length ? todos.map(itemEl) : [h("div", { class: "section-hint" }, opts.hint || "Nothing here.")];
   return h("div", { class: "section", "data-drop": opts.drop }, head, ...body);
 }
 
@@ -211,6 +280,9 @@ function renderList() {
   const todos = viewTodos();
   const open = todos.filter((t) => !t.done).sort(byOpenOrder);
   const done = todos.filter((t) => t.done).sort((a, b) => (b.completed_at || "").localeCompare(a.completed_at || ""));
+
+  const star = currentStar();
+  if (star) return renderStarList(list, star, open, done);
 
   if (!todos.length) {
     const p = currentProject();
@@ -252,6 +324,47 @@ function renderList() {
 
   const focusEl = list.querySelector(".todo.open .e-title");
   if (focusEl && state.focusEditor) { focusEl.focus(); state.focusEditor = false; }
+}
+
+/* A North Star's own page: the North Star itself as a card, then its tasks by label. */
+function renderStarList(list, star, open, done) {
+  const lane = (key, title, items, hint) => {
+    const el = section(key, title, items, { drop: key, hint });
+    el.dataset.parent = star.id;
+    return el;
+  };
+  const parts = [
+    h("div", { class: "star-self" }, todoEl(star, { self: true })),
+    lane("urgent", "⚡ Urgent", open.filter((t) => t.label === "urgent"), "Nothing urgent here."),
+    lane("none", "Tasks", open.filter((t) => !t.label), open.length ? "Nothing else." : "No tasks yet — add one above, or drag tasks onto this North Star."),
+  ];
+  if (done.length) parts.push(section("", "Completed", done, { collapsible: true }));
+  list.replaceChildren(...parts);
+  const focusEl = list.querySelector(".todo.open .e-title");
+  if (focusEl && state.focusEditor) { focusEl.focus(); state.focusEditor = false; }
+}
+
+/* A North Star in a list: its row, then the tasks inside it, nested. */
+function itemEl(t) {
+  if (!isStar(t) || state.query) return todoEl(t);
+  const kids = childrenOf(t.id);
+  const collapsed = state.nsCollapsed.has(t.id);
+  const adding = state.quickAdd === "n" + t.id;
+  const inner = [];
+  if (!collapsed && (kids.length || adding)) {
+    const openKids = kids.filter((k) => !k.done).sort(byOpenOrder);
+    const doneKids = kids.filter((k) => k.done);
+    inner.push(h("div", { class: "ns-children" },
+      openKids.map((k) => todoEl(k)), doneKids.map((k) => todoEl(k)),
+      quickAddEl("n" + t.id, `★ ${t.title}`, { parent_id: t.id })));
+  }
+  return h("div", { class: "ns", "data-drop": "into", "data-parent": t.id }, todoEl(t, { kids }), ...inner);
+}
+
+function toggleStar(id) {
+  if (state.nsCollapsed.has(id)) state.nsCollapsed.delete(id); else state.nsCollapsed.add(id);
+  saveCollapsed();
+  renderList();
 }
 
 /* A project subsection (or the tasks in no subsection, when s is null): a header with
@@ -314,18 +427,18 @@ function blockEl(s, todos) {
       const items = todos.filter((t) => (t.label || null) === l.v);
       if (!items.length) continue;
       lanes.push(h("div", { class: "lane", "data-drop": l.key, "data-section": sid },
-        h("div", { class: `lane-head ${l.key}` }, l.title), items.map(todoEl)));
+        h("div", { class: `lane-head ${l.key}` }, l.title), items.map(itemEl)));
     }
     if (!todos.length) lanes.push(h("div", { class: "section-hint" }, "Empty — drag tasks here, or add one."));
-    if (s) lanes.push(quickAddEl(s));
+    if (s) lanes.push(quickAddEl("s" + s.id, s.name, { project_id: s.project_id, section_id: s.id }));
   }
 
   return h("div", { class: "block", "data-drop": "keep", "data-section": sid }, head, confirm, ...lanes);
 }
 
-function quickAddEl(s) {
-  if (state.quickAdd !== s.id) {
-    return h("button", { class: "quick-add-btn", onclick: () => { state.quickAdd = s.id; renderList(); } }, "+ Add task");
+function quickAddEl(key, name, fields) {
+  if (state.quickAdd !== key) {
+    return h("button", { class: "quick-add-btn", onclick: () => { state.quickAdd = key; renderList(); } }, "+ Add task");
   }
   return h("form", {
     class: "quick-add",
@@ -335,15 +448,15 @@ function quickAddEl(s) {
       const title = input.value.trim();
       if (!title) return;
       try {
-        state.todos.unshift(await api("POST", "todos", { title, project_id: s.project_id, section_id: s.id }));
+        state.todos.unshift(await api("POST", "todos", { title, ...fields }));
         await refreshProjects();
         render();
       } catch (err) { fail(err); }
     },
   }, h("input", {
-    placeholder: `Add to ${s.name}…  (Enter to add, Esc to close)`, maxlength: 500, "data-autofocus": true, "aria-label": `Add task to ${s.name}`,
+    placeholder: `Add to ${name}…  (Enter to add, Esc to close)`, maxlength: 500, "data-autofocus": true, "aria-label": `Add task to ${name}`,
     onkeydown: (e) => { if (e.key === "Escape") { state.quickAdd = null; renderList(); } },
-    onblur: (e) => { if (!e.target.value.trim()) setTimeout(() => { if (state.quickAdd === s.id) { state.quickAdd = null; renderList(); } }, 150); },
+    onblur: (e) => { if (!e.target.value.trim()) setTimeout(() => { if (state.quickAdd === key) { state.quickAdd = null; renderList(); } }, 150); },
   }));
 }
 
@@ -379,15 +492,28 @@ const checkSvg = () => {
   return s;
 };
 
-function todoEl(t) {
+function todoEl(t, opts = {}) {
   const isOpen = state.openId === t.id;
+  const parent = t.parent_id != null ? todoById(t.parent_id) : null;
+  // Show which North Star a task sits in wherever it isn't already drawn nested under it.
+  const showParent = parent && (state.view === "urgent" || state.query) && !currentStar();
+  const kids = opts.kids;
+  const starMeta = kids && [
+    kids.length
+      ? h("button", { class: "meta-btn", title: state.nsCollapsed.has(t.id) ? "Show tasks" : "Hide tasks", onclick: () => toggleStar(t.id) },
+          h("span", { class: "chev-s" + (state.nsCollapsed.has(t.id) ? " folded" : "") }, "▾"), progressEl(kids))
+      : !t.done && h("button", { class: "meta-btn", onclick: () => { state.nsCollapsed.delete(t.id); saveCollapsed(); state.quickAdd = "n" + t.id; renderList(); } }, "+ Add tasks"),
+    h("button", { class: "meta-btn open-link", onclick: () => go("n" + t.id) }, "Open ›"),
+  ];
   const p = t.project_id != null ? projectById(t.project_id) : null;
   const due = dueInfo(t.due_date);
-  const showProject = p && !state.view.startsWith("p");
+  const showProject = p && !state.view.startsWith("p") && !currentStar();
   const labelInfo = LABELS.find((l) => l.v === t.label);
   const showLabelPill = t.label && (state.view !== t.label) && (t.done || ["urgent", "north_star"].includes(state.view));
 
   const meta = h("div", { class: "meta" },
+    starMeta,
+    showParent && h("span", { class: "chip star-chip" }, "★ ", parent.title),
     showLabelPill && h("span", { class: `pill ${t.label}` }, labelInfo.icon, labelInfo.text),
     showProject && h("span", { class: "chip" }, h("span", { class: "dot", style: `background:${p.color}` }), p.name,
       t.section_id != null && sectionById(t.section_id) && ` › ${sectionById(t.section_id).name}`),
@@ -397,10 +523,10 @@ function todoEl(t) {
 
   const row = h("div", {
     class: "todo-row",
-    onclick: (e) => { if (!e.target.closest(".check, .grip") && !dragJustEnded()) toggleOpen(t.id); },
+    onclick: (e) => { if (!e.target.closest(".check, .grip, .meta-btn") && !dragJustEnded()) toggleOpen(t.id); },
     onpointerdown: (e) => pressTodo(e, t),
   },
-    !isOpen && h("span", { class: "grip", title: "Drag to North Star, Urgent or Unlabeled", "aria-hidden": "true" }, "⠿"),
+    !isOpen && !opts.self && h("span", { class: "grip", title: "Drag to relabel, or onto a North Star to put it inside", "aria-hidden": "true" }, "⠿"),
     h("button", {
       class: "check", title: t.done ? "Mark as not done" : "Complete",
       "aria-label": t.done ? "Mark as not done" : "Complete",
@@ -409,7 +535,7 @@ function todoEl(t) {
     h("div", { class: "todo-main" }, h("div", { class: "todo-title" }, t.title), meta),
   );
 
-  return h("div", { class: `todo ${t.label || ""}` + (t.done ? " done" : "") + (isOpen ? " open" : ""), "data-id": t.id },
+  return h("div", { class: `todo ${t.label || ""}` + (t.done ? " done" : "") + (isOpen ? " open" : "") + (t.parent_id != null ? " child" : ""), "data-id": t.id },
     row, isOpen && editorEl(t));
 }
 
@@ -436,7 +562,7 @@ function editorEl(t) {
   notes.value = t.notes;
 
   const seg = h("div", { class: "seg", role: "radiogroup", "aria-label": "Label" },
-    LABELS.map((l) => h("button", {
+    LABELS.filter((l) => t.parent_id == null || l.v !== "north_star").map((l) => h("button", {
       type: "button", role: "radio", "data-v": l.v ?? "", "aria-checked": String((t.label || null) === l.v),
       onclick: () => save({ label: l.v }),
     }, l.icon && h("span", {}, l.icon), l.text)));
@@ -452,6 +578,13 @@ function editorEl(t) {
     tSecs.map((s) => h("option", { value: s.id }, s.name)));
   if (sec) sec.value = t.section_id == null ? "" : String(t.section_id);
 
+  // Which North Star this task sits inside (North Stars themselves can't be nested).
+  const stars = state.todos.filter((x) => isStar(x) && x.id !== t.id && (!x.done || x.id === t.parent_id));
+  const inside = !isStar(t) && stars.length && h("select", { "aria-label": "Inside North Star", onchange: (e) => save({ parent_id: e.target.value || null }) },
+    h("option", { value: "" }, "Not inside a North Star"),
+    stars.map((x) => h("option", { value: x.id }, `★ ${x.title}` + (x.project_id != null ? ` (${projectById(x.project_id)?.name})` : ""))));
+  if (inside) inside.value = t.parent_id == null ? "" : String(t.parent_id);
+
   const due = h("input", { type: "date", "aria-label": "Due date", value: t.due_date || "", onchange: (e) => save({ due_date: e.target.value || null }) });
   const clearDue = t.due_date && h("button", { class: "btn ghost small", type: "button", onclick: () => save({ due_date: null }) }, "Clear date");
 
@@ -462,7 +595,7 @@ function editorEl(t) {
 
   return h("div", { class: "editor", onclick: (e) => e.stopPropagation() },
     title, notes,
-    h("div", { class: "editor-opts" }, seg, proj, sec, due, clearDue),
+    h("div", { class: "editor-opts" }, seg, proj, sec, inside, due, clearDue),
     h("div", { class: "editor-actions" },
       h("span", { class: "stamp" }, stamp),
       h("span", { class: "spacer" }),
@@ -478,6 +611,7 @@ function go(view) {
   state.addingSection = false;
   state.quickAdd = state.renamingSection = state.confirmSection = null;
   if (view !== "urgent" && view !== "north_star" && ["urgent", "north_star"].includes(state.newLabel)) state.newLabel = null;
+  window.scrollTo(0, 0);
   $("#sidebar").classList.remove("show");
   render();
 }
@@ -507,9 +641,16 @@ async function refreshProjects() {
 async function patchTodo(id, fields) {
   try {
     replaceTodo(await api("PATCH", `todos/${id}`, fields));
-    if ("project_id" in fields || "done" in fields) await refreshProjects();
+    if ("project_id" in fields || "done" in fields || "parent_id" in fields) {
+      // Children may have moved with their North Star; take the server's word for everything.
+      const data = await api("GET", "state");
+      Object.assign(state, { projects: data.projects, sections: data.sections, todos: data.todos });
+    }
     render();
-  } catch (err) { fail(err); }
+  } catch (err) {
+    fail(err);
+    load().catch(() => {});  // undo any optimistic change the server refused
+  }
 }
 
 function startAddSection() {
@@ -546,13 +687,16 @@ async function toggleDone(t) {
 }
 
 async function deleteTodo(t) {
+  const kids = childrenOf(t.id);
   try {
     await api("DELETE", `todos/${t.id}`);
-    state.todos = state.todos.filter((x) => x.id !== t.id);
+    state.todos = state.todos.filter((x) => x.id !== t.id && x.parent_id !== t.id);
+    if (state.view === "n" + t.id) state.view = t.project_id != null && projectById(t.project_id) ? "p" + t.project_id : "all";
     state.openId = null;
     await refreshProjects();
     render();
-    toast(`Deleted “${t.title.length > 40 ? t.title.slice(0, 40) + "…" : t.title}”`, {
+    const short = t.title.length > 40 ? t.title.slice(0, 40) + "…" : t.title;
+    toast(kids.length ? `Deleted “${short}” and ${kids.length} task${kids.length === 1 ? "" : "s"} inside` : `Deleted “${short}”`, {
       label: "Undo",
       run: async () => {
         try {
@@ -560,8 +704,13 @@ async function deleteTodo(t) {
             title: t.title, notes: t.notes, label: t.label, due_date: t.due_date,
             project_id: projectById(t.project_id) ? t.project_id : null,
             section_id: projectById(t.project_id) && sectionById(t.section_id) ? t.section_id : null,
+            parent_id: isStar(todoById(t.parent_id)) ? t.parent_id : null,
           });
           if (t.done) await api("PATCH", `todos/${restored.id}`, { done: true });
+          for (const k of kids) {
+            const kid = await api("POST", "todos", { title: k.title, notes: k.notes, label: k.label, due_date: k.due_date, parent_id: restored.id });
+            if (k.done) await api("PATCH", `todos/${kid.id}`, { done: true });
+          }
           await load();
         } catch (err) { fail(err); }
       },
@@ -575,8 +724,9 @@ $("#composer").addEventListener("submit", async (e) => {
   const title = input.value.trim();
   if (!title) return input.focus();
   const p = currentProject();
+  const star = currentStar();
   try {
-    const todo = await api("POST", "todos", {
+    const todo = await api("POST", "todos", star ? { title, label: state.newLabel, parent_id: star.id, due_date: $("#new-due").value || null } : {
       title,
       label: state.newLabel,
       project_id: p ? p.id : $("#new-project-select").value || null,
@@ -732,13 +882,36 @@ document.addEventListener("pointerup", () => {
   const { t, over, active } = drag;
   endDrag();
   if (!active || !over) return;
-  // data-drop is a label (or "keep" to leave it); data-section, when present, is a subsection.
+  // data-drop is a label, "keep" to leave the label, or "into" a North Star (data-parent).
+  // data-section, when present, is a subsection.
   const fields = {};
   const where = [];
+  const before = { label: t.label, section_id: t.section_id, parent_id: t.parent_id, done: !!t.done };
+  if (over.dataset.drop === "into") {
+    const pid = Number(over.dataset.parent);
+    if (pid === t.id) return;
+    if (isStar(t)) return toast("A North Star can't go inside another North Star");
+    if (t.parent_id !== pid) fields.parent_id = pid;
+    if (t.label === "north_star") fields.label = null;
+    if (t.done) fields.done = false;
+    if (!Object.keys(fields).length) return;
+    replaceTodo({ ...t, ...fields, done: 0, completed_at: null });
+    render();
+    patchTodo(t.id, fields);
+    return toast(`Moved into ★ ${todoById(pid)?.title}`, { label: "Undo", run: () => patchTodo(t.id, before) });
+  }
+  // Dropping a task from inside a North Star anywhere else takes it out, unless the target
+  // is a lane on that North Star's own page.
+  if ("parent" in over.dataset) {
+    if (Number(over.dataset.parent) !== t.parent_id) fields.parent_id = Number(over.dataset.parent);
+  } else if (t.parent_id != null) {
+    fields.parent_id = null;
+    where.push("out of ★ " + (todoById(t.parent_id)?.title || "North Star"));
+  }
   if (over.dataset.drop !== "keep") {
     const label = over.dataset.drop === "none" ? null : over.dataset.drop;
     if (label !== (t.label || null)) fields.label = label;
-    where.push(DROP_NAMES[over.dataset.drop]);
+    if (!("parent" in over.dataset) || fields.label !== undefined) where.push(DROP_NAMES[over.dataset.drop]);
   }
   if ("section" in over.dataset) {
     const sid = over.dataset.section === "none" ? null : Number(over.dataset.section);
@@ -748,7 +921,6 @@ document.addEventListener("pointerup", () => {
   // Dropping a finished task into an active section brings it back.
   if (t.done) fields.done = false;
   if (!Object.keys(fields).length) return;
-  const before = { label: t.label, section_id: t.section_id, done: !!t.done };
   replaceTodo({ ...t, ...fields, done: 0, completed_at: null });
   render();
   patchTodo(t.id, fields);
@@ -769,10 +941,10 @@ document.addEventListener("keydown", (e) => {
 
 /* ---------- boot ---------- */
 const initial = location.hash.slice(1);
-if (/^(inbox|urgent|north_star|p\d+)$/.test(initial)) state.view = initial;
+if (VIEW_RE.test(initial)) state.view = initial;
 load().catch(fail);
 
 window.addEventListener("hashchange", () => {
   const v = location.hash.slice(1) || "all";
-  if (v !== state.view && /^(all|inbox|urgent|north_star|p\d+)$/.test(v)) go(v);
+  if (v !== state.view && VIEW_RE.test(v)) go(v);
 });

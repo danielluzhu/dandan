@@ -38,6 +38,9 @@ db.exec(`
 // Subsections arrived after todos; deleting one drops its tasks back to "no subsection".
 if (!db.query("SELECT 1 FROM pragma_table_info('todos') WHERE name = 'section_id'").get())
   db.exec("ALTER TABLE todos ADD COLUMN section_id INTEGER REFERENCES sections(id) ON DELETE SET NULL");
+// Each North Star is also a sub-project: other tasks can live inside it (one level deep).
+if (!db.query("SELECT 1 FROM pragma_table_info('todos') WHERE name = 'parent_id'").get())
+  db.exec("ALTER TABLE todos ADD COLUMN parent_id INTEGER REFERENCES todos(id) ON DELETE CASCADE");
 
 const LABELS = new Set(["urgent", "north_star", null]);
 
@@ -68,6 +71,8 @@ function cleanTodo(body, partial) {
       throw new BadRequest("No such project");
     out.project_id = pid;
   }
+  if ("parent_id" in body)
+    out.parent_id = body.parent_id == null || body.parent_id === "" ? null : Number(body.parent_id);
   if ("section_id" in body)
     out.section_id = body.section_id == null || body.section_id === "" ? null : Number(body.section_id);
   if ("done" in body) {
@@ -90,6 +95,29 @@ function cleanProject(body, partial) {
     out.color = body.color;
   }
   return out;
+}
+
+/* Rules for tasks inside a North Star: the parent must be a top-level North Star, a
+   child can't itself be a North Star, and a child always shares its parent's project
+   and subsection. Moving a child elsewhere by project/subsection takes it out. */
+function fitParent(fields, existing) {
+  const label = "label" in fields ? fields.label : existing?.label ?? null;
+  if (existing?.parent_id != null && !("parent_id" in fields) &&
+      (("project_id" in fields && fields.project_id !== existing.project_id) ||
+       ("section_id" in fields && fields.section_id !== existing.section_id))) fields.parent_id = null;
+  const parentId = "parent_id" in fields ? fields.parent_id : existing?.parent_id ?? null;
+  if (parentId != null) {
+    const parent = db.query("SELECT * FROM todos WHERE id = ?").get(parentId);
+    if (!parent || parent.label !== "north_star" || parent.parent_id != null || parent.id === existing?.id)
+      throw new BadRequest("Tasks can only go inside a North Star");
+    if (label === "north_star") throw new BadRequest("A North Star can't go inside another North Star");
+    if ("parent_id" in fields) { fields.project_id = parent.project_id; fields.section_id = parent.section_id; }
+  }
+  if (existing?.label === "north_star" && "label" in fields && label !== "north_star") {
+    const n = db.query("SELECT COUNT(*) n FROM todos WHERE parent_id = ?").get(existing.id).n;
+    if (n) throw new BadRequest(`This North Star has ${n} task${n === 1 ? "" : "s"} inside — move them out first`);
+  }
+  return fields;
 }
 
 /* A task's subsection must belong to its project; moving projects clears it. */
@@ -206,13 +234,21 @@ async function api(req, url) {
   if (resource === "todos") {
     if (id === null) {
       if (req.method === "GET") return json(listTodos());
-      if (req.method === "POST") return json(insert("todos", fitSection(cleanTodo(body, false), null)), 201);
+      if (req.method === "POST") return json(insert("todos", fitSection(fitParent(cleanTodo(body, false), null), null)), 201);
     } else {
       if (req.method === "GET") return json(db.query("SELECT * FROM todos WHERE id = ?").get(id) ?? null);
       if (req.method === "PATCH") {
         const existing = db.query("SELECT * FROM todos WHERE id = ?").get(id);
         if (!existing) return notFound();
-        return json(update("todos", id, fitSection(cleanTodo(body, true), existing)));
+        const fields = fitSection(fitParent(cleanTodo(body, true), existing), existing);
+        const updated = db.transaction(() => {
+          const row = update("todos", id, fields);
+          // Children travel with their North Star.
+          if (row.project_id !== existing.project_id || row.section_id !== existing.section_id)
+            db.query("UPDATE todos SET project_id = ?, section_id = ? WHERE parent_id = ?").run(row.project_id, row.section_id, id);
+          return row;
+        })();
+        return json(updated);
       }
       if (req.method === "DELETE") {
         const r = db.query("DELETE FROM todos WHERE id = ?").run(id);
