@@ -6,6 +6,8 @@ A to-do list app on port **1242** — tasks, projects, and labels.
 - **Projects**: create, edit (name, description, color), delete — deleting a project deletes its tasks.
 - **Labels**: every task is **North Star**, **Urgent**, or unlabeled. Project pages group tasks by label;
   the sidebar's North Star and Urgent views collect them across every project.
+- Drag a task between the North Star, Urgent and Unlabeled sections (or onto North Star / Urgent in
+  the sidebar) to relabel it. Mouse drags from anywhere on the row; touch drags from the ⠿ grip.
 - Tasks without a project live in the **Inbox**.
 - Keys: `N` new task, `/` filter, `Esc` close the editor.
 

@@ -194,6 +194,32 @@ select, input[type="date"] {
 .due.overdue { color: var(--urgent); font-weight: 600; }
 .due.today { color: var(--accent); font-weight: 600; }
 
+/* drag to relabel */
+.todo-row { position: relative; user-select: none; -webkit-user-select: none; }
+.grip {
+  position: absolute; left: -18px; top: 9px; width: 16px; text-align: center;
+  color: var(--faint); cursor: grab; opacity: 0; touch-action: none; font-size: 14px;
+}
+.todo-row:hover .grip { opacity: 1; }
+@media (hover: none) {
+  .grip { position: static; opacity: 1; order: 3; margin-left: auto; padding: 2px 6px; font-size: 18px; }
+}
+.is-dragging, .is-dragging * { cursor: grabbing !important; }
+.todo.dragging { opacity: 0.35; }
+.drag-ghost {
+  position: fixed; left: 0; top: 0; z-index: 20; pointer-events: none;
+  background: var(--panel); box-shadow: var(--shadow), 0 12px 32px rgba(0,0,0,.18); border-radius: 10px;
+}
+.drag-ghost .grip { opacity: 0; }
+.is-dragging .section[data-drop] { border-radius: 12px; outline: 2px dashed transparent; outline-offset: 4px; transition: outline-color .12s, background .12s; }
+.is-dragging .section[data-drop] { outline-color: var(--line); }
+.section.drop-over { outline-color: var(--accent) !important; background: var(--accent-soft); }
+.section.drop-over[data-drop="urgent"] { outline-color: var(--urgent) !important; background: var(--urgent-soft); }
+.section.drop-over[data-drop="north_star"] { outline-color: var(--star) !important; background: var(--star-soft); }
+.nav-item.drop-over { outline: 2px solid var(--accent); }
+.nav-item.drop-over[data-drop="urgent"] { outline-color: var(--urgent); background: var(--urgent-soft); }
+.nav-item.drop-over[data-drop="north_star"] { outline-color: var(--star); background: var(--star-soft); }
+
 /* inline editor */
 .editor { padding: 2px 12px 14px 40px; display: grid; gap: 10px; }
 .editor input.e-title {

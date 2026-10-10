@@ -123,11 +123,15 @@ function navItem(view, icon, name, count) {
 
 function renderSidebar() {
   const open = state.todos.filter((t) => !t.done);
+  const starNav = navItem("north_star", h("span", { class: "nav-icon", style: "color:var(--star)" }, "★"), "North Star", open.filter((t) => t.label === "north_star").length);
+  const urgentNav = navItem("urgent", h("span", { class: "nav-icon", style: "color:var(--urgent)" }, "⚡"), "Urgent", open.filter((t) => t.label === "urgent").length);
+  starNav.dataset.drop = "north_star";
+  urgentNav.dataset.drop = "urgent";
   $("#views").replaceChildren(
     navItem("all", h("span", { class: "nav-icon" }, "☰"), "All tasks", open.length),
     navItem("inbox", h("span", { class: "nav-icon" }, "📥"), "Inbox", open.filter((t) => t.project_id == null).length),
-    navItem("north_star", h("span", { class: "nav-icon", style: "color:var(--star)" }, "★"), "North Star", open.filter((t) => t.label === "north_star").length),
-    navItem("urgent", h("span", { class: "nav-icon", style: "color:var(--urgent)" }, "⚡"), "Urgent", open.filter((t) => t.label === "urgent").length),
+    starNav,
+    urgentNav,
   );
   const projects = state.projects.map((p) =>
     navItem("p" + p.id, h("span", { class: "dot", style: `background:${p.color}` }), p.name, p.open_count));
@@ -181,7 +185,7 @@ function section(key, title, todos, opts = {}) {
           h("span", { class: "chev" }, "▾"), title, h("span", { class: "n" }, todos.length))
       : [title, h("span", { class: "n" }, todos.length)]);
   const body = collapsed ? [] : todos.length ? todos.map(todoEl) : [h("div", { class: "section-hint" }, opts.hint || "Nothing here.")];
-  return h("div", { class: "section" }, head, ...body);
+  return h("div", { class: "section", "data-drop": opts.drop }, head, ...body);
 }
 
 function renderList() {
@@ -207,9 +211,9 @@ function renderList() {
     const star = open.filter((t) => t.label === "north_star");
     const urgent = open.filter((t) => t.label === "urgent");
     const rest = open.filter((t) => !t.label);
-    parts.push(section("north_star", "★ North Star", star, { hint: "No north star yet — what's the one thing that matters most?" }));
-    parts.push(section("urgent", "⚡ Urgent", urgent, { hint: "Nothing urgent. Nice." }));
-    parts.push(section("", "Unlabeled", rest, { hint: "Nothing else on the list." }));
+    parts.push(section("north_star", "★ North Star", star, { drop: "north_star", hint: "No north star yet — drag a task here, or label one above." }));
+    parts.push(section("urgent", "⚡ Urgent", urgent, { drop: "urgent", hint: "Nothing urgent. Nice." }));
+    parts.push(section("", "Unlabeled", rest, { drop: "none", hint: "Nothing else on the list." }));
   }
   if (done.length) parts.push(section("", "Completed", done, { collapsible: true }));
   list.replaceChildren(...parts);
@@ -240,7 +244,12 @@ function todoEl(t) {
     t.notes && !isOpen && h("span", { title: t.notes }, "📝 Notes"),
   );
 
-  const row = h("div", { class: "todo-row", onclick: (e) => { if (!e.target.closest(".check")) toggleOpen(t.id); } },
+  const row = h("div", {
+    class: "todo-row",
+    onclick: (e) => { if (!e.target.closest(".check, .grip") && !dragJustEnded()) toggleOpen(t.id); },
+    onpointerdown: (e) => pressTodo(e, t),
+  },
+    !isOpen && h("span", { class: "grip", title: "Drag to North Star, Urgent or Unlabeled", "aria-hidden": "true" }, "⠿"),
     h("button", {
       class: "check", title: t.done ? "Mark as not done" : "Complete",
       "aria-label": t.done ? "Mark as not done" : "Complete",
@@ -474,6 +483,82 @@ $("#pd-delete").addEventListener("click", async () => {
     toast(`Deleted project “${p.name}”`);
   } catch (err) { fail(err); }
 });
+
+/* ---------- drag to relabel ----------
+   Pointer events rather than native HTML5 drag-and-drop, so it also works on
+   touch screens. A mouse drags from anywhere on the row; touch drags from the
+   grip, so swiping the list still scrolls it. */
+let drag = null;
+let dragEndedAt = 0;
+const dragJustEnded = () => Date.now() - dragEndedAt < 50;
+const DROP_NAMES = { north_star: "North Star", urgent: "Urgent", none: "Unlabeled" };
+
+function pressTodo(e, t) {
+  if (e.button !== 0 || state.openId === t.id || e.target.closest(".check")) return;
+  const viaGrip = !!e.target.closest(".grip");
+  if (e.pointerType !== "mouse" && !viaGrip) return;
+  drag = { t, row: e.currentTarget.parentElement, x0: e.clientX, y0: e.clientY, active: false, over: null };
+  if (viaGrip) e.preventDefault();
+}
+
+function startDrag(e) {
+  const rect = drag.row.getBoundingClientRect();
+  drag.dx = e.clientX - rect.left;
+  drag.dy = e.clientY - rect.top;
+  drag.ghost = drag.row.cloneNode(true);
+  drag.ghost.classList.add("drag-ghost");
+  drag.ghost.style.width = rect.width + "px";
+  document.body.append(drag.ghost);
+  drag.row.classList.add("dragging");
+  document.body.classList.add("is-dragging");
+  drag.active = true;
+}
+
+function endDrag() {
+  if (!drag) return;
+  if (drag.active) {
+    drag.ghost.remove();
+    drag.row.classList.remove("dragging");
+    drag.over?.classList.remove("drop-over");
+    document.body.classList.remove("is-dragging");
+    dragEndedAt = Date.now();
+  }
+  drag = null;
+}
+
+document.addEventListener("pointermove", (e) => {
+  if (!drag) return;
+  if (!drag.active) {
+    if (Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0) < 6) return;
+    startDrag(e);
+  }
+  drag.ghost.style.transform = `translate(${e.clientX - drag.dx}px, ${e.clientY - drag.dy}px) rotate(1.5deg)`;
+  const over = document.elementFromPoint(e.clientX, e.clientY)?.closest("[data-drop]") || null;
+  if (over !== drag.over) {
+    drag.over?.classList.remove("drop-over");
+    over?.classList.add("drop-over");
+    drag.over = over;
+  }
+});
+
+document.addEventListener("pointerup", () => {
+  if (!drag) return;
+  const { t, over, active } = drag;
+  endDrag();
+  if (!active || !over) return;
+  const label = over.dataset.drop === "none" ? null : over.dataset.drop;
+  if (label === t.label && !t.done) return;
+  // Dropping a finished task into an active section brings it back.
+  const fields = t.done ? { label, done: false } : { label };
+  const before = { label: t.label, done: !!t.done };
+  replaceTodo({ ...t, label, done: 0, completed_at: null });
+  render();
+  patchTodo(t.id, fields);
+  toast(`Moved to ${DROP_NAMES[over.dataset.drop]}`, { label: "Undo", run: () => patchTodo(t.id, before) });
+});
+
+document.addEventListener("pointercancel", endDrag);
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && drag) endDrag(); });
 
 /* ---------- keyboard ---------- */
 document.addEventListener("keydown", (e) => {
