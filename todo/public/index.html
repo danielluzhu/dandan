@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Todo</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%236c5ad8'/><path d='M9 16.5l4.5 4.5L23 11.5' stroke='white' stroke-width='3.2' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span>Todo</span>
+      </div>
+      <nav class="views" id="views"></nav>
+      <div class="side-head">
+        <span>Projects</span>
+        <button class="icon-btn" id="new-project" title="New project" aria-label="New project">+</button>
+      </div>
+      <nav class="projects" id="projects"></nav>
+    </aside>
+
+    <main class="main">
+      <header class="main-head">
+        <button class="icon-btn menu-btn" id="menu" aria-label="Show projects">☰</button>
+        <div class="title-wrap">
+          <h1 id="view-title"></h1>
+          <p id="view-desc" class="view-desc"></p>
+        </div>
+        <div class="head-actions" id="head-actions"></div>
+      </header>
+
+      <form class="composer" id="composer" autocomplete="off">
+        <div class="composer-row">
+          <span class="ring" aria-hidden="true"></span>
+          <input id="new-title" placeholder="Add a task…  (press N)" maxlength="500" aria-label="New task">
+          <button type="submit" class="btn primary">Add</button>
+        </div>
+        <div class="composer-opts">
+          <div class="seg" id="new-label" role="radiogroup" aria-label="Label"></div>
+          <select id="new-project-select" aria-label="Project"></select>
+          <input type="date" id="new-due" aria-label="Due date">
+        </div>
+      </form>
+
+      <div class="toolbar">
+        <input id="search" type="search" placeholder="Filter tasks…  (/)" aria-label="Filter tasks">
+      </div>
+
+      <section id="list" class="list"></section>
+    </main>
+  </div>
+
+  <dialog id="project-dialog">
+    <form method="dialog" id="project-form" autocomplete="off">
+      <h2 id="pd-title">New project</h2>
+      <label>Name<input id="pd-name" maxlength="200" required></label>
+      <label>Description<textarea id="pd-desc" rows="3" maxlength="5000" placeholder="What is this project for?"></textarea></label>
+      <div class="field">
+        <span class="field-label">Color</span>
+        <div class="swatches" id="pd-colors"></div>
+      </div>
+      <div class="dialog-actions">
+        <button type="button" class="btn danger ghost" id="pd-delete" hidden>Delete project</button>
+        <span class="spacer"></span>
+        <button type="button" class="btn" id="pd-cancel">Cancel</button>
+        <button type="submit" class="btn primary" id="pd-save">Save</button>
+      </div>
+      <p class="confirm-note" id="pd-confirm" hidden></p>
+    </form>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

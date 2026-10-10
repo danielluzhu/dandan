@@ -1,0 +1,41 @@
+# The to-do app, kept running by systemd.
+#
+#   sudo cp deploy/dz-todo.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now dz-todo
+#
+# Logs: journalctl -u dz-todo -f
+
+[Unit]
+Description=dz-todo — to-do list app (port 1242)
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/workspace/todo
+ExecStart=/home/ubuntu/.bun/bin/bun run /workspace/todo/server.js
+
+Restart=always
+RestartSec=2
+
+KillSignal=SIGINT
+TimeoutStopSec=10
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectControlGroups=true
+ProtectKernelTunables=true
+# Reads and writes data/todo.db.
+ReadWritePaths=/workspace
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=dz-todo
+
+[Install]
+WantedBy=multi-user.target
