@@ -8,15 +8,4 @@ X-WR-CALDESC:Mahjong\, dinners\, tastings\, hikes\, film nights\, cabin tri
  ps and parties.
 REFRESH-INTERVAL;VALUE=DURATION:PT12H
 X-PUBLISHED-TTL:PT12H
-BEGIN:VEVENT
-UID:Xb5WqqDDo5cUoagp2rpl@dandan
-DTSTAMP:20260823T092345Z
-DTSTART:20261015T210000Z
-DTEND:20261019T020000Z
-SUMMARY:🧳 bois are still homeless
-DESCRIPTION:bois.\n\nhttps://partiful.com/e/Xb5WqqDDo5cUoagp2rpl
-LOCATION:Grand Canyon Village\, AZ
-URL:https://partiful.com/e/Xb5WqqDDo5cUoagp2rpl
-CATEGORIES:Homeless
-END:VEVENT
 END:VCALENDAR
