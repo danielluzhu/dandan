@@ -104,20 +104,32 @@ pre.msg{white-space:pre-wrap;word-break:break-word;font:inherit;background:var(-
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom,0px));background:var(--fg);color:var(--bg);padding:.5rem .9rem;border-radius:999px;font-weight:700;z-index:40;max-width:calc(100% - 32px)}
 .ro{font-size:.85rem;color:var(--muted)}
 @media (prefers-reduced-motion:no-preference){.slot{transition:filter .15s,transform .15s}.slot.open:active{transform:scale(.97)}}
+.group{margin:.75rem 0 0;border-radius:16px;overflow:hidden;border:1px solid var(--line);background:var(--surface)}
+.group img{display:block;width:100%;aspect-ratio:4/3;object-fit:cover;object-position:50% 78%}
+.group figcaption{padding:.55rem .9rem;font-size:.9rem;color:var(--muted)}
+.kgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.75rem;margin-top:.75rem}
+.kcard{background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden;display:grid}
+.kcard .ph{aspect-ratio:1;background:var(--ink-soft);display:grid;place-items:center;align-content:center;gap:.3rem;color:var(--muted);font-size:.8rem;text-align:center;padding:.5rem}
+.kcard .ph svg{width:44px;height:44px}
+.kcard img{display:block;width:100%;aspect-ratio:1;object-fit:cover}
+.kcard .nm{padding:.55rem .7rem;display:grid;line-height:1.25;min-width:0}
+.kcard .nm b{font-family:var(--display);font-size:1.05rem}
+.kcard .nm span{color:var(--muted);font-size:.9rem}
 </style>
 <div id="app"></div>
-<script id="state" type="application/json">{"trip":{"start":"2026-10-24","end":"2026-11-11"},"slotsPerDay":1,"slotNames":["Morning","Evening"],"owners":"Dan and Ellie","contact":{"phone":"","email":"","other":""},"kittens":["","",""],"address":"","notes":"","claims":{}}</script>
+<script id="state" type="application/json">{"trip":{"start":"2026-10-24","end":"2026-11-11"},"slotsPerDay":1,"slotNames":["Morning","Evening"],"owners":"Dan and Ellie","contact":{"phone":"","email":"","other":""},"kittens":["Soniu 소牛","Mimi 咪咪","Cookoo 哭哭"],"address":"","notes":"","claims":{}}</script>
 <script id="app-js">
 (function(){
 'use strict';
-var RESET_CSS = ':root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}';
 var S = JSON.parse(document.getElementById('state').textContent);
 S.claims = S.claims || {}; S.kittens = S.kittens || ['','','']; S.contact = S.contact || {};
 S.slotNames = S.slotNames || ['Morning','Evening']; S.slotsPerDay = Math.min(2, Math.max(1, S.slotsPerDay || 1));
 var app = document.getElementById('app');
 var sel = {};              // visitor's picked slots: key -> true
 var owner = false;         // the artifact's owner: settings + owner tools
-var writer = false;        // can this view publish (owner or an invited editor): edits reservations directly
+var writer = true;         // everyone edits the shared reservation list directly
+var PHOTOS = [];           // files in photos/, from the server
+function photoFor(name){ var base = name.toLowerCase().replace(/[^a-z0-9]/g, ''), exts = ['jpg','jpeg','png','webp']; for (var i = 0; i < exts.length; i++) if (PHOTOS.indexOf(base + '.' + exts[i]) >= 0) return base + '.' + exts[i]; return null; }
 var ownerMode = false;     // owner tools open
 var draft = null;          // owner's working copy of S
 var dirty = 0;
@@ -147,8 +159,17 @@ function render(){
   h.push('<p class="lead">' + esc(st.owners || 'Dan and Ellie') + ' are abroad and their three kittens (about 3 months old, all girls, friendly and well behaved) need someone to stop by ' + (st.slotsPerDay === 1 ? 'once a day' : 'once or twice a day') + '. Pick any open days below.</p>');
   var a = parseDate(st.trip.start), b = parseDate(st.trip.end);
   h.push('<div class="dates">' + (a && b ? '🗓 ' + fmtLong(a) + ' – ' + fmtLong(b) + ' · ' + ds.length + ' days' : 'Travel dates coming soon') + '</div>');
-  if (names.length) { h.push('<div class="kittens">' + names.map(function(n){ return '<span class="kitten">' + catSvg() + esc(n) + '</span>'; }).join('') + '</div>'); }
   h.push('</header>');
+
+  if (names.length) {
+    h.push('<section><h2>Meet the girls</h2>');
+    if (PHOTOS.indexOf('all.jpg') >= 0) h.push('<figure class="group"><img src="photos/all.jpg" alt="' + esc(names.join(', ')) + ' together on the bed"><figcaption>All three, on their favourite blanket.</figcaption></figure>');
+    h.push('<div class="kgrid">' + names.map(function(n){
+      var parts = n.split(' '), latin = parts.shift(), photo = photoFor(latin);
+      return '<div class="kcard">' + (photo ? '<img src="photos/' + esc(photo) + '" alt="' + esc(latin) + '">' : '<div class="ph">' + catSvg() + '<span>Photo coming soon</span></div>') +
+        '<div class="nm"><b>' + esc(latin) + '</b>' + (parts.length ? '<span>' + esc(parts.join(' ')) + '</span>' : '') + '</div></div>';
+    }).join('') + '</div></section>');
+  }
 
   h.push('<section><h2>What a visit involves</h2><p class="note">About 20–30 minutes. Food, water and the litter box are all automatic, so the job is mostly checking levels and giving the girls some attention.</p>');
   h.push('<ol class="steps"><li>Check the automatic feeder, water fountain and litter box. Top up or empty if they are getting low or full.</li><li>Spend 5–10 minutes with each kitten individually: play, pets, a quick look that she is eating and acting normal.</li><li>Quick scan of the apartment: nothing knocked over, no one shut in a closet, doors closed behind you.</li><li>Lock up and put the key back in the lockbox.</li></ol>');
@@ -282,29 +303,34 @@ function assignForm(key){
     '<div class="actions">' + (cur.name ? '<button class="btn danger" id="a_clear">Clear visit</button>' : '') + '<button class="btn ghost" id="m_cancel">Cancel</button><button class="btn" id="a_save">Save</button></div>');
 }
 
-// ---- self-publish: regenerate the whole document from state ----
-var HEAD = '<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>' + RESET_CSS + '</style></head><body>';
-function buildDocument(st){
-  var json = JSON.stringify(st).replace(/<\//g, '<\\/');
-  return HEAD + '\n' +
-    '<title>Kitten Sitting Sign-Up</title>\n<meta name="claude:viewport-fit-sides" content="cover">\n' +
-    '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gabarito:wght@500;700;800&family=Nunito+Sans:ital,wght@0,400;0,600;0,700;1,400&display=swap">\n' +
-    '<style id="css">' + document.getElementById('css').textContent + '</style>\n' +
-    '<div id="app"></div>\n' +
-    '<script id="state" type="application/json">' + json + '<\/script>\n' +
-    '<script id="app-js">' + document.getElementById('app-js').textContent + '<\/script>\n\n' +
-    '</body></html>';
+// ---- shared reservation list, kept by the server ----
+function applyServer(st){ S.claims = st.claims || {}; PHOTOS = st.photos || PHOTOS; }
+function loadState(){
+  return fetch('api/state').then(function(r){ return r.json(); }).then(function(st){ applyServer(st); if (!modal) render(); }).catch(function(){});
 }
+// Send the difference between the current list and `next` as one request per changed visit.
 function publishState(next, btnId, label){
-  if (!artifact) return;
   var btn = btnId ? document.getElementById(btnId) : null; if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
-  artifact.publish(buildDocument(next)).then(function(){ toast('Saved'); }).catch(function(e){
-    var code = e && e.code;
-    if (code === 'conflict') { toast('Someone else just saved; reloading'); return; }
-    if (code === 'not_writer' || code === 'not_granted' || code === 'not_declared') { owner = false; writer = false; ownerMode = false; draft = null; dirty = 0; closeModal(); toast('This page is read-only for you'); render(); return; }
-    toast('Could not save (' + (code || 'error') + '). Try again in a moment.');
-    if (btn) { btn.disabled = false; btn.textContent = label || 'Save'; }
-  });
+  var keys = Object.keys(Object.assign({}, S.claims, next.claims)), taken = 0, failed = 0;
+  var ops = keys.map(function(k){
+    var was = S.claims[k] && S.claims[k].name, now = next.claims[k] && next.claims[k].name;
+    if (was === now) return null;
+    var url = 'api/claims/' + encodeURIComponent(k);
+    if (!now) return {url: url, method: 'DELETE'};
+    return {url: url, method: was ? 'PUT' : 'POST', body: JSON.stringify({name: now})};
+  }).filter(Boolean);
+  ops.reduce(function(p, op){
+    return p.then(function(){
+      return fetch(op.url, {method: op.method, headers: {'Content-Type': 'application/json'}, body: op.body}).then(function(r){
+        if (r.status === 409) taken++; else if (!r.ok) failed++;
+      }, function(){ failed++; });
+    });
+  }, Promise.resolve()).then(function(){
+    if (failed && btn) { btn.disabled = false; btn.textContent = label || 'Save'; }
+    if (!failed) { sel = {}; closeModal(); }
+    toast(failed ? 'Could not save. Try again in a moment.' : taken ? taken + ' visit' + (taken > 1 ? 's were' : ' was') + ' just taken by someone else' : 'Saved');
+    return loadState();
+  }).then(function(){ render(); });
 }
 function publishDraft(){
   if (!artifact || !draft) return;
@@ -378,14 +404,10 @@ document.addEventListener('keydown', function(ev){ if (ev.key === 'Escape' && mo
 
 render();
 
-// ---- capabilities: light up owner tools when this view can publish ----
-if (window.claude && typeof window.claude.use === 'function') {
-  Promise.all([window.claude.use('artifact'), window.claude.use('user')]).then(function(r){
-    artifact = r[0]; user = r[1];
-    if (!artifact || !user) return;
-    return Promise.all([user.canEdit(), user.isOwner()]).then(function(f){ writer = !!f[0] || !!f[1]; owner = !!f[1]; if (writer) render(); });
-  }).catch(function(){});
-}
+// Anyone with the link can reserve, change or free visits; refresh so others' changes show up.
+loadState();
+setInterval(function(){ if (!document.hidden && !modal) loadState(); }, 30000);
+document.addEventListener('visibilitychange', function(){ if (!document.hidden && !modal) loadState(); });
 })();
 </script>
 
