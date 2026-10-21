@@ -1,0 +1,392 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Kitten Sitting Sign-Up</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gabarito:wght@500;700;800&family=Nunito+Sans:ital,wght@0,400;0,600;0,700;1,400&display=swap">
+<style id="css">
+/* Layout: one column, 720px measure; schedule is a day-by-day list with slot chips, sticky sign-up bar at the bottom. */
+:root{
+  --bg:#f7f8f4; --surface:#ffffff; --fg:#1d2a2a; --muted:#5d6b69; --line:#dfe5df;
+  --ink:#1f4f4a; --ink-soft:#e3efec;
+  --open:#f2b231; --open-soft:#fff3d6; --open-fg:#4d3500;
+  --taken:#9fb3ad; --taken-soft:#eef2f0;
+  --sel:#1f4f4a; --sel-soft:#d6e8e3;
+  --danger:#b4453a; --on-ink:#ffffff;
+  --display:"Gabarito","Avenir Next","Segoe UI",system-ui,sans-serif;
+  --body:"Nunito Sans","Helvetica Neue",Arial,system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#141a19; --surface:#1d2524; --fg:#eef2ef; --muted:#a3b1ad; --line:#2f3b39;
+  --ink:#8fd1c3; --ink-soft:#1f3532;
+  --open:#f2b231; --open-soft:#3d2f0e; --open-fg:#ffe2a3;
+  --taken:#5b6b67; --taken-soft:#232d2b;
+  --sel:#8fd1c3; --sel-soft:#1f3532;
+  --danger:#f08a7e; --on-ink:#141a19; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#141a19; --surface:#1d2524; --fg:#eef2ef; --muted:#a3b1ad; --line:#2f3b39;
+  --ink:#8fd1c3; --ink-soft:#1f3532;
+  --open:#f2b231; --open-soft:#3d2f0e; --open-fg:#ffe2a3;
+  --taken:#5b6b67; --taken-soft:#232d2b;
+  --sel:#8fd1c3; --sel-soft:#1f3532;
+  --danger:#f08a7e; --on-ink:#141a19; color-scheme:dark }
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:16px;line-height:1.55;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 96px}
+.wrap{max-width:720px;margin:0 auto}
+h1,h2,h3{font-family:var(--display);line-height:1.15;text-wrap:balance;margin:0}
+h1{font-size:clamp(2rem,6vw,2.9rem);font-weight:800;letter-spacing:-.01em}
+h2{font-size:1.35rem;font-weight:700;margin-bottom:.5rem}
+h3{font-size:1.05rem;font-weight:700}
+p{margin:0}
+a{color:var(--ink)}
+.eyebrow{font-family:var(--display);font-weight:700;text-transform:uppercase;letter-spacing:.08em;font-size:.75rem;color:var(--ink)}
+header.hero{padding-block:2.5rem 1.5rem;display:grid;gap:.9rem}
+.hero .lead{font-size:1.1rem;max-width:60ch;color:var(--fg)}
+.dates{display:inline-flex;align-items:center;gap:.5rem;background:var(--ink-soft);color:var(--ink);border-radius:999px;padding:.35rem .9rem;font-family:var(--display);font-weight:700;width:max-content;max-width:100%}
+.topbar{display:flex;justify-content:flex-end;padding-top:.75rem}
+section{padding-block:1.25rem;border-top:1px solid var(--line)}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:.75rem;margin-top:.75rem}
+.fact{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:.9rem 1rem;display:grid;gap:.25rem}
+.fact .k{font-size:.8rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-family:var(--display);font-weight:700}
+.kittens{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.5rem}
+.kitten{display:inline-flex;align-items:center;gap:.45rem;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:.3rem .8rem .3rem .4rem;font-weight:600}
+.kitten svg{width:26px;height:26px}
+ol.steps{margin:.5rem 0 0;padding-left:1.25rem;display:grid;gap:.45rem}
+ol.steps li::marker{font-family:var(--display);font-weight:700;color:var(--ink)}
+.note{color:var(--muted);font-size:.95rem}
+.legend{display:flex;flex-wrap:wrap;gap:.75rem 1.25rem;font-size:.9rem;color:var(--muted);margin:.5rem 0 1rem}
+.legend span{display:inline-flex;align-items:center;gap:.4rem}
+.dot{width:12px;height:12px;border-radius:4px;display:inline-block}
+.dot.open{background:var(--open)} .dot.taken{background:var(--taken)} .dot.sel{background:var(--sel)}
+.days{display:grid;gap:.5rem}
+.day{display:grid;grid-template-columns:7.5rem 1fr;gap:.75rem;align-items:start;padding:.65rem 0;border-bottom:1px dashed var(--line)}
+.day:last-child{border-bottom:0}
+.day .d{display:grid;line-height:1.2;font-variant-numeric:tabular-nums}
+.day .d b{font-family:var(--display);font-weight:700}
+.day .d small{color:var(--muted)}
+.day.weekend .d b{color:var(--ink)}
+.slots{display:flex;flex-wrap:wrap;gap:.45rem;min-width:0}
+.slot{appearance:none;font:inherit;font-weight:600;border-radius:10px;border:1.5px solid transparent;padding:.4rem .75rem;cursor:pointer;display:inline-flex;gap:.45rem;align-items:center;min-width:0;max-width:100%;text-align:left}
+.slot .who{font-weight:700}
+.slot small{font-weight:600;opacity:.75}
+.slot.open{background:var(--open-soft);color:var(--open-fg);border-color:var(--open)}
+.slot.open:hover{filter:brightness(.97)}
+.slot.taken{background:var(--taken-soft);color:var(--fg);border-color:var(--line);cursor:default}
+.slot.sel{background:var(--sel-soft);color:var(--sel);border-color:var(--sel)}
+.slot.pending{outline:2px dashed var(--sel);outline-offset:2px}
+.slot:focus-visible,button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:3px solid var(--open);outline-offset:2px}
+.owner .slot.taken{cursor:pointer}
+.empty{background:var(--surface);border:1px dashed var(--line);border-radius:12px;padding:1.25rem;color:var(--muted);text-align:center}
+.bar{position:fixed;left:0;right:0;bottom:0;padding:.75rem max(16px,env(safe-area-inset-right,0px)) calc(.75rem + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));background:var(--surface);border-top:1px solid var(--line);box-shadow:0 -8px 24px rgba(0,0,0,.06);z-index:20}
+.bar .in{max-width:720px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap}
+.btn{appearance:none;font:inherit;font-family:var(--display);font-weight:700;border-radius:10px;border:1.5px solid var(--ink);background:var(--ink);color:var(--on-ink);padding:.55rem 1rem;cursor:pointer}
+.slot.taken[disabled]{opacity:1}
+.btn.ghost{background:transparent;color:var(--ink)}
+.btn.small{padding:.35rem .7rem;font-size:.9rem}
+.btn.danger{border-color:var(--danger);color:var(--danger);background:transparent}
+.btn[disabled]{opacity:.5;cursor:default}
+.modal{position:fixed;inset:0;background:rgba(10,20,18,.45);display:flex;align-items:flex-end;justify-content:center;z-index:30;padding:max(16px,env(safe-area-inset-left,0px))}
+@media (min-width:600px){.modal{align-items:center}}
+.card{background:var(--surface);color:var(--fg);border-radius:16px;max-width:520px;width:100%;max-height:min(90vh,100%);overflow:auto;padding:1.25rem;display:grid;gap:.9rem;border:1px solid var(--line)}
+.field{display:grid;gap:.3rem}
+.field label{font-weight:700;font-size:.9rem}
+.field input,.field textarea,.field select{font:inherit;padding:.5rem .65rem;border:1.5px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg);width:100%;min-width:0}
+.field textarea{min-height:4.5rem;resize:vertical}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:.75rem}
+@media (max-width:440px){.row{grid-template-columns:1fr}}
+.actions{display:flex;gap:.5rem;justify-content:flex-end;flex-wrap:wrap}
+pre.msg{white-space:pre-wrap;word-break:break-word;font:inherit;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:.85rem;margin:0;user-select:all}
+.contact{display:grid;gap:.35rem;font-size:.95rem}
+.contact code{font-family:inherit;font-weight:700;user-select:all}
+.picked{display:flex;flex-wrap:wrap;gap:.35rem}
+.picked span{background:var(--sel-soft);color:var(--sel);border-radius:8px;padding:.2rem .55rem;font-size:.9rem;font-weight:600}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:1rem;display:grid;gap:.9rem;margin-top:1rem}
+.panel h3{display:flex;justify-content:space-between;align-items:center;gap:.5rem;flex-wrap:wrap}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom,0px));background:var(--fg);color:var(--bg);padding:.5rem .9rem;border-radius:999px;font-weight:700;z-index:40;max-width:calc(100% - 32px)}
+.ro{font-size:.85rem;color:var(--muted)}
+@media (prefers-reduced-motion:no-preference){.slot{transition:filter .15s,transform .15s}.slot.open:active{transform:scale(.97)}}
+</style>
+<div id="app"></div>
+<script id="state" type="application/json">{"trip":{"start":"2026-10-24","end":"2026-11-11"},"slotsPerDay":1,"slotNames":["Morning","Evening"],"owners":"Dan and Ellie","contact":{"phone":"","email":"","other":""},"kittens":["","",""],"address":"","notes":"","claims":{}}</script>
+<script id="app-js">
+(function(){
+'use strict';
+var RESET_CSS = ':root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}';
+var S = JSON.parse(document.getElementById('state').textContent);
+S.claims = S.claims || {}; S.kittens = S.kittens || ['','','']; S.contact = S.contact || {};
+S.slotNames = S.slotNames || ['Morning','Evening']; S.slotsPerDay = Math.min(2, Math.max(1, S.slotsPerDay || 1));
+var app = document.getElementById('app');
+var sel = {};              // visitor's picked slots: key -> true
+var owner = false;         // the artifact's owner: settings + owner tools
+var writer = false;        // can this view publish (owner or an invited editor): edits reservations directly
+var ownerMode = false;     // owner tools open
+var draft = null;          // owner's working copy of S
+var dirty = 0;
+var artifact = null, user = null;
+var modal = null;
+var visitor = {name:'', phone:'', note:''};
+try { var v = JSON.parse(localStorage.getItem('kitten-visitor') || 'null'); if (v) visitor = v; } catch(e){}
+
+function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+function parseDate(s){ var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s||''); return m ? new Date(+m[1], +m[2]-1, +m[3]) : null; }
+function iso(d){ return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
+var DOW = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'], MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function fmtShort(d){ return DOW[d.getDay()] + ' ' + MON[d.getMonth()] + ' ' + d.getDate(); }
+function fmtLong(d){ return MON[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear(); }
+function days(st){ var a = parseDate(st.trip.start), b = parseDate(st.trip.end), out = []; if (!a || !b || b < a) return out; for (var d = new Date(a); d <= b && out.length < 120; d.setDate(d.getDate()+1)) out.push(new Date(d)); return out; }
+function slotLabel(st, i){ return st.slotsPerDay === 1 ? 'Daily visit' : (st.slotNames[i] || ('Visit ' + (i+1))); }
+function kittenNames(st){ return st.kittens.filter(function(k){ return k && k.trim(); }); }
+
+function catSvg(){ return '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M6 13 5 4l7 5h8l7-5-1 9c2 2 3 5 3 8 0 6-6 9-13 9S3 27 3 21c0-3 1-6 3-8z" fill="var(--ink-soft)" stroke="var(--ink)" stroke-width="1.5" stroke-linejoin="round"/><circle cx="12" cy="18" r="1.5" fill="var(--ink)"/><circle cx="20" cy="18" r="1.5" fill="var(--ink)"/><path d="M14.5 22h3l-1.5 1.5z" fill="var(--ink)"/></svg>'; }
+
+function render(){
+  var st = ownerMode && draft ? draft : S;
+  var ds = days(st), names = kittenNames(st), h = [];
+  h.push('<div class="wrap' + (ownerMode ? ' owner' : '') + '">');
+  h.push('<div class="topbar">' + (owner ? '<button class="btn ghost small" id="ownerToggle">' + (ownerMode ? 'Close owner tools' : 'Owner tools') + '</button>' : '') + '</div>');
+  h.push('<header class="hero"><div class="eyebrow">Sign-up sheet</div><h1>Three kittens need a daily visitor</h1>');
+  h.push('<p class="lead">' + esc(st.owners || 'Dan and Ellie') + ' are abroad and their three kittens (about 3 months old, all girls, friendly and well behaved) need someone to stop by ' + (st.slotsPerDay === 1 ? 'once a day' : 'once or twice a day') + '. Pick any open days below.</p>');
+  var a = parseDate(st.trip.start), b = parseDate(st.trip.end);
+  h.push('<div class="dates">' + (a && b ? '🗓 ' + fmtLong(a) + ' – ' + fmtLong(b) + ' · ' + ds.length + ' days' : 'Travel dates coming soon') + '</div>');
+  if (names.length) { h.push('<div class="kittens">' + names.map(function(n){ return '<span class="kitten">' + catSvg() + esc(n) + '</span>'; }).join('') + '</div>'); }
+  h.push('</header>');
+
+  h.push('<section><h2>What a visit involves</h2><p class="note">About 20–30 minutes. Food, water and the litter box are all automatic, so the job is mostly checking levels and giving the girls some attention.</p>');
+  h.push('<ol class="steps"><li>Check the automatic feeder, water fountain and litter box. Top up or empty if they are getting low or full.</li><li>Spend 5–10 minutes with each kitten individually: play, pets, a quick look that she is eating and acting normal.</li><li>Quick scan of the apartment: nothing knocked over, no one shut in a closet, doors closed behind you.</li><li>Lock up and put the key back in the lockbox.</li></ol>');
+  h.push('<div class="facts"><div class="fact"><span class="k">Getting in</span><span>Key in a lockbox at the door. ' + esc(st.owners.split(' and ')[0] || 'Dan') + ' sends the address and code once you sign up.</span></div>');
+  h.push('<div class="fact"><span class="k">Visits per day</span><span>' + (st.slotsPerDay === 1 ? 'One visit a day.' : 'Two visits a day (' + esc(st.slotNames[0] || 'Morning') + ' and ' + esc(st.slotNames[1] || 'Evening') + '). One is fine if the other is covered, two sitters a day is ideal.') + '</span></div>');
+  if (st.notes) h.push('<div class="fact"><span class="k">Notes from the owners</span><span>' + esc(st.notes).replace(/\n/g,'<br>') + '</span></div>');
+  h.push('</div></section>');
+
+  h.push('<section id="schedule"><h2>Schedule</h2>');
+  if (!ds.length) {
+    h.push('<div class="empty">' + (owner ? 'Set the travel dates in Owner tools to open the schedule.' : 'The travel dates are not set yet. Check back soon.') + '</div>');
+  } else {
+    h.push('<div class="legend"><span><i class="dot open"></i>Open, tap to pick</span><span><i class="dot taken"></i>Covered</span><span><i class="dot sel"></i>Your picks</span></div>');
+    h.push('<div class="days">');
+    ds.forEach(function(d){
+      var k = iso(d), wk = d.getDay() === 0 || d.getDay() === 6;
+      h.push('<div class="day' + (wk ? ' weekend' : '') + '"><div class="d"><b>' + DOW[d.getDay()] + '</b><small>' + MON[d.getMonth()] + ' ' + d.getDate() + '</small></div><div class="slots">');
+      for (var i = 0; i < st.slotsPerDay; i++) {
+        var key = k + '|' + i, c = st.claims[key], lbl = slotLabel(st, i);
+        var pending = ownerMode && draft && JSON.stringify(S.claims[key]||null) !== JSON.stringify(c||null);
+        if (c && c.name) h.push('<button class="slot taken' + (pending ? ' pending' : '') + '" data-key="' + key + '" ' + (ownerMode || writer ? 'title="Tap to change or free this visit"' : 'disabled') + '><small>' + esc(lbl) + '</small><span class="who">' + esc(c.name) + '</span></button>');
+        else h.push('<button class="slot ' + (sel[key] ? 'sel' : 'open') + (pending ? ' pending' : '') + '" data-key="' + key + '" aria-pressed="' + (!!sel[key]) + '"><small>' + esc(lbl) + '</small><span>' + (sel[key] ? 'Picked' : 'Open') + '</span></button>');
+      }
+      h.push('</div></div>');
+    });
+    h.push('</div>');
+  }
+  h.push('</section>');
+
+  if (writer) h.push('<section><h2>How signing up works</h2><p>Tap the days you can cover, press <b>Reserve</b> and enter your name. Your name goes on the schedule right away, and ' + esc(st.owners.split(' and ')[0] || 'Dan') + ' will send you the lockbox code. Tap a day with your name on it to change or free it.</p></section>');
+  else h.push('<section><h2>How signing up works</h2><p>Tap the visits you can cover, then press <b>Sign up</b>. You will get a short message to send to ' + esc(st.owners.split(' and ')[0] || 'Dan') + ', who adds your name to the schedule and sends you the lockbox code. Picks are not locked until your name shows here.</p></section>');
+
+  if (ownerMode && draft) h.push(renderOwnerPanel(draft));
+  h.push('</div>');
+
+  var n = Object.keys(sel).length;
+  if (!ownerMode && n) h.push('<div class="bar"><div class="in"><span><b>' + n + '</b> visit' + (n > 1 ? 's' : '') + ' picked</span><span class="actions"><button class="btn ghost" id="clearSel">Clear</button><button class="btn" id="signup">' + (writer ? 'Reserve' : 'Sign up') + '</button></span></div></div>');
+  if (ownerMode) h.push('<div class="bar"><div class="in"><span id="dirtyMsg">' + dirtyMsg() + '</span><span class="actions"><button class="btn ghost" id="discard"' + (dirty ? '' : ' disabled') + '>Discard</button><button class="btn" id="publish"' + (dirty ? '' : ' disabled') + '>Publish changes</button></span></div></div>');
+  app.innerHTML = h.join('');
+  if (modal) app.appendChild(modal);
+}
+
+function renderOwnerPanel(d){
+  var h = ['<div class="panel" id="ownerPanel"><h3>Owner tools <span class="ro">Only you see this. Changes go live when you publish.</span></h3>'];
+  h.push('<div class="row"><div class="field"><label for="o_start">First day away</label><input type="date" id="o_start" value="' + esc(d.trip.start) + '"></div><div class="field"><label for="o_end">Last day away</label><input type="date" id="o_end" value="' + esc(d.trip.end) + '"></div></div>');
+  h.push('<div class="row"><div class="field"><label for="o_spd">Visits per day</label><select id="o_spd"><option value="1"' + (d.slotsPerDay === 1 ? ' selected' : '') + '>1</option><option value="2"' + (d.slotsPerDay === 2 ? ' selected' : '') + '>2</option></select></div><div class="field"><label for="o_owners">Who is away</label><input id="o_owners" value="' + esc(d.owners) + '"></div></div>');
+  h.push('<div class="row"><div class="field"><label for="o_s0">Visit 1 name</label><input id="o_s0" value="' + esc(d.slotNames[0]||'') + '"></div><div class="field"><label for="o_s1">Visit 2 name</label><input id="o_s1" value="' + esc(d.slotNames[1]||'') + '"></div></div>');
+  h.push('<div class="row"><div class="field"><label for="o_k0">Kitten 1</label><input id="o_k0" value="' + esc(d.kittens[0]||'') + '"></div><div class="field"><label for="o_k1">Kitten 2</label><input id="o_k1" value="' + esc(d.kittens[1]||'') + '"></div></div>');
+  h.push('<div class="row"><div class="field"><label for="o_k2">Kitten 3</label><input id="o_k2" value="' + esc(d.kittens[2]||'') + '"></div><div class="field"><label for="o_phone">Your phone (shown to sitters)</label><input id="o_phone" value="' + esc(d.contact.phone||'') + '" placeholder="optional"></div></div>');
+  h.push('<div class="row"><div class="field"><label for="o_email">Your email (shown to sitters)</label><input id="o_email" value="' + esc(d.contact.email||'') + '" placeholder="optional"></div><div class="field"><label for="o_other">Other way to reach you</label><input id="o_other" value="' + esc(d.contact.other||'') + '" placeholder="e.g. WhatsApp, Instagram"></div></div>');
+  h.push('<div class="field"><label for="o_notes">Notes for sitters (shown on the page)</label><textarea id="o_notes" placeholder="Parking, which closet the supplies are in, anything the girls do…">' + esc(d.notes||'') + '</textarea></div>');
+  h.push('<p class="ro">To add a sitter, tap an open visit in the schedule and type their name. Tap a covered visit to change or clear it.</p>');
+  h.push('</div>');
+  return h.join('');
+}
+
+function dirtyMsg(){ return dirty ? '<b>' + dirty + '</b> change' + (dirty > 1 ? 's' : '') + ' not published' : 'No unpublished changes'; }
+function countDirty(){ return draft && JSON.stringify(draft) !== JSON.stringify(S) ? 1 + Object.keys(Object.assign({}, S.claims, draft.claims)).filter(function(k){ return JSON.stringify(S.claims[k]||null) !== JSON.stringify(draft.claims[k]||null); }).length : 0; }
+
+function readOwnerForm(){
+  if (!draft) return;
+  var g = function(id){ var el = document.getElementById(id); return el ? el.value : ''; };
+  draft.trip.start = g('o_start'); draft.trip.end = g('o_end');
+  draft.slotsPerDay = +g('o_spd') || 1; draft.owners = g('o_owners').trim() || 'Dan and Ellie';
+  draft.slotNames = [g('o_s0').trim() || 'Morning', g('o_s1').trim() || 'Evening'];
+  draft.kittens = [g('o_k0').trim(), g('o_k1').trim(), g('o_k2').trim()];
+  draft.contact = {phone: g('o_phone').trim(), email: g('o_email').trim(), other: g('o_other').trim()};
+  draft.notes = g('o_notes');
+  dirty = countDirty();
+}
+
+function openModal(html){ modal = document.createElement('div'); modal.className = 'modal'; modal.innerHTML = '<div class="card" role="dialog" aria-modal="true">' + html + '</div>'; app.appendChild(modal); var f = modal.querySelector('input,textarea'); if (f) f.focus(); }
+function closeModal(){ if (modal) modal.remove(); modal = null; }
+function toast(msg){ var t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; document.body.appendChild(t); setTimeout(function(){ t.remove(); }, 2200); }
+
+function pickedList(st){ return Object.keys(sel).sort().map(function(k){ var p = k.split('|'), d = parseDate(p[0]); return fmtShort(d) + ' · ' + slotLabel(st, +p[1]); }); }
+
+function signupForm(){
+  var list = pickedList(S);
+  openModal('<h3>Sign up for ' + list.length + ' visit' + (list.length > 1 ? 's' : '') + '</h3><div class="picked">' + list.map(function(x){ return '<span>' + esc(x) + '</span>'; }).join('') + '</div>' +
+    '<div class="row"><div class="field"><label for="v_name">Your name</label><input id="v_name" value="' + esc(visitor.name) + '" autocomplete="name"></div><div class="field"><label for="v_phone">Phone or email</label><input id="v_phone" value="' + esc(visitor.phone) + '" autocomplete="tel"></div></div>' +
+    '<div class="field"><label for="v_note">Anything to add (optional)</label><textarea id="v_note" placeholder="e.g. I can swap days if needed">' + esc(visitor.note) + '</textarea></div>' +
+    '<div class="actions"><button class="btn ghost" id="m_cancel">Cancel</button><button class="btn" id="m_next">Next</button></div>');
+}
+
+function buildMessage(){
+  var first = (S.owners || 'Dan').split(' and ')[0];
+  var lines = ['Hi ' + first + '! I can cover kitten sitting on:'];
+  pickedList(S).forEach(function(x){ lines.push('• ' + x); });
+  lines.push('', 'Name: ' + visitor.name, 'Reach me: ' + visitor.phone);
+  if (visitor.note.trim()) lines.push('Note: ' + visitor.note.trim());
+  lines.push('', 'Send me the address and lockbox code when you can. 🐾');
+  return lines.join('\n');
+}
+
+function messageView(){
+  var msg = buildMessage(), c = S.contact || {}, first = (S.owners || 'Dan').split(' and ')[0];
+  var how = [];
+  if (c.phone) how.push('Text ' + esc(first) + ': <code>' + esc(c.phone) + '</code> <a href="sms:' + esc(c.phone.replace(/[^+\d]/g,'')) + '?&body=' + encodeURIComponent(msg) + '">open in Messages</a>');
+  if (c.email) how.push('Email: <code>' + esc(c.email) + '</code> <a href="mailto:' + esc(c.email) + '?subject=' + encodeURIComponent('Kitten sitting') + '&body=' + encodeURIComponent(msg) + '">open in Mail</a>');
+  if (c.other) how.push(esc(c.other));
+  if (!how.length) how.push('Send it to ' + esc(first) + ' however you usually reach him (text, WhatsApp, etc.).');
+  openModal('<h3>Send this to ' + esc(first) + '</h3><pre class="msg" id="msgText">' + esc(msg) + '</pre>' +
+    '<div class="actions"><button class="btn" id="m_copy">Copy message</button></div>' +
+    '<div class="contact">' + how.map(function(x){ return '<div>' + x + '</div>'; }).join('') + '</div>' +
+    '<p class="ro">Your picks stay marked on this page until ' + esc(first) + ' adds your name. If a visit shows someone else by then, it was taken first.</p>' +
+    '<div class="actions"><button class="btn ghost" id="m_back">Back</button><button class="btn" id="m_done">Done</button></div>');
+}
+
+function reserveForm(){
+  var list = pickedList(S);
+  openModal('<h3>Reserve ' + list.length + ' visit' + (list.length > 1 ? 's' : '') + '</h3><div class="picked">' + list.map(function(x){ return '<span>' + esc(x) + '</span>'; }).join('') + '</div>' +
+    '<div class="field"><label for="w_name">Your name (shown on the schedule)</label><input id="w_name" value="' + esc(visitor.name) + '" autocomplete="name"></div>' +
+    '<p class="ro">' + esc((S.owners || 'Dan').split(' and ')[0]) + ' will reach out with the address and lockbox code.</p>' +
+    '<div class="actions"><button class="btn ghost" id="m_cancel">Cancel</button><button class="btn" id="w_reserve">Reserve</button></div>');
+}
+
+function editForm(key){
+  currentKey = key;
+  var p = key.split('|'), d = parseDate(p[0]), cur = S.claims[key] || {};
+  openModal('<h3>' + esc(fmtShort(d) + ' · ' + slotLabel(S, +p[1])) + '</h3>' +
+    '<div class="field"><label for="w_name">Sitter name</label><input id="w_name" value="' + esc(cur.name||'') + '"></div>' +
+    '<div class="actions"><button class="btn danger" id="w_free">Free this visit</button><button class="btn ghost" id="m_cancel">Cancel</button><button class="btn" id="w_update">Update</button></div>');
+}
+
+function assignForm(key){
+  currentKey = key;
+  var p = key.split('|'), d = parseDate(p[0]), cur = draft.claims[key] || {};
+  openModal('<h3>' + esc(fmtShort(d) + ' · ' + slotLabel(draft, +p[1])) + '</h3>' +
+    '<div class="field"><label for="a_name">Sitter name (shown on the schedule)</label><input id="a_name" value="' + esc(cur.name||'') + '"></div>' +
+    '<div class="actions">' + (cur.name ? '<button class="btn danger" id="a_clear">Clear visit</button>' : '') + '<button class="btn ghost" id="m_cancel">Cancel</button><button class="btn" id="a_save">Save</button></div>');
+}
+
+// ---- self-publish: regenerate the whole document from state ----
+var HEAD = '<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>' + RESET_CSS + '</style></head><body>';
+function buildDocument(st){
+  var json = JSON.stringify(st).replace(/<\//g, '<\\/');
+  return HEAD + '\n' +
+    '<title>Kitten Sitting Sign-Up</title>\n<meta name="claude:viewport-fit-sides" content="cover">\n' +
+    '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gabarito:wght@500;700;800&family=Nunito+Sans:ital,wght@0,400;0,600;0,700;1,400&display=swap">\n' +
+    '<style id="css">' + document.getElementById('css').textContent + '</style>\n' +
+    '<div id="app"></div>\n' +
+    '<script id="state" type="application/json">' + json + '<\/script>\n' +
+    '<script id="app-js">' + document.getElementById('app-js').textContent + '<\/script>\n\n' +
+    '</body></html>';
+}
+function publishState(next, btnId, label){
+  if (!artifact) return;
+  var btn = btnId ? document.getElementById(btnId) : null; if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+  artifact.publish(buildDocument(next)).then(function(){ toast('Saved'); }).catch(function(e){
+    var code = e && e.code;
+    if (code === 'conflict') { toast('Someone else just saved; reloading'); return; }
+    if (code === 'not_writer' || code === 'not_granted' || code === 'not_declared') { owner = false; writer = false; ownerMode = false; draft = null; dirty = 0; closeModal(); toast('This page is read-only for you'); render(); return; }
+    toast('Could not save (' + (code || 'error') + '). Try again in a moment.');
+    if (btn) { btn.disabled = false; btn.textContent = label || 'Save'; }
+  });
+}
+function publishDraft(){
+  if (!artifact || !draft) return;
+  readOwnerForm();
+  publishState(JSON.parse(JSON.stringify(draft)), 'publish', 'Publish changes');
+}
+
+// ---- events ----
+app.addEventListener('click', function(ev){
+  var t = ev.target.closest('button, a'); if (!t) return;
+  var id = t.id;
+  if (t.classList.contains('slot')) {
+    var key = t.getAttribute('data-key');
+    if (ownerMode && draft) { assignForm(key); return; }
+    if (t.classList.contains('taken')) { if (writer) editForm(key); return; }
+    if (sel[key]) delete sel[key]; else sel[key] = true;
+    render(); return;
+  }
+  if (id === 'clearSel') { sel = {}; render(); }
+  else if (id === 'signup') { if (writer) reserveForm(); else signupForm(); }
+  else if (id === 'w_reserve') {
+    var wn = document.getElementById('w_name').value.trim();
+    if (!wn) { document.getElementById('w_name').focus(); toast('Add your name first'); return; }
+    visitor.name = wn; try { localStorage.setItem('kitten-visitor', JSON.stringify(visitor)); } catch(e){}
+    var nx = JSON.parse(JSON.stringify(S));
+    Object.keys(sel).forEach(function(k){ if (!(nx.claims[k] && nx.claims[k].name)) nx.claims[k] = {name: wn}; });
+    publishState(nx, 'w_reserve', 'Reserve');
+  }
+  else if (id === 'w_update') {
+    var un = document.getElementById('w_name').value.trim(), nx2 = JSON.parse(JSON.stringify(S));
+    if (un) nx2.claims[modalKey()] = {name: un}; else delete nx2.claims[modalKey()];
+    publishState(nx2, 'w_update', 'Update');
+  }
+  else if (id === 'w_free') { var nx3 = JSON.parse(JSON.stringify(S)); delete nx3.claims[modalKey()]; publishState(nx3, 'w_free', 'Free this visit'); }
+  else if (id === 'm_cancel') { closeModal(); }
+  else if (id === 'm_next') {
+    visitor = {name: document.getElementById('v_name').value.trim(), phone: document.getElementById('v_phone').value.trim(), note: document.getElementById('v_note').value};
+    if (!visitor.name) { document.getElementById('v_name').focus(); toast('Add your name first'); return; }
+    try { localStorage.setItem('kitten-visitor', JSON.stringify(visitor)); } catch(e){}
+    closeModal(); messageView();
+  }
+  else if (id === 'm_back') { closeModal(); signupForm(); }
+  else if (id === 'm_done') { closeModal(); toast('Thanks! Watch for your name on the schedule.'); }
+  else if (id === 'm_copy') {
+    var txt = document.getElementById('msgText').textContent;
+    var done = function(){ toast('Copied'); };
+    var fallback = function(){ var r = document.createRange(); r.selectNodeContents(document.getElementById('msgText')); var s = window.getSelection(); s.removeAllRanges(); s.addRange(r); toast('Select all and copy'); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(done, fallback); else fallback();
+  }
+  else if (id === 'ownerToggle') {
+    if (ownerMode) { if (dirty) { toast('Publish or discard your changes first'); return; } ownerMode = false; draft = null; }
+    else { ownerMode = true; draft = JSON.parse(JSON.stringify(S)); dirty = 0; sel = {}; }
+    render();
+    if (ownerMode) { var p = document.getElementById('ownerPanel'); if (p) p.scrollIntoView({block:'start'}); }
+  }
+  else if (id === 'discard') { draft = JSON.parse(JSON.stringify(S)); dirty = 0; render(); }
+  else if (id === 'publish') { publishDraft(); }
+  else if (id === 'a_save') {
+    var k = modalKey(), nm = document.getElementById('a_name').value.trim();
+    if (nm) draft.claims[k] = {name: nm}; else delete draft.claims[k];
+    closeModal(); dirty = countDirty(); render();
+  }
+  else if (id === 'a_clear') { delete draft.claims[modalKey()]; closeModal(); dirty = countDirty(); render(); }
+});
+var currentKey = null;
+function modalKey(){ return currentKey; }
+
+app.addEventListener('input', function(ev){ if (ownerMode && draft && ev.target.closest('#ownerPanel')) { readOwnerForm(); var m = document.getElementById('dirtyMsg'); if (m) m.innerHTML = dirtyMsg(); ['discard','publish'].forEach(function(i){ var b = document.getElementById(i); if (b) b.disabled = !dirty; }); } });
+app.addEventListener('change', function(ev){ if (ownerMode && draft && ev.target.closest('#ownerPanel')) { readOwnerForm(); if (ev.target.id === 'o_start' || ev.target.id === 'o_end' || ev.target.id === 'o_spd' || ev.target.id === 'o_s0' || ev.target.id === 'o_s1' || ev.target.id === 'o_k0' || ev.target.id === 'o_k1' || ev.target.id === 'o_k2' || ev.target.id === 'o_owners') render(); } });
+document.addEventListener('keydown', function(ev){ if (ev.key === 'Escape' && modal) closeModal(); });
+
+render();
+
+// ---- capabilities: light up owner tools when this view can publish ----
+if (window.claude && typeof window.claude.use === 'function') {
+  Promise.all([window.claude.use('artifact'), window.claude.use('user')]).then(function(r){
+    artifact = r[0]; user = r[1];
+    if (!artifact || !user) return;
+    return Promise.all([user.canEdit(), user.isOwner()]).then(function(f){ writer = !!f[0] || !!f[1]; owner = !!f[1]; if (writer) render(); });
+  }).catch(function(){});
+}
+})();
+</script>
+
+</body></html>

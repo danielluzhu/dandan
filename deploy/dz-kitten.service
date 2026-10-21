@@ -1,0 +1,33 @@
+# The kitten sitting sign-up page, kept running by systemd.
+#
+#   sudo cp deploy/dz-kitten.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now dz-kitten
+#
+# Logs: journalctl -u dz-kitten -f
+
+[Unit]
+Description=dz-kitten — kitten sitting sign-up (port 3333)
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/workspace/kitten
+ExecStart=/home/ubuntu/.bun/bin/bun run /workspace/kitten/server.js
+
+Restart=always
+RestartSec=2
+
+KillSignal=SIGINT
+TimeoutStopSec=10
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=dz-kitten
+
+[Install]
+WantedBy=multi-user.target
