@@ -128,6 +128,7 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-vis
 .care .feed th{text-align:left;font-weight:700;padding:0 .75rem .15rem 0;white-space:nowrap}
 .care .feed td{font-weight:400;padding:0 0 .15rem}
 .care-note{background:var(--open-soft);color:var(--open-fg);border-left:3px solid var(--open);border-radius:6px;padding:.45rem .6rem;font-size:.88rem;margin:0}
+.fact .rec{background:var(--open-soft);color:var(--open-fg);border-left:3px solid var(--open);border-radius:6px;padding:.45rem .6rem;font-size:.9rem}
 .care .tbd{color:var(--muted);font-weight:400;font-style:italic}
 .chore{display:flex;gap:.6rem;align-items:center;justify-content:space-between;border:1px solid var(--line);border-radius:10px;padding:.55rem .65rem;font-size:.92rem}
 .chore.due{background:var(--open-soft);border-color:var(--open);color:var(--open-fg)}
@@ -270,7 +271,7 @@ function render(){
 
   h.push('<section><h2>What a visit involves</h2><p class="note">20–30 minutes.</p>');
   h.push('<ol class="steps"><li>Give wet food. Check the feeder, fountain and litter box; refill or empty as needed, and tap <b>Done</b> on what you did (<a href="#care">details</a>).</li><li>5–10 minutes with each kitten: play, pets, check she\'s eating and acting normal. Gently touch her belly and paws when you can. While playing with one, put the other two in the closet.</li><li>Let everyone out of the closet. Scan the bedroom: nothing knocked over.</li><li>Lock up; key back in the lockbox.</li></ol>');
-  h.push('<div class="facts"><div class="fact">' + (PHOTOS.indexOf('door.jpg') >= 0 ? '<a class="fact-pic" href="photos/door.jpg" target="_blank" rel="noopener"><img src="photos/door.jpg" alt="The bedroom door: double doors at the top of the stairs" loading="lazy"></a>' : '') + '<span class="k">Getting in</span><span>Text Dan or Ellie for access.</span><span>Bedroom: top of the stairs, the double doors with the red tassel. Close them behind you.</span></div>');
+  h.push('<div class="facts"><div class="fact">' + (PHOTOS.indexOf('door.jpg') >= 0 ? '<a class="fact-pic" href="photos/door.jpg" target="_blank" rel="noopener"><img src="photos/door.jpg" alt="The bedroom door: double doors at the top of the stairs" loading="lazy"></a>' : '') + '<span class="k">Getting in</span><span>Text Dan or Ellie for access.</span><span>Bedroom: top of the stairs, the double doors with the red tassel. Close them behind you.</span><span class="rec">📹 The bedroom has a camera that records while we\'re away.</span></div>');
   h.push('<div class="fact"><span class="k">Visits per day</span><span>At least one. Multiple sitters a day is fine.</span></div>');
   if (st.notes) h.push('<div class="fact"><span class="k">Notes from the owners</span><span>' + esc(st.notes).replace(/\n/g,'<br>') + '</span></div>');
   h.push('</div></section>');
