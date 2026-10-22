@@ -137,7 +137,13 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-vis
   .kcard .pic{height:100%}
   .kcard .pic img,.kcard .pic .ph{height:100%;min-height:7.5rem;aspect-ratio:auto}
 }
-h3.more{margin-top:1.25rem}
+details.more{margin-top:1rem;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+details.more summary{cursor:pointer;padding:.7rem .9rem;font-family:var(--display);font-weight:700;font-size:1.05rem;list-style:none;display:flex;align-items:center;gap:.5rem}
+details.more summary::-webkit-details-marker{display:none}
+details.more summary::before{content:"▸";color:var(--ink);transition:transform .15s}
+details.more[open] summary::before{transform:rotate(90deg)}
+details.more summary .ro{font-family:var(--body);font-weight:400}
+details.more .gallery{margin:0;padding:0 .6rem .6rem}
 .gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:.5rem;margin-top:.6rem}
 .gallery a{display:block;border-radius:12px;overflow:hidden;border:1px solid var(--line);background:var(--surface)}
 .gallery img{display:block;width:100%;aspect-ratio:1;object-fit:cover}
@@ -156,6 +162,7 @@ var TIMES = ['Morning','Midday','Afternoon','Evening','Flexible'];
 var PHOTOS = [];           // files in photos/, from the server
 var sel = {};              // days this visitor has picked: 'YYYY-MM-DD' -> true
 var modal = null, editing = null;
+var galleryOpen = false;   // the page re-renders often, so remember whether the gallery is expanded
 var visitor = {name:'', time:'Flexible'};
 try { var v = JSON.parse(localStorage.getItem('kitten-visitor') || 'null'); if (v && v.name) visitor = {name: v.name, time: v.time || 'Flexible'}; } catch(e){}
 
@@ -200,9 +207,9 @@ function render(){
         (bio.tip ? '<p class="tip">' + esc(bio.tip) + '</p>' : '') + '</div></div>';
     }).join('') + '</div>');
     var gallery = PHOTOS.filter(function(f){ return /^gallery-/.test(f); }).sort();
-    if (gallery.length) h.push('<h3 class="more">More of the kittens</h3><div class="gallery">' + gallery.map(function(f){
+    if (gallery.length) h.push('<details class="more" id="moreKittens"' + (galleryOpen ? ' open' : '') + '><summary>More of the kittens <span class="ro">' + gallery.length + ' photos</span></summary><div class="gallery">' + gallery.map(function(f){
       return '<a href="photos/' + esc(f) + '" target="_blank" rel="noopener"><img src="photos/' + esc(f) + '" alt="The kittens" loading="lazy"></a>';
-    }).join('') + '</div>');
+    }).join('') + '</div></details>');
     h.push('</section>');
   }
 
@@ -333,6 +340,8 @@ app.addEventListener('click', function(ev){
   }
   else if (id === 'e_remove') save('DELETE', 'api/reservations/' + editing.id, null, 'e_remove', 'Remove');
 });
+// 'toggle' doesn't bubble, so listen in the capture phase.
+app.addEventListener('toggle', function(ev){ if (ev.target.id === 'moreKittens') galleryOpen = ev.target.open; }, true);
 document.addEventListener('keydown', function(ev){ if (ev.key === 'Escape' && modal) closeModal(); });
 
 render();
