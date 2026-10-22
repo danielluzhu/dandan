@@ -7,15 +7,30 @@ const PAGE = new URL("./index.html", import.meta.url).pathname;
 const PHOTO_DIR = new URL("./photos/", import.meta.url).pathname;
 const DB_PATH = new URL("../data/kitten.db", import.meta.url).pathname;
 
+// Rough time of day a sitter plans to come; the page shows these in this order.
+const TIMES = ["Morning", "Midday", "Afternoon", "Evening", "Flexible"];
+
 const db = new Database(DB_PATH, { create: true });
 db.run("PRAGMA journal_mode = WAL");
-db.run(`CREATE TABLE IF NOT EXISTS claims (
-  slot TEXT PRIMARY KEY,          -- 'YYYY-MM-DD|<visit index>'
+// Any number of sitters per day, each with a rough time of day.
+db.run(`CREATE TABLE IF NOT EXISTS reservations (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  date TEXT NOT NULL,             -- 'YYYY-MM-DD'
   name TEXT NOT NULL,
+  time TEXT NOT NULL DEFAULT 'Flexible',
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 )`);
+// The first version allowed one sitter per day in `claims`; carry those over once.
+if (db.query("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'claims'").get()) {
+  db.transaction(() => {
+    db.run(`INSERT INTO reservations (date, name, time, created_at, updated_at)
+      SELECT substr(slot, 1, 10), name, 'Flexible', updated_at, updated_at FROM claims`);
+    db.run("DROP TABLE claims");
+  })();
+}
 
-const SLOT_RE = /^\d{4}-\d{2}-\d{2}\|[01]$/;
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const PHOTO_RE = /^[a-z0-9_-]+\.(jpe?g|png|webp)$/i;
 const ICONS = {
   "/favicon.svg": "image/svg+xml",
@@ -26,17 +41,19 @@ const ICONS = {
 const json = (body, status = 200) => Response.json(body, { status });
 
 function state() {
-  const claims = {};
-  for (const r of db.query("SELECT slot, name FROM claims").all()) claims[r.slot] = { name: r.name };
+  const reservations = db.query("SELECT id, date, name, time FROM reservations ORDER BY date, id").all();
   let photos = [];
   try { photos = readdirSync(PHOTO_DIR).filter((f) => PHOTO_RE.test(f)); } catch {}
-  return { claims, photos };
+  return { reservations, times: TIMES, photos };
 }
 
-async function readName(req) {
+// Validates a reservation body; returns { name, time } or an error code.
+async function readReservation(req) {
   const body = await req.json().catch(() => ({}));
   const name = String(body.name ?? "").trim().slice(0, 60);
-  return name || null;
+  const time = TIMES.includes(body.time) ? body.time : "Flexible";
+  if (!name) return { error: "name_required" };
+  return { name, time, dates: body.dates };
 }
 
 Bun.serve({
@@ -61,26 +78,29 @@ Bun.serve({
 
     if (pathname === "/api/state" && req.method === "GET") return json(state());
 
-    if (pathname.startsWith("/api/claims/")) {
-      const slot = decodeURIComponent(pathname.slice(12));
-      if (!SLOT_RE.test(slot)) return json({ error: "bad_slot" }, 400);
+    // Reserve one or more days under one name and time of day.
+    if (pathname === "/api/reservations" && req.method === "POST") {
+      const r = await readReservation(req);
+      if (r.error) return json({ error: r.error }, 400);
+      const dates = Array.isArray(r.dates) ? [...new Set(r.dates)] : [];
+      if (!dates.length || dates.length > 60 || !dates.every((d) => DATE_RE.test(d))) return json({ error: "bad_dates" }, 400);
+      const insert = db.query("INSERT INTO reservations (date, name, time) VALUES (?, ?, ?)");
+      db.transaction(() => { for (const d of dates) insert.run(d, r.name, r.time); })();
+      return json(state());
+    }
 
+    const m = /^\/api\/reservations\/(\d+)$/.exec(pathname);
+    if (m) {
+      const id = Number(m[1]);
       if (req.method === "DELETE") {
-        db.query("DELETE FROM claims WHERE slot = ?").run(slot);
+        db.query("DELETE FROM reservations WHERE id = ?").run(id);
         return json(state());
       }
-      if (req.method === "POST" || req.method === "PUT") {
-        const name = await readName(req);
-        if (!name) return json({ error: "name_required" }, 400);
-        // POST reserves an open visit only, so two people can't grab the same one;
-        // PUT changes whoever is on it.
-        if (req.method === "POST") {
-          const r = db.query("INSERT OR IGNORE INTO claims (slot, name) VALUES (?, ?)").run(slot, name);
-          if (!r.changes) return json({ error: "taken", ...state() }, 409);
-        } else {
-          db.query(`INSERT INTO claims (slot, name) VALUES (?, ?)
-            ON CONFLICT(slot) DO UPDATE SET name = excluded.name, updated_at = datetime('now')`).run(slot, name);
-        }
+      if (req.method === "PUT") {
+        const r = await readReservation(req);
+        if (r.error) return json({ error: r.error }, 400);
+        const res = db.query("UPDATE reservations SET name = ?, time = ?, updated_at = datetime('now') WHERE id = ?").run(r.name, r.time, id);
+        if (!res.changes) return json({ error: "gone", ...state() }, 404);
         return json(state());
       }
     }
