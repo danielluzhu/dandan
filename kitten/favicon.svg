@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Three tuxedo kittens: one peeking from behind, two in front. -->
+  <defs>
+    <path id="head" d="M-13 -2 L-12 -15 L-5 -9 L5 -9 L12 -15 L13 -2 C14 8 8 13 0 13 C-8 13 -14 8 -13 -2Z"/>
+    <g id="cat">
+      <use href="#head" fill="#141414"/>
+      <path d="M0 -8 C-2 -3 -9 1 -9.5 6 C-7 11.5 7 11.5 9.5 6 C9 1 2 -3 0 -8Z" fill="#fff"/>
+      <path d="M-10.5 -11.5 L-6.5 -8.5 L-10 -5.5Z M10.5 -11.5 L6.5 -8.5 L10 -5.5Z" fill="#f4a6b4"/>
+      <circle cx="-5.6" cy="-1" r="2" fill="#c8d96a"/>
+      <circle cx="5.6" cy="-1" r="2" fill="#c8d96a"/>
+      <circle cx="-5.6" cy="-1" r=".9" fill="#141414"/>
+      <circle cx="5.6" cy="-1" r=".9" fill="#141414"/>
+      <path d="M-2 3.5 H2 L0 5.8Z" fill="#f08aa0"/>
+    </g>
+    <!-- A front kitten, with a gap cut around her so she reads apart from the one behind. -->
+    <g id="front">
+      <use href="#head" fill="none" stroke="#f2b231" stroke-width="3" stroke-linejoin="round"/>
+      <use href="#cat"/>
+    </g>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="#f2b231"/>
+  <use href="#cat" transform="translate(32 23) scale(.9)"/>
+  <use href="#front" transform="translate(18.5 41)"/>
+  <use href="#front" transform="translate(45.5 41)"/>
+</svg>

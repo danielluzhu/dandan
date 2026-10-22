@@ -17,6 +17,11 @@ db.run(`CREATE TABLE IF NOT EXISTS claims (
 
 const SLOT_RE = /^\d{4}-\d{2}-\d{2}\|[01]$/;
 const PHOTO_RE = /^[a-z0-9_-]+\.(jpe?g|png|webp)$/i;
+const ICONS = {
+  "/favicon.svg": "image/svg+xml",
+  "/favicon.ico": "image/x-icon",
+  "/apple-touch-icon.png": "image/png",
+};
 
 const json = (body, status = 200) => Response.json(body, { status });
 
@@ -41,6 +46,11 @@ Bun.serve({
 
     if (pathname === "/" || pathname === "/index.html")
       return new Response(Bun.file(PAGE), { headers: { "Content-Type": "text/html; charset=utf-8" } });
+
+    if (ICONS[pathname])
+      return new Response(Bun.file(new URL("." + pathname, import.meta.url).pathname), {
+        headers: { "Content-Type": ICONS[pathname], "Cache-Control": "public, max-age=86400" },
+      });
 
     if (pathname.startsWith("/photos/")) {
       const f = decodeURIComponent(pathname.slice(8));
