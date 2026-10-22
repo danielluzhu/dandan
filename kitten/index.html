@@ -3,7 +3,7 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gabarito:wght@500;700;800&family=Nunito+Sans:ital,wght@0,400;0,600;0,700;1,400&display=swap">
 <style id="css">
-/* Layout: one column, 720px measure; schedule is a day-by-day list with slot chips, sticky sign-up bar at the bottom. */
+/* Layout: one column, 720px measure; schedule is a Sunday-first month calendar with a visit button per day, sticky sign-up bar at the bottom. */
 :root{
   --bg:#f7f8f4; --surface:#ffffff; --fg:#1d2a2a; --muted:#5d6b69; --line:#dfe5df;
   --ink:#1f4f4a; --ink-soft:#e3efec;
@@ -57,14 +57,21 @@ ol.steps li::marker{font-family:var(--display);font-weight:700;color:var(--ink)}
 .legend span{display:inline-flex;align-items:center;gap:.4rem}
 .dot{width:12px;height:12px;border-radius:4px;display:inline-block}
 .dot.open{background:var(--open)} .dot.taken{background:var(--taken)} .dot.sel{background:var(--sel)}
-.days{display:grid;gap:.5rem}
-.day{display:grid;grid-template-columns:7.5rem 1fr;gap:.75rem;align-items:start;padding:.65rem 0;border-bottom:1px dashed var(--line)}
-.day:last-child{border-bottom:0}
-.day .d{display:grid;line-height:1.2;font-variant-numeric:tabular-nums}
-.day .d b{font-family:var(--display);font-weight:700}
-.day .d small{color:var(--muted)}
-.day.weekend .d b{color:var(--ink)}
-.slots{display:flex;flex-wrap:wrap;gap:.45rem;min-width:0}
+.cal-title{font-family:var(--display);font-weight:700;font-size:1.05rem;margin-bottom:.5rem}
+.cal-head,.cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+.cal-head span{text-align:center;font-family:var(--display);font-weight:700;font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);padding-bottom:.3rem}
+.cal-day{min-width:0;min-height:5.25rem;display:flex;flex-direction:column;gap:3px}
+.cal-day .dn{font-size:.78rem;font-weight:700;font-variant-numeric:tabular-nums;color:var(--muted);padding:0 .2rem;white-space:nowrap;overflow:hidden}
+.cal-day.out .dn{opacity:.4}
+.cal-day.today .dn{color:var(--ink)}
+.cal-day.today .dn::after{content:" · today";font-weight:600}
+.cal .slot{flex:1;width:100%;max-width:none;flex-direction:column;align-items:flex-start;justify-content:flex-start;gap:.1rem;padding:.3rem .35rem;border-radius:8px;font-size:.8rem;line-height:1.2}
+.cal .slot small{font-size:.7rem}
+.cal .slot .st{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
+/* Phone cells are narrow: first name only, on one line, so names never break mid-word. */
+.cal .slot .short{display:none}
+@media (max-width:599px){.cal .slot{padding:.3rem .25rem}.cal .slot .full{display:none}.cal .slot .short{display:block;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:.74rem}}
+@media (min-width:600px){.cal-head,.cal{gap:6px}.cal-day{min-height:6rem}.cal .slot{font-size:.9rem;padding:.4rem .5rem}}
 .slot{appearance:none;font:inherit;font-weight:600;border-radius:10px;border:1.5px solid transparent;padding:.4rem .75rem;cursor:pointer;display:inline-flex;gap:.45rem;align-items:center;min-width:0;max-width:100%;text-align:left}
 .slot .who{font-weight:700}
 .slot small{font-weight:600;opacity:.75}
@@ -158,6 +165,7 @@ function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(
 function parseDate(s){ var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s||''); return m ? new Date(+m[1], +m[2]-1, +m[3]) : null; }
 function iso(d){ return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
 var DOW = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'], MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+var MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 function fmtShort(d){ return DOW[d.getDay()] + ' ' + MON[d.getMonth()] + ' ' + d.getDate(); }
 function fmtLong(d){ return MON[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear(); }
 function days(st){ var a = parseDate(st.trip.start), b = parseDate(st.trip.end), out = []; if (!a || !b || b < a) return out; for (var d = new Date(a); d <= b && out.length < 120; d.setDate(d.getDate()+1)) out.push(new Date(d)); return out; }
@@ -207,18 +215,27 @@ function render(){
     h.push('<div class="empty">' + (owner ? 'Set the travel dates in Owner tools to open the schedule.' : 'The travel dates are not set yet. Check back soon.') + '</div>');
   } else {
     h.push('<div class="legend"><span><i class="dot open"></i>Open, tap to pick</span><span><i class="dot taken"></i>Covered</span><span><i class="dot sel"></i>Your picks</span></div>');
-    h.push('<div class="days">');
-    ds.forEach(function(d){
-      var k = iso(d), wk = d.getDay() === 0 || d.getDay() === 6;
-      h.push('<div class="day' + (wk ? ' weekend' : '') + '"><div class="d"><b>' + DOW[d.getDay()] + '</b><small>' + MON[d.getMonth()] + ' ' + d.getDate() + '</small></div><div class="slots">');
+    // Calendar: whole weeks, Sunday first, padded with greyed-out days outside the trip.
+    var first = ds[0], last = ds[ds.length - 1], todayKey = iso(new Date());
+    var from = new Date(first); from.setDate(from.getDate() - from.getDay());
+    var to = new Date(last); to.setDate(to.getDate() + 6 - to.getDay());
+    var months = MONTHS[first.getMonth()] + (first.getMonth() !== last.getMonth() ? ' – ' + MONTHS[last.getMonth()] : '') + ' ' + last.getFullYear();
+    h.push('<div class="cal-title">' + months + '</div>');
+    h.push('<div class="cal-head" aria-hidden="true">' + DOW.map(function(w){ return '<span>' + w + '</span>'; }).join('') + '</div><div class="cal">');
+    for (var d = new Date(from); d <= to; d.setDate(d.getDate() + 1)) {
+      var k = iso(d), out = d < first || d > last, showMon = d.getDate() === 1 || +d === +first;
+      var dn = '<span class="dn">' + (showMon ? MON[d.getMonth()] + ' ' : '') + d.getDate() + '</span>';
+      if (out) { h.push('<div class="cal-day out">' + dn + '</div>'); continue; }
+      h.push('<div class="cal-day' + (k === todayKey ? ' today' : '') + '">' + dn);
       for (var i = 0; i < st.slotsPerDay; i++) {
-        var key = k + '|' + i, c = st.claims[key], lbl = slotLabel(st, i);
+        var key = k + '|' + i, c = st.claims[key], lbl = st.slotsPerDay > 1 ? '<small>' + esc(slotLabel(st, i)) + '</small>' : '';
+        var when = fmtShort(d) + (st.slotsPerDay > 1 ? ', ' + slotLabel(st, i) : '');
         var pending = ownerMode && draft && JSON.stringify(S.claims[key]||null) !== JSON.stringify(c||null);
-        if (c && c.name) h.push('<button class="slot taken' + (pending ? ' pending' : '') + '" data-key="' + key + '" ' + (ownerMode || writer ? 'title="Tap to change or free this visit"' : 'disabled') + '><small>' + esc(lbl) + '</small><span class="who">' + esc(c.name) + '</span></button>');
-        else h.push('<button class="slot ' + (sel[key] ? 'sel' : 'open') + (pending ? ' pending' : '') + '" data-key="' + key + '" aria-pressed="' + (!!sel[key]) + '"><small>' + esc(lbl) + '</small><span>' + (sel[key] ? 'Picked' : 'Open') + '</span></button>');
+        if (c && c.name) h.push('<button class="slot taken' + (pending ? ' pending' : '') + '" data-key="' + key + '" aria-label="' + esc(when + ': ' + c.name) + '" ' + (ownerMode || writer ? 'title="Tap to change or free this visit"' : 'disabled') + '>' + lbl + '<span class="st who full">' + esc(c.name) + '</span><span class="st who short">' + esc(c.name.split(/\s+/)[0]) + '</span></button>');
+        else h.push('<button class="slot ' + (sel[key] ? 'sel' : 'open') + (pending ? ' pending' : '') + '" data-key="' + key + '" aria-label="' + esc(when + ': ' + (sel[key] ? 'picked' : 'open')) + '" aria-pressed="' + (!!sel[key]) + '">' + lbl + '<span class="st">' + (sel[key] ? 'Picked' : 'Open') + '</span></button>');
       }
-      h.push('</div></div>');
-    });
+      h.push('</div>');
+    }
     h.push('</div>');
   }
   h.push('</section>');
