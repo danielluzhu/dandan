@@ -112,7 +112,13 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-vis
 .care dt{color:var(--muted);font-size:.85rem}
 .care dd+dt{margin-top:.4rem}
 .care dd{margin:0;font-weight:600}
-.care-steps{display:grid;gap:.3rem;font-size:.92rem}
+.care-steps{font-size:.92rem;border-top:1px solid var(--line);padding-top:.6rem}
+.care-steps summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:.4rem}
+.care-steps summary::-webkit-details-marker{display:none}
+.care-steps summary::before{content:"▸";color:var(--ink);transition:transform .15s}
+.care-steps[open] summary::before{transform:rotate(90deg)}
+.care-steps[open] summary{margin-bottom:.4rem}
+.care-steps .care-note{margin-top:.6rem}
 .care-steps .k{font-family:var(--display);font-weight:700;color:var(--ink);font-size:.75rem;text-transform:uppercase;letter-spacing:.06em}
 .care-steps ol{margin:0;padding-left:1.15rem;display:grid;gap:.25rem}
 .care table.feed{border-collapse:collapse;font-variant-numeric:tabular-nums}
@@ -176,6 +182,7 @@ var modal = null, editing = null;
 var UPLOADS = [];          // photos visitors added: {id, file, name}
 var uploading = false;
 var galleryOpen = false;   // the page re-renders often, so remember whether the gallery is expanded
+var careOpen = {};         // ...and which care cards have their how-to open, by title
 var visitor = {name:'', time:'Flexible'};
 try { var v = JSON.parse(localStorage.getItem('kitten-visitor') || 'null'); if (v && v.name) visitor = {name: v.name, time: v.time || 'Flexible'}; } catch(e){}
 
@@ -248,7 +255,10 @@ function render(){
         var v = Array.isArray(r[1]) ? '<table class="feed">' + r[1].map(function(x){ return '<tr><th>' + esc(x[0]) + '</th><td>' + esc(x[1]) + '</td></tr>'; }).join('') + '</table>' : esc(r[1]);
         h.push('<dt>' + esc(r[0]) + '</dt><dd' + (r[1] && r[1].length ? '' : ' class="tbd"') + '>' + (r[1] && r[1].length ? v : 'To be added') + '</dd>');
       });
-      h.push('</dl><div class="care-steps"><span class="k">How to</span>' + (c.steps && c.steps.length ? '<ol>' + c.steps.map(function(x){ return '<li>' + esc(x) + '</li>'; }).join('') + '</ol>' : '<p class="tbd">To be added</p>') + '</div>' + (c.note ? '<p class="care-note">' + esc(c.note) + '</p>' : '') + '</div>');
+      // Maintenance steps and warnings fold away; the at-a-glance rows above stay visible.
+      h.push('</dl><details class="care-steps" data-care="' + esc(c.title) + '"' + (careOpen[c.title] ? ' open' : '') + '><summary><span class="k">How to</span></summary>' +
+        (c.steps && c.steps.length ? '<ol>' + c.steps.map(function(x){ return '<li>' + esc(x) + '</li>'; }).join('') + '</ol>' : '<p class="tbd">To be added</p>') +
+        (c.note ? '<p class="care-note">' + esc(c.note) + '</p>' : '') + '</details></div>');
     });
     h.push('</div></section>');
   }
@@ -390,7 +400,10 @@ photoInput.addEventListener('change', function(){
 });
 
 // 'toggle' doesn't bubble, so listen in the capture phase.
-app.addEventListener('toggle', function(ev){ if (ev.target.id === 'moreKittens') galleryOpen = ev.target.open; }, true);
+app.addEventListener('toggle', function(ev){
+  if (ev.target.id === 'moreKittens') galleryOpen = ev.target.open;
+  var care = ev.target.getAttribute && ev.target.getAttribute('data-care'); if (care) careOpen[care] = ev.target.open;
+}, true);
 document.addEventListener('keydown', function(ev){ if (ev.key === 'Escape' && modal) closeModal(); });
 
 render();
