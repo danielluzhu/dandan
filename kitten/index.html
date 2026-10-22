@@ -99,6 +99,18 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-vis
 .picked span{background:var(--sel-soft);color:var(--sel);border-radius:8px;padding:.2rem .55rem;font-size:.9rem;font-weight:600}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom,0px));background:var(--fg);color:var(--bg);padding:.5rem .9rem;border-radius:999px;font-weight:700;z-index:40;max-width:calc(100% - 32px)}
 .ro{font-size:.85rem;color:var(--muted)}
+.care{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:.75rem;margin-top:.75rem}
+.care-card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:.9rem 1rem;display:grid;gap:.7rem;align-content:start}
+.care-h{display:flex;gap:.65rem;align-items:center}
+.care-i{font-size:1.5rem;width:2.4rem;height:2.4rem;display:grid;place-items:center;background:var(--ink-soft);border-radius:10px;flex:none}
+.care-h .ro{display:block;line-height:1.3}
+.care dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:.3rem .75rem;font-size:.92rem}
+.care dt{color:var(--muted)}
+.care dd{margin:0;font-weight:600}
+.care-steps{display:grid;gap:.3rem;font-size:.92rem}
+.care-steps .k{font-family:var(--display);font-weight:700;color:var(--ink);font-size:.75rem;text-transform:uppercase;letter-spacing:.06em}
+.care-steps ol{margin:0;padding-left:1.15rem;display:grid;gap:.25rem}
+.care .tbd{color:var(--muted);font-weight:400;font-style:italic}
 .group{margin:.75rem 0 0;border-radius:16px;overflow:hidden;border:1px solid var(--line);background:var(--surface)}
 .group img{display:block;width:100%;aspect-ratio:4/3;object-fit:cover;object-position:50% 78%}
 .group figcaption{padding:.55rem .9rem;font-size:.9rem;color:var(--muted)}
@@ -128,7 +140,7 @@ h3.more{margin-top:1.25rem}
 @media (prefers-reduced-motion:no-preference){.gallery img{transition:transform .2s}.gallery a:hover img{transform:scale(1.03)}}
 </style>
 <div id="app"></div>
-<script id="state" type="application/json">{"trip":{"start":"2026-10-24","end":"2026-11-11"},"owners":"Dan and Ellie","contact":{"phone":"","email":"","other":""},"kittens":["Soniu 소牛","Mimi 咪咪","Cookoo 哭哭"],"bios":{"soniu":{"looks":"Long hair, and the whitest of the three.","likes":["climbing","being held","purring"]},"mimi":{"looks":"Blueberry eyes and a small face.","likes":["hunting","eating"],"tip":"Mimi is still learning not to nibble on hands. It won't hurt, but if she does, just ignore her for several seconds so she learns it's not okay."},"cookoo":{"looks":"Has three legs and a black spot on her chin.","likes":["being held","crying"]}},"notes":""}</script>
+<script id="state" type="application/json">{"trip":{"start":"2026-10-24","end":"2026-11-11"},"owners":"Dan and Ellie","contact":{"phone":"","email":"","other":""},"kittens":["Soniu 소牛","Mimi 咪咪","Cookoo 哭哭"],"bios":{"soniu":{"looks":"Long hair, and the whitest of the three.","likes":["climbing","being held","purring"]},"mimi":{"looks":"Blueberry eyes and a small face.","likes":["hunting","eating"],"tip":"Mimi is still learning not to nibble on hands. It won't hurt, but if she does, just ignore her for several seconds so she learns it's not okay."},"cookoo":{"looks":"Has three legs and a black spot on her chin.","likes":["being held","crying"]}},"notes":"","care":[{"icon":"🍽️","title":"Food","device":"Automatic feeder","rows":[["Feeding schedule",""],["Refill how often",""]],"steps":[]},{"icon":"💧","title":"Water","device":"Water fountain","rows":[["Refill how often",""],["Clean how often",""]],"steps":[]},{"icon":"💩","title":"Litter","device":"The poop machine (self-cleaning litter box)","rows":[["Empty how often",""]],"steps":[]}]}</script>
 <script id="app-js">
 (function(){
 'use strict';
@@ -191,11 +203,21 @@ function render(){
   }
 
   h.push('<section><h2>What a visit involves</h2><p class="note">About 20–30 minutes. Food, water and the litter box are all automatic, so the job is mostly checking levels and giving the kittens some attention.</p>');
-  h.push('<ol class="steps"><li>Check the automatic feeder, water fountain and litter box. Top up or empty if they are getting low or full.</li><li>Spend 5–10 minutes with each kitten individually: play, pets, a quick look that she is eating and acting normal.</li><li>Quick scan of the apartment: nothing knocked over, no one shut in a closet, doors closed behind you.</li><li>Lock up and put the key back in the lockbox.</li></ol>');
+  h.push('<ol class="steps"><li>Check the feeder, water fountain and poop machine. Refill or empty anything that needs it (see <a href="#care">Food, water &amp; litter</a>).</li><li>Spend 5–10 minutes with each kitten individually: play, pets, a quick look that she is eating and acting normal.</li><li>Quick scan of the apartment: nothing knocked over, no one shut in a closet, doors closed behind you.</li><li>Lock up and put the key back in the lockbox.</li></ol>');
   h.push('<div class="facts"><div class="fact"><span class="k">Getting in</span><span>Key in a lockbox at the door. ' + esc(firstOwner()) + ' sends the address and code once you sign up.</span></div>');
   h.push('<div class="fact"><span class="k">Visits per day</span><span>At least one a day. More than one sitter on the same day is welcome; just say roughly when you will come.</span></div>');
   if (st.notes) h.push('<div class="fact"><span class="k">Notes from the owners</span><span>' + esc(st.notes).replace(/\n/g,'<br>') + '</span></div>');
   h.push('</div></section>');
+
+  if (st.care && st.care.length) {
+    h.push('<section id="care"><h2>Food, water &amp; litter</h2><p class="note">All three run on their own. Each visit, check on them and do whatever is due.</p><div class="care">');
+    st.care.forEach(function(c){
+      h.push('<div class="care-card"><div class="care-h"><span class="care-i" aria-hidden="true">' + c.icon + '</span><div><h3>' + esc(c.title) + '</h3><span class="ro">' + esc(c.device) + '</span></div></div><dl>');
+      (c.rows || []).forEach(function(r){ h.push('<dt>' + esc(r[0]) + '</dt><dd' + (r[1] ? '' : ' class="tbd"') + '>' + (r[1] ? esc(r[1]) : 'To be added') + '</dd>'); });
+      h.push('</dl><div class="care-steps"><span class="k">How to</span>' + (c.steps && c.steps.length ? '<ol>' + c.steps.map(function(x){ return '<li>' + esc(x) + '</li>'; }).join('') + '</ol>' : '<p class="tbd">Instructions coming soon.</p>') + '</div></div>');
+    });
+    h.push('</div></section>');
+  }
 
   h.push('<section id="schedule"><h2>Schedule</h2>');
   if (!ds.length) {
