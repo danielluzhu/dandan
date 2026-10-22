@@ -145,7 +145,13 @@ details.more[open] summary::before{transform:rotate(90deg)}
 details.more summary .ro{font-family:var(--body);font-weight:400}
 details.more .gallery{margin:0;padding:0 .6rem .6rem}
 .gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:.5rem;margin-top:.6rem}
+.gallery .tile{position:relative;min-width:0}
 .gallery a{display:block;border-radius:12px;overflow:hidden;border:1px solid var(--line);background:var(--surface)}
+.gallery .by{position:absolute;left:.4rem;bottom:.4rem;max-width:calc(100% - .8rem);background:rgba(0,0,0,.55);color:#fff;font-size:.75rem;font-weight:700;padding:.1rem .45rem;border-radius:999px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none}
+.gallery .rm{position:absolute;top:.35rem;right:.35rem;width:1.75rem;height:1.75rem;border-radius:50%;border:0;background:rgba(0,0,0,.55);color:#fff;font-size:1.1rem;line-height:1;cursor:pointer;display:grid;place-items:center}
+.gallery .add-photo{appearance:none;font:inherit;font-weight:700;color:var(--ink);background:var(--ink-soft);border:1.5px dashed var(--ink);border-radius:12px;aspect-ratio:1;cursor:pointer;display:grid;place-content:center;gap:.2rem;text-align:center;padding:.5rem}
+.gallery .add-photo b{font-size:1.8rem;line-height:1}
+.gallery .add-photo[disabled]{opacity:.6;cursor:default}
 .gallery img{display:block;width:100%;aspect-ratio:1;object-fit:cover}
 @media (prefers-reduced-motion:no-preference){.gallery img{transition:transform .2s}.gallery a:hover img{transform:scale(1.03)}}
 </style>
@@ -162,6 +168,8 @@ var TIMES = ['Morning','Midday','Afternoon','Evening','Flexible'];
 var PHOTOS = [];           // files in photos/, from the server
 var sel = {};              // days this visitor has picked: 'YYYY-MM-DD' -> true
 var modal = null, editing = null;
+var UPLOADS = [];          // photos visitors added: {id, file, name}
+var uploading = false;
 var galleryOpen = false;   // the page re-renders often, so remember whether the gallery is expanded
 var visitor = {name:'', time:'Flexible'};
 try { var v = JSON.parse(localStorage.getItem('kitten-visitor') || 'null'); if (v && v.name) visitor = {name: v.name, time: v.time || 'Flexible'}; } catch(e){}
@@ -206,10 +214,16 @@ function render(){
         (bio.likes && bio.likes.length ? '<p class="likes"><span class="k">Likes</span> ' + esc(bio.likes.join(', ')) + '</p>' : '') +
         (bio.tip ? '<p class="tip">' + esc(bio.tip) + '</p>' : '') + '</div></div>';
     }).join('') + '</div>');
-    var gallery = PHOTOS.filter(function(f){ return /^gallery-/.test(f); }).sort();
-    if (gallery.length) h.push('<details class="more" id="moreKittens"' + (galleryOpen ? ' open' : '') + '><summary>More of the kittens <span class="ro">' + gallery.length + ' photos</span></summary><div class="gallery">' + gallery.map(function(f){
-      return '<a href="photos/' + esc(f) + '" target="_blank" rel="noopener"><img src="photos/' + esc(f) + '" alt="The kittens" loading="lazy"></a>';
-    }).join('') + '</div></details>');
+    // Dan's photos first (credited to him), then ones visitors uploaded (credited, removable), then the add button.
+    var gallery = PHOTOS.filter(function(f){ return /^gallery-/.test(f); }).sort(), count = gallery.length + UPLOADS.length;
+    h.push('<details class="more" id="moreKittens"' + (galleryOpen ? ' open' : '') + '><summary>More of the kittens <span class="ro">' + count + ' photo' + (count === 1 ? '' : 's') + '</span></summary><div class="gallery">' +
+      gallery.map(function(f){ return '<div class="tile"><a href="photos/' + esc(f) + '" target="_blank" rel="noopener"><img src="photos/' + esc(f) + '" alt="The kittens, from ' + esc(firstOwner()) + '" loading="lazy"></a><span class="by">' + esc(firstOwner()) + '</span></div>'; }).join('') +
+      UPLOADS.map(function(u){
+        return '<div class="tile"><a href="uploads/' + esc(u.file) + '" target="_blank" rel="noopener"><img src="uploads/' + esc(u.file) + '" alt="The kittens' + (u.name ? ', from ' + esc(u.name) : '') + '" loading="lazy"></a>' +
+          (u.name ? '<span class="by">' + esc(u.name) + '</span>' : '') + '<button class="rm" data-photo="' + u.id + '" aria-label="Remove this photo" title="Remove">×</button></div>';
+      }).join('') +
+      '<button class="add-photo" id="addPhotos"' + (uploading ? ' disabled' : '') + '>' + (uploading ? 'Uploading…' : '<b>+</b>Add your photos') + '</button>' +
+      '</div></details>');
     h.push('</section>');
   }
 
@@ -297,7 +311,7 @@ function editForm(id){
 }
 
 // ---- shared reservation list, kept by the server ----
-function applyServer(st){ RES = st.reservations || []; TIMES = st.times || TIMES; PHOTOS = st.photos || PHOTOS; }
+function applyServer(st){ RES = st.reservations || []; TIMES = st.times || TIMES; PHOTOS = st.photos || PHOTOS; UPLOADS = st.uploads || UPLOADS; }
 function loadState(){
   return fetch('api/state').then(function(r){ return r.json(); }).then(function(st){ applyServer(st); if (!modal) render(); }).catch(function(){});
 }
@@ -324,6 +338,13 @@ app.addEventListener('click', function(ev){
   var id = t.id;
   if (t.classList.contains('add')) { var k = t.getAttribute('data-date'); if (sel[k]) delete sel[k]; else sel[k] = true; render(); return; }
   if (t.classList.contains('res')) { editForm(+t.getAttribute('data-id')); return; }
+  if (id === 'addPhotos') { photoInput.value = ''; photoInput.click(); return; }
+  if (t.classList.contains('rm')) {
+    if (!confirm('Remove this photo?')) return;
+    fetch('api/photos/' + t.getAttribute('data-photo'), {method: 'DELETE'}).then(function(r){ return r.json(); })
+      .then(function(st){ applyServer(st); render(); toast('Removed'); }, function(){ toast('Could not remove. Try again.'); });
+    return;
+  }
   if (id === 'clearSel') { sel = {}; render(); }
   else if (id === 'reserve') reserveForm();
   else if (id === 'm_cancel') closeModal();
@@ -340,6 +361,28 @@ app.addEventListener('click', function(ev){
   }
   else if (id === 'e_remove') save('DELETE', 'api/reservations/' + editing.id, null, 'e_remove', 'Remove');
 });
+// The file picker lives outside #app so re-renders (e.g. the 30s refresh) can't detach it mid-pick.
+var photoInput = document.createElement('input');
+photoInput.type = 'file'; photoInput.accept = 'image/*'; photoInput.multiple = true; photoInput.hidden = true;
+document.body.appendChild(photoInput);
+photoInput.addEventListener('change', function(){
+  var files = Array.prototype.slice.call(photoInput.files || []);
+  if (!files.length) return;
+  if (files.length > 10) { toast('Up to 10 at a time'); files = files.slice(0, 10); }
+  var big = files.filter(function(f){ return f.size > 25 * 1024 * 1024; }).length;
+  files = files.filter(function(f){ return f.size <= 25 * 1024 * 1024; });
+  if (!files.length) { toast('Too big (25 MB max)'); return; }
+  var fd = new FormData();
+  files.forEach(function(f){ fd.append('photos', f); });
+  fd.append('name', visitor.name || '');
+  uploading = true; render();
+  fetch('api/photos', {method: 'POST', body: fd}).then(function(r){ return r.json(); }).then(function(st){
+    if (st.uploads) applyServer(st);
+    var bad = (st.failed || 0) + big, ok = files.length + big - bad;
+    toast(ok ? 'Added ' + ok + ' photo' + (ok > 1 ? 's' : '') + (bad ? '; ' + bad + ' could not be used' : '') : 'Could not use ' + (bad > 1 ? 'those files' : 'that file'));
+  }, function(){ toast('Upload failed. Try again.'); }).then(function(){ uploading = false; galleryOpen = true; render(); });
+});
+
 // 'toggle' doesn't bubble, so listen in the capture phase.
 app.addEventListener('toggle', function(ev){ if (ev.target.id === 'moreKittens') galleryOpen = ev.target.open; }, true);
 document.addEventListener('keydown', function(ev){ if (ev.key === 'Escape' && modal) closeModal(); });

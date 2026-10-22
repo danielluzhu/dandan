@@ -1,11 +1,14 @@
 // Kitten sitting sign-up: the page, its photos, and a shared reservation list anyone can edit.
 import { Database } from "bun:sqlite";
-import { readdirSync } from "node:fs";
+import { mkdirSync, readdirSync, rmSync } from "node:fs";
 
 const PORT = Number(process.env.KITTEN_PORT || 3333);
 const PAGE = new URL("./index.html", import.meta.url).pathname;
 const PHOTO_DIR = new URL("./photos/", import.meta.url).pathname;
 const DB_PATH = new URL("../data/kitten.db", import.meta.url).pathname;
+// Photos visitors upload; kept out of git with the rest of data/.
+const UPLOAD_DIR = new URL("../data/kitten-photos/", import.meta.url).pathname;
+mkdirSync(UPLOAD_DIR, { recursive: true });
 
 // Rough time of day a sitter plans to come; the page shows these in this order.
 const TIMES = ["Morning", "Midday", "Afternoon", "Evening", "Flexible"];
@@ -20,6 +23,12 @@ db.run(`CREATE TABLE IF NOT EXISTS reservations (
   time TEXT NOT NULL DEFAULT 'Flexible',
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+)`);
+db.run(`CREATE TABLE IF NOT EXISTS photos (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  file TEXT NOT NULL UNIQUE,
+  name TEXT NOT NULL DEFAULT '',  -- who uploaded it, if they said
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
 )`);
 // The first version allowed one sitter per day in `claims`; carry those over once.
 if (db.query("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'claims'").get()) {
@@ -44,7 +53,8 @@ function state() {
   const reservations = db.query("SELECT id, date, name, time FROM reservations ORDER BY date, id").all();
   let photos = [];
   try { photos = readdirSync(PHOTO_DIR).filter((f) => PHOTO_RE.test(f)); } catch {}
-  return { reservations, times: TIMES, photos };
+  const uploads = db.query("SELECT id, file, name FROM photos ORDER BY id").all();
+  return { reservations, times: TIMES, photos, uploads };
 }
 
 // Validates a reservation body; returns { name, time } or an error code.
@@ -56,8 +66,40 @@ async function readReservation(req) {
   return { name, time, dates: body.dates };
 }
 
+const MAX_PHOTO_BYTES = 25 * 1024 * 1024;
+const UPLOAD_RE = /^up-[a-z0-9-]+\.jpg$/;
+
+// Name the decoder from the file's first bytes, so ImageMagick never guesses
+// a format (SVG, MVG, ...) from untrusted input.
+function sniff(b) {
+  const ascii = (i, n) => String.fromCharCode(...b.subarray(i, i + n));
+  if (b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return "jpeg";
+  if (ascii(0, 8) === "\x89PNG\r\n\x1a\n") return "png";
+  if (ascii(0, 4) === "RIFF" && ascii(8, 4) === "WEBP") return "webp";
+  if (ascii(0, 4) === "GIF8") return "gif";
+  if (ascii(4, 4) === "ftyp" && /^(heic|heix|hevc|hevx|mif1|msf1)$/.test(ascii(8, 4))) return "heic";
+  return null;
+}
+
+// Re-encode as a resized JPEG: fixes rotation and strips metadata such as GPS location.
+async function savePhoto(file) {
+  if (file.size > MAX_PHOTO_BYTES) return { error: "too_big" };
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const fmt = sniff(bytes);
+  if (!fmt) return { error: "not_an_image" };
+  const name = `up-${Date.now().toString(36)}-${crypto.randomUUID().slice(0, 8)}.jpg`;
+  const proc = Bun.spawn(["convert", `${fmt}:-[0]`, "-auto-orient", "-resize", "1600x1600>", "-strip", "-quality", "85", `jpeg:${UPLOAD_DIR}${name}`],
+    { stdin: bytes, stdout: "ignore", stderr: "ignore" });
+  const timer = setTimeout(() => proc.kill(), 30000);
+  const code = await proc.exited;
+  clearTimeout(timer);
+  if (code !== 0) { rmSync(UPLOAD_DIR + name, { force: true }); return { error: "unreadable" }; }
+  return { file: name };
+}
+
 Bun.serve({
   port: PORT,
+  maxRequestBodySize: 10 * MAX_PHOTO_BYTES,
   async fetch(req) {
     const { pathname } = new URL(req.url);
 
@@ -76,7 +118,35 @@ Bun.serve({
       return (await file.exists()) ? new Response(file) : new Response("Not found", { status: 404 });
     }
 
+    if (pathname.startsWith("/uploads/")) {
+      const f = decodeURIComponent(pathname.slice(9));
+      if (!UPLOAD_RE.test(f)) return new Response("Not found", { status: 404 });
+      const file = Bun.file(UPLOAD_DIR + f);
+      return (await file.exists()) ? new Response(file, { headers: { "Content-Type": "image/jpeg" } }) : new Response("Not found", { status: 404 });
+    }
+
     if (pathname === "/api/state" && req.method === "GET") return json(state());
+
+    // Anyone can add photos of the kittens (up to 10 at a time) and remove uploaded ones.
+    if (pathname === "/api/photos" && req.method === "POST") {
+      const form = await req.formData().catch(() => null);
+      const files = form ? form.getAll("photos").filter((f) => f instanceof Blob).slice(0, 10) : [];
+      if (!files.length) return json({ error: "no_files" }, 400);
+      const name = String(form.get("name") ?? "").trim().slice(0, 60);
+      const insert = db.query("INSERT INTO photos (file, name) VALUES (?, ?)");
+      let failed = 0;
+      for (const f of files) {
+        const r = await savePhoto(f);
+        if (r.error) failed++; else insert.run(r.file, name);
+      }
+      return json({ ...state(), failed }, failed === files.length ? 400 : 200);
+    }
+    const ph = /^\/api\/photos\/(\d+)$/.exec(pathname);
+    if (ph && req.method === "DELETE") {
+      const row = db.query("SELECT file FROM photos WHERE id = ?").get(Number(ph[1]));
+      if (row) { db.query("DELETE FROM photos WHERE id = ?").run(Number(ph[1])); rmSync(UPLOAD_DIR + row.file, { force: true }); }
+      return json(state());
+    }
 
     // Reserve one or more days under one name and time of day.
     if (pathname === "/api/reservations" && req.method === "POST") {
