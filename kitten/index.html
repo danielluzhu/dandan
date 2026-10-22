@@ -104,12 +104,16 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-vis
 .care-h{display:flex;gap:.65rem;align-items:center}
 .care-i{font-size:1.5rem;width:2.4rem;height:2.4rem;display:grid;place-items:center;background:var(--ink-soft);border-radius:10px;flex:none}
 .care-h .ro{display:block;line-height:1.3}
-.care dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:.3rem .75rem;font-size:.92rem}
-.care dt{color:var(--muted)}
+.care dl{margin:0;display:grid;gap:.15rem;font-size:.92rem}
+.care dt{color:var(--muted);font-size:.85rem}
+.care dd+dt{margin-top:.4rem}
 .care dd{margin:0;font-weight:600}
 .care-steps{display:grid;gap:.3rem;font-size:.92rem}
 .care-steps .k{font-family:var(--display);font-weight:700;color:var(--ink);font-size:.75rem;text-transform:uppercase;letter-spacing:.06em}
 .care-steps ol{margin:0;padding-left:1.15rem;display:grid;gap:.25rem}
+.care table.feed{border-collapse:collapse;font-variant-numeric:tabular-nums}
+.care .feed th{text-align:left;font-weight:700;padding:0 .75rem .15rem 0;white-space:nowrap}
+.care .feed td{font-weight:400;padding:0 0 .15rem}
 .care .tbd{color:var(--muted);font-weight:400;font-style:italic}
 .group{margin:.75rem 0 0;border-radius:16px;overflow:hidden;border:1px solid var(--line);background:var(--surface)}
 .group img{display:block;width:100%;aspect-ratio:4/3;object-fit:cover;object-position:50% 78%}
@@ -140,7 +144,7 @@ h3.more{margin-top:1.25rem}
 @media (prefers-reduced-motion:no-preference){.gallery img{transition:transform .2s}.gallery a:hover img{transform:scale(1.03)}}
 </style>
 <div id="app"></div>
-<script id="state" type="application/json">{"trip":{"start":"2026-10-24","end":"2026-11-11"},"owners":"Dan and Ellie","contact":{"phone":"","email":"","other":""},"kittens":["Soniu 소牛","Mimi 咪咪","Cookoo 哭哭"],"bios":{"soniu":{"looks":"Long hair, whitest.","likes":["climbing","being held","purring"]},"mimi":{"looks":"Blueberry eyes, small face.","likes":["hunting","eating"],"tip":"Still learning not to nibble hands. It won't hurt; if she does, ignore her for several seconds."},"cookoo":{"looks":"Three legs, black spot on chin.","likes":["being held","crying"]}},"notes":"","care":[{"icon":"🍽️","title":"Food","device":"Automatic feeder","rows":[["Feeding schedule",""],["Refill how often",""]],"steps":[]},{"icon":"💧","title":"Water","device":"Water fountain","rows":[["Refill how often",""],["Clean how often",""]],"steps":[]},{"icon":"💩","title":"Litter","device":"Poop machine (self-cleaning litter box)","rows":[["Empty how often",""]],"steps":[]}]}</script>
+<script id="state" type="application/json">{"trip":{"start":"2026-10-24","end":"2026-11-11"},"owners":"Dan and Ellie","contact":{"phone":"","email":"","other":""},"kittens":["Soniu 소牛","Mimi 咪咪","Cookoo 哭哭"],"bios":{"soniu":{"looks":"Long hair, whitest.","likes":["climbing","being held","purring"]},"mimi":{"looks":"Blueberry eyes, small face.","likes":["hunting","eating"],"tip":"Still learning not to nibble hands. It won't hurt; if she does, ignore her for several seconds."},"cookoo":{"looks":"Three legs, black spot on chin.","likes":["being held","crying"]}},"notes":"","care":[{"icon":"🍽️","title":"Food","device":"Automatic feeder","rows":[["Feeding schedule",[["9am","3 portions"],["1pm","2 portions"],["5pm","3 portions"],["9pm","2 portions + wet food"]]],["Refill how often",""]],"steps":[]},{"icon":"💧","title":"Water","device":"Water fountain","rows":[["Top up","When it's below half"],["Replace the water","Once a week: empty, rinse, refill"]],"steps":[]},{"icon":"💩","title":"Litter","device":"Poop machine (self-cleaning litter box)","rows":[["Empty how often",""]],"steps":[]}]}</script>
 <script id="app-js">
 (function(){
 'use strict';
@@ -213,7 +217,10 @@ function render(){
     h.push('<section id="care"><h2>Food, water &amp; litter</h2><div class="care">');
     st.care.forEach(function(c){
       h.push('<div class="care-card"><div class="care-h"><span class="care-i" aria-hidden="true">' + c.icon + '</span><div><h3>' + esc(c.title) + '</h3><span class="ro">' + esc(c.device) + '</span></div></div><dl>');
-      (c.rows || []).forEach(function(r){ h.push('<dt>' + esc(r[0]) + '</dt><dd' + (r[1] ? '' : ' class="tbd"') + '>' + (r[1] ? esc(r[1]) : 'To be added') + '</dd>'); });
+      (c.rows || []).forEach(function(r){
+        var v = Array.isArray(r[1]) ? '<table class="feed">' + r[1].map(function(x){ return '<tr><th>' + esc(x[0]) + '</th><td>' + esc(x[1]) + '</td></tr>'; }).join('') + '</table>' : esc(r[1]);
+        h.push('<dt>' + esc(r[0]) + '</dt><dd' + (r[1] && r[1].length ? '' : ' class="tbd"') + '>' + (r[1] && r[1].length ? v : 'To be added') + '</dd>');
+      });
       h.push('</dl><div class="care-steps"><span class="k">How to</span>' + (c.steps && c.steps.length ? '<ol>' + c.steps.map(function(x){ return '<li>' + esc(x) + '</li>'; }).join('') + '</ol>' : '<p class="tbd">To be added</p>') + '</div></div>');
     });
     h.push('</div></section>');
