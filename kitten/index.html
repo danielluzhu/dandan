@@ -167,7 +167,7 @@ function render(){
   h.push('</header>');
 
   if (names.length) {
-    h.push('<section><h2>Meet the girls</h2>');
+    h.push('<section><h2>Meet the kittens</h2>');
     if (PHOTOS.indexOf('all.jpg') >= 0) h.push('<figure class="group"><img src="photos/all.jpg" alt="' + esc(names.join(', ')) + ' together on the bed"><figcaption>All three, on their favourite blanket.</figcaption></figure>');
     h.push('<div class="kgrid">' + names.map(function(n){
       var parts = n.split(' '), latin = parts.shift(), photo = photoFor(latin);
@@ -175,13 +175,13 @@ function render(){
         '<div class="nm"><b>' + esc(latin) + '</b>' + (parts.length ? '<span>' + esc(parts.join(' ')) + '</span>' : '') + '</div></div>';
     }).join('') + '</div>');
     var gallery = PHOTOS.filter(function(f){ return /^gallery-/.test(f); }).sort();
-    if (gallery.length) h.push('<h3 class="more">More of the girls</h3><div class="gallery">' + gallery.map(function(f){
+    if (gallery.length) h.push('<h3 class="more">More of the kittens</h3><div class="gallery">' + gallery.map(function(f){
       return '<a href="photos/' + esc(f) + '" target="_blank" rel="noopener"><img src="photos/' + esc(f) + '" alt="The kittens" loading="lazy"></a>';
     }).join('') + '</div>');
     h.push('</section>');
   }
 
-  h.push('<section><h2>What a visit involves</h2><p class="note">About 20–30 minutes. Food, water and the litter box are all automatic, so the job is mostly checking levels and giving the girls some attention.</p>');
+  h.push('<section><h2>What a visit involves</h2><p class="note">About 20–30 minutes. Food, water and the litter box are all automatic, so the job is mostly checking levels and giving the kittens some attention.</p>');
   h.push('<ol class="steps"><li>Check the automatic feeder, water fountain and litter box. Top up or empty if they are getting low or full.</li><li>Spend 5–10 minutes with each kitten individually: play, pets, a quick look that she is eating and acting normal.</li><li>Quick scan of the apartment: nothing knocked over, no one shut in a closet, doors closed behind you.</li><li>Lock up and put the key back in the lockbox.</li></ol>');
   h.push('<div class="facts"><div class="fact"><span class="k">Getting in</span><span>Key in a lockbox at the door. ' + esc(st.owners.split(' and ')[0] || 'Dan') + ' sends the address and code once you sign up.</span></div>');
   h.push('<div class="fact"><span class="k">Visits per day</span><span>' + (st.slotsPerDay === 1 ? 'One visit a day.' : 'Two visits a day (' + esc(st.slotNames[0] || 'Morning') + ' and ' + esc(st.slotNames[1] || 'Evening') + '). One is fine if the other is covered, two sitters a day is ideal.') + '</span></div>');
@@ -230,7 +230,7 @@ function renderOwnerPanel(d){
   h.push('<div class="row"><div class="field"><label for="o_k0">Kitten 1</label><input id="o_k0" value="' + esc(d.kittens[0]||'') + '"></div><div class="field"><label for="o_k1">Kitten 2</label><input id="o_k1" value="' + esc(d.kittens[1]||'') + '"></div></div>');
   h.push('<div class="row"><div class="field"><label for="o_k2">Kitten 3</label><input id="o_k2" value="' + esc(d.kittens[2]||'') + '"></div><div class="field"><label for="o_phone">Your phone (shown to sitters)</label><input id="o_phone" value="' + esc(d.contact.phone||'') + '" placeholder="optional"></div></div>');
   h.push('<div class="row"><div class="field"><label for="o_email">Your email (shown to sitters)</label><input id="o_email" value="' + esc(d.contact.email||'') + '" placeholder="optional"></div><div class="field"><label for="o_other">Other way to reach you</label><input id="o_other" value="' + esc(d.contact.other||'') + '" placeholder="e.g. WhatsApp, Instagram"></div></div>');
-  h.push('<div class="field"><label for="o_notes">Notes for sitters (shown on the page)</label><textarea id="o_notes" placeholder="Parking, which closet the supplies are in, anything the girls do…">' + esc(d.notes||'') + '</textarea></div>');
+  h.push('<div class="field"><label for="o_notes">Notes for sitters (shown on the page)</label><textarea id="o_notes" placeholder="Parking, which closet the supplies are in, anything the kittens do…">' + esc(d.notes||'') + '</textarea></div>');
   h.push('<p class="ro">To add a sitter, tap an open visit in the schedule and type their name. Tap a covered visit to change or clear it.</p>');
   h.push('</div>');
   return h.join('');
