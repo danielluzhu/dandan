@@ -30,6 +30,14 @@ db.run(`CREATE TABLE IF NOT EXISTS photos (
   name TEXT NOT NULL DEFAULT '',  -- who uploaded it, if they said
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 )`);
+// Sign-offs for recurring chores (replace the water, empty the bin...): who did it, and on which day.
+db.run(`CREATE TABLE IF NOT EXISTS chores (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  task TEXT NOT NULL,             -- task id from the page's care config
+  date TEXT NOT NULL,             -- 'YYYY-MM-DD'
+  name TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+)`);
 // The first version allowed one sitter per day in `claims`; carry those over once.
 if (db.query("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'claims'").get()) {
   db.transaction(() => {
@@ -40,6 +48,7 @@ if (db.query("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'claim
 }
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const TASK_RE = /^[a-z0-9-]{1,40}$/;
 const PHOTO_RE = /^[a-z0-9_-]+\.(jpe?g|png|webp)$/i;
 const ICONS = {
   "/favicon.svg": "image/svg+xml",
@@ -54,7 +63,8 @@ function state() {
   let photos = [];
   try { photos = readdirSync(PHOTO_DIR).filter((f) => PHOTO_RE.test(f)); } catch {}
   const uploads = db.query("SELECT id, file, name FROM photos ORDER BY id").all();
-  return { reservations, times: TIMES, photos, uploads };
+  const chores = db.query("SELECT id, task, date, name FROM chores ORDER BY date DESC, id DESC").all();
+  return { reservations, times: TIMES, photos, uploads, chores };
 }
 
 // Validates a reservation body; returns { name, time } or an error code.
@@ -145,6 +155,22 @@ Bun.serve({
     if (ph && req.method === "DELETE") {
       const row = db.query("SELECT file FROM photos WHERE id = ?").get(Number(ph[1]));
       if (row) { db.query("DELETE FROM photos WHERE id = ?").run(Number(ph[1])); rmSync(UPLOAD_DIR + row.file, { force: true }); }
+      return json(state());
+    }
+
+    // Sign off a chore as done on a given day; anyone can remove a sign-off made by mistake.
+    if (pathname === "/api/chores" && req.method === "POST") {
+      const body = await req.json().catch(() => ({}));
+      const task = String(body.task ?? ""), date = String(body.date ?? "");
+      const name = String(body.name ?? "").trim().slice(0, 60);
+      if (!name) return json({ error: "name_required" }, 400);
+      if (!TASK_RE.test(task) || !DATE_RE.test(date)) return json({ error: "bad_request" }, 400);
+      db.query("INSERT INTO chores (task, date, name) VALUES (?, ?, ?)").run(task, date, name);
+      return json(state());
+    }
+    const ch = /^\/api\/chores\/(\d+)$/.exec(pathname);
+    if (ch && req.method === "DELETE") {
+      db.query("DELETE FROM chores WHERE id = ?").run(Number(ch[1]));
       return json(state());
     }
 
