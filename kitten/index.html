@@ -1,5 +1,5 @@
 <!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><link rel="icon" href="favicon.svg" type="image/svg+xml"><link rel="icon" href="favicon.ico" sizes="48x48"><link rel="apple-touch-icon" href="apple-touch-icon.png"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
-<title>Kitten Sitting Sign-Up</title>
+<title>Let's play with the kitties</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gabarito:wght@500;700;800&family=Nunito+Sans:ital,wght@0,400;0,600;0,700;1,400&display=swap">
 <style id="css">
@@ -140,7 +140,7 @@ h3.more{margin-top:1.25rem}
 @media (prefers-reduced-motion:no-preference){.gallery img{transition:transform .2s}.gallery a:hover img{transform:scale(1.03)}}
 </style>
 <div id="app"></div>
-<script id="state" type="application/json">{"trip":{"start":"2026-10-24","end":"2026-11-11"},"owners":"Dan and Ellie","contact":{"phone":"","email":"","other":""},"kittens":["Soniu 소牛","Mimi 咪咪","Cookoo 哭哭"],"bios":{"soniu":{"looks":"Long hair, and the whitest of the three.","likes":["climbing","being held","purring"]},"mimi":{"looks":"Blueberry eyes and a small face.","likes":["hunting","eating"],"tip":"Mimi is still learning not to nibble on hands. It won't hurt, but if she does, just ignore her for several seconds so she learns it's not okay."},"cookoo":{"looks":"Has three legs and a black spot on her chin.","likes":["being held","crying"]}},"notes":"","care":[{"icon":"🍽️","title":"Food","device":"Automatic feeder","rows":[["Feeding schedule",""],["Refill how often",""]],"steps":[]},{"icon":"💧","title":"Water","device":"Water fountain","rows":[["Refill how often",""],["Clean how often",""]],"steps":[]},{"icon":"💩","title":"Litter","device":"The poop machine (self-cleaning litter box)","rows":[["Empty how often",""]],"steps":[]}]}</script>
+<script id="state" type="application/json">{"trip":{"start":"2026-10-24","end":"2026-11-11"},"owners":"Dan and Ellie","contact":{"phone":"","email":"","other":""},"kittens":["Soniu 소牛","Mimi 咪咪","Cookoo 哭哭"],"bios":{"soniu":{"looks":"Long hair, whitest.","likes":["climbing","being held","purring"]},"mimi":{"looks":"Blueberry eyes, small face.","likes":["hunting","eating"],"tip":"Still learning not to nibble hands. It won't hurt; if she does, ignore her for several seconds."},"cookoo":{"looks":"Three legs, black spot on chin.","likes":["being held","crying"]}},"notes":"","care":[{"icon":"🍽️","title":"Food","device":"Automatic feeder","rows":[["Feeding schedule",""],["Refill how often",""]],"steps":[]},{"icon":"💧","title":"Water","device":"Water fountain","rows":[["Refill how often",""],["Clean how often",""]],"steps":[]},{"icon":"💩","title":"Litter","device":"Poop machine (self-cleaning litter box)","rows":[["Empty how often",""]],"steps":[]}]}</script>
 <script id="app-js">
 (function(){
 'use strict';
@@ -178,15 +178,15 @@ function catSvg(){ return '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="
 function render(){
   var st = S, ds = days(st), names = kittenNames(st), h = [];
   h.push('<div class="wrap">');
-  h.push('<header class="hero"><div class="eyebrow">Sign-up sheet</div><h1>Three kittens need a daily visitor</h1>');
-  h.push('<p class="lead">' + esc(st.owners || 'Dan and Ellie') + ' are abroad and their three kittens (about 3 months old, all girls, friendly and well behaved) need someone to stop by at least once a day. Pick any days below.</p>');
+  h.push('<header class="hero"><h1>Let\'s play with the kitties</h1>');
+  h.push('<p class="lead">' + esc(st.owners || 'Dan and Ellie') + ' are away. The kittens need a visit at least once a day.</p>');
   var a = parseDate(st.trip.start), b = parseDate(st.trip.end);
   h.push('<div class="dates">' + (a && b ? '🗓 ' + fmtLong(a) + ' – ' + fmtLong(b) + ' · ' + ds.length + ' days' : 'Travel dates coming soon') + '</div>');
   h.push('</header>');
 
   if (names.length) {
     h.push('<section><h2>Meet the kittens</h2>');
-    if (PHOTOS.indexOf('all.jpg') >= 0) h.push('<figure class="group"><img src="photos/all.jpg" alt="' + esc(names.join(', ')) + ' together on the bed"><figcaption>All three, on their favourite blanket.</figcaption></figure>');
+    if (PHOTOS.indexOf('all.jpg') >= 0) h.push('<figure class="group"><img src="photos/all.jpg" alt="' + esc(names.join(', ')) + ' together on the bed"></figure>');
     h.push('<div class="kgrid">' + names.map(function(n){
       var parts = n.split(' '), latin = parts.shift(), photo = photoFor(latin), bio = st.bios[latin.toLowerCase()] || {};
       return '<div class="kcard"><div class="pic">' + (photo ? '<img src="photos/' + esc(photo) + '" alt="' + esc(latin) + '">' : '<div class="ph">' + catSvg() + '<span>Photo coming soon</span></div>') + '</div>' +
@@ -202,26 +202,26 @@ function render(){
     h.push('</section>');
   }
 
-  h.push('<section><h2>What a visit involves</h2><p class="note">About 20–30 minutes. Food, water and the litter box are all automatic, so the job is mostly checking levels and giving the kittens some attention.</p>');
-  h.push('<ol class="steps"><li>Check the feeder, water fountain and poop machine. Refill or empty anything that needs it (see <a href="#care">Food, water &amp; litter</a>).</li><li>Spend 5–10 minutes with each kitten individually: play, pets, a quick look that she is eating and acting normal.</li><li>Quick scan of the apartment: nothing knocked over, no one shut in a closet, doors closed behind you.</li><li>Lock up and put the key back in the lockbox.</li></ol>');
-  h.push('<div class="facts"><div class="fact"><span class="k">Getting in</span><span>Key in a lockbox at the door. ' + esc(firstOwner()) + ' sends the address and code once you sign up.</span></div>');
-  h.push('<div class="fact"><span class="k">Visits per day</span><span>At least one a day. More than one sitter on the same day is welcome; just say roughly when you will come.</span></div>');
+  h.push('<section><h2>What a visit involves</h2><p class="note">20–30 minutes.</p>');
+  h.push('<ol class="steps"><li>Check the feeder, fountain and poop machine; refill or empty as needed (<a href="#care">details</a>).</li><li>5–10 minutes with each kitten: play, pets, check she\'s eating and acting normal.</li><li>Scan the apartment: nothing knocked over, no one shut in a closet.</li><li>Lock up; key back in the lockbox.</li></ol>');
+  h.push('<div class="facts"><div class="fact"><span class="k">Getting in</span><span>Lockbox at the door. ' + esc(firstOwner()) + ' sends the address and code after you sign up.</span></div>');
+  h.push('<div class="fact"><span class="k">Visits per day</span><span>At least one. Multiple sitters a day is fine.</span></div>');
   if (st.notes) h.push('<div class="fact"><span class="k">Notes from the owners</span><span>' + esc(st.notes).replace(/\n/g,'<br>') + '</span></div>');
   h.push('</div></section>');
 
   if (st.care && st.care.length) {
-    h.push('<section id="care"><h2>Food, water &amp; litter</h2><p class="note">All three run on their own. Each visit, check on them and do whatever is due.</p><div class="care">');
+    h.push('<section id="care"><h2>Food, water &amp; litter</h2><div class="care">');
     st.care.forEach(function(c){
       h.push('<div class="care-card"><div class="care-h"><span class="care-i" aria-hidden="true">' + c.icon + '</span><div><h3>' + esc(c.title) + '</h3><span class="ro">' + esc(c.device) + '</span></div></div><dl>');
       (c.rows || []).forEach(function(r){ h.push('<dt>' + esc(r[0]) + '</dt><dd' + (r[1] ? '' : ' class="tbd"') + '>' + (r[1] ? esc(r[1]) : 'To be added') + '</dd>'); });
-      h.push('</dl><div class="care-steps"><span class="k">How to</span>' + (c.steps && c.steps.length ? '<ol>' + c.steps.map(function(x){ return '<li>' + esc(x) + '</li>'; }).join('') + '</ol>' : '<p class="tbd">Instructions coming soon.</p>') + '</div></div>');
+      h.push('</dl><div class="care-steps"><span class="k">How to</span>' + (c.steps && c.steps.length ? '<ol>' + c.steps.map(function(x){ return '<li>' + esc(x) + '</li>'; }).join('') + '</ol>' : '<p class="tbd">To be added</p>') + '</div></div>');
     });
     h.push('</div></section>');
   }
 
   h.push('<section id="schedule"><h2>Schedule</h2>');
   if (!ds.length) {
-    h.push('<div class="empty">The travel dates are not set yet. Check back soon.</div>');
+    h.push('<div class="empty">Dates not set yet.</div>');
   } else {
     h.push('<div class="legend"><span><i class="dot open"></i>No one yet</span><span><i class="dot taken"></i>Covered</span><span><i class="dot sel"></i>Your picks</span></div>');
     // Calendar: whole weeks, Sunday first, padded with greyed-out days outside the trip.
@@ -251,7 +251,7 @@ function render(){
   }
   h.push('</section>');
 
-  h.push('<section><h2>How signing up works</h2><p>Tap the days you can come, press <b>Reserve</b>, and enter your name and roughly what time of day. Your name goes on the calendar right away, and ' + esc(firstOwner()) + ' will send you the lockbox code. A day can have more than one sitter: tap <b>+</b> to add yourself. Tap a name to change the time or remove it.</p></section>');
+  h.push('<section><h2>How to sign up</h2><p>Tap days, then <b>Reserve</b>. Tap <b>+</b> to join a day that\'s already covered. Tap a name to edit or remove it.</p></section>');
   h.push('</div>');
 
   var n = Object.keys(sel).length;
@@ -269,7 +269,7 @@ function reserveForm(){
   openModal('<h3>Reserve ' + list.length + ' day' + (list.length > 1 ? 's' : '') + '</h3><div class="picked">' + list.map(function(x){ return '<span>' + esc(x) + '</span>'; }).join('') + '</div>' +
     '<div class="row"><div class="field"><label for="w_name">Your name</label><input id="w_name" value="' + esc(visitor.name) + '" autocomplete="name" maxlength="60"></div>' +
     '<div class="field"><label for="w_time">Roughly when</label><select id="w_time">' + timeOptions(visitor.time) + '</select></div></div>' +
-    '<p class="ro">' + (list.length > 1 ? 'Same time for every day; you can change any one later by tapping your name. ' : '') + esc(firstOwner()) + ' will reach out with the address and lockbox code.</p>' +
+    (list.length > 1 ? '<p class="ro">Same time for each day.</p>' : '') +
     '<div class="actions"><button class="btn ghost" id="m_cancel">Cancel</button><button class="btn" id="w_reserve">Reserve</button></div>');
 }
 
@@ -301,7 +301,7 @@ function save(method, url, body, btnId, label, done){
       if (done) done();
       closeModal(); render(); toast('Saved');
     })
-    .catch(function(){ if (btn) { btn.disabled = false; btn.textContent = label; } toast('Could not save. Try again in a moment.'); });
+    .catch(function(){ if (btn) { btn.disabled = false; btn.textContent = label; } toast('Could not save. Try again.'); });
 }
 
 // ---- events ----
