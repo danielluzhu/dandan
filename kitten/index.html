@@ -108,13 +108,24 @@ pre.msg{white-space:pre-wrap;word-break:break-word;font:inherit;background:var(-
 .group img{display:block;width:100%;aspect-ratio:4/3;object-fit:cover;object-position:50% 78%}
 .group figcaption{padding:.55rem .9rem;font-size:.9rem;color:var(--muted)}
 .kgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.75rem;margin-top:.75rem}
-.kcard{background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden;display:grid}
+.kcard{background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden;display:grid;grid-template-rows:auto 1fr}
 .kcard .ph{aspect-ratio:1;background:var(--ink-soft);display:grid;place-items:center;align-content:center;gap:.3rem;color:var(--muted);font-size:.8rem;text-align:center;padding:.5rem}
 .kcard .ph svg{width:44px;height:44px}
 .kcard img{display:block;width:100%;aspect-ratio:1;object-fit:cover}
-.kcard .nm{padding:.55rem .7rem;display:grid;line-height:1.25;min-width:0}
-.kcard .nm b{font-family:var(--display);font-size:1.05rem}
-.kcard .nm span{color:var(--muted);font-size:.9rem}
+.kcard .nm{padding:.65rem .8rem .8rem;display:grid;gap:.45rem;align-content:start;line-height:1.4;min-width:0;font-size:.92rem}
+.kcard .who{display:flex;flex-wrap:wrap;align-items:baseline;gap:.1rem .45rem;line-height:1.2}
+.kcard .who b{font-family:var(--display);font-size:1.15rem}
+.kcard .who span{color:var(--muted);font-size:.95rem}
+.kcard .looks{color:var(--muted)}
+.kcard .likes .k{font-family:var(--display);font-weight:700;color:var(--ink);font-size:.75rem;text-transform:uppercase;letter-spacing:.06em;margin-right:.15rem}
+.kcard .tip{background:var(--open-soft);color:var(--open-fg);border-left:3px solid var(--open);border-radius:6px;padding:.45rem .6rem;font-size:.88rem}
+/* On phones the cards stack, photo beside the text, so the descriptions get room. */
+@media (max-width:600px){
+  .kgrid{grid-template-columns:1fr}
+  .kcard{grid-template-columns:7.5rem minmax(0,1fr);grid-template-rows:none}
+  .kcard .pic{height:100%}
+  .kcard .pic img,.kcard .pic .ph{height:100%;min-height:7.5rem;aspect-ratio:auto}
+}
 h3.more{margin-top:1.25rem}
 .gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:.5rem;margin-top:.6rem}
 .gallery a{display:block;border-radius:12px;overflow:hidden;border:1px solid var(--line);background:var(--surface)}
@@ -122,7 +133,7 @@ h3.more{margin-top:1.25rem}
 @media (prefers-reduced-motion:no-preference){.gallery img{transition:transform .2s}.gallery a:hover img{transform:scale(1.03)}}
 </style>
 <div id="app"></div>
-<script id="state" type="application/json">{"trip":{"start":"2026-10-24","end":"2026-11-11"},"slotsPerDay":1,"slotNames":["Morning","Evening"],"owners":"Dan and Ellie","contact":{"phone":"","email":"","other":""},"kittens":["Soniu 소牛","Mimi 咪咪","Cookoo 哭哭"],"address":"","notes":"","claims":{}}</script>
+<script id="state" type="application/json">{"trip":{"start":"2026-10-24","end":"2026-11-11"},"slotsPerDay":1,"slotNames":["Morning","Evening"],"owners":"Dan and Ellie","contact":{"phone":"","email":"","other":""},"kittens":["Soniu 소牛","Mimi 咪咪","Cookoo 哭哭"],"bios":{"soniu":{"looks":"Long hair, and the whitest of the three.","likes":["climbing","being held","purring"]},"mimi":{"looks":"Blueberry eyes and a small face.","likes":["hunting","eating"],"tip":"Mimi is the most likely to nibble a hand. It won't hurt, but if she does, stop playing with her for a few seconds. Ignoring her briefly is how she learns not to."},"cookoo":{"looks":"Has three legs and a black spot on her chin.","likes":["being held","crying"]}},"address":"","notes":"","claims":{}}</script>
 <script id="app-js">
 (function(){
 'use strict';
@@ -170,9 +181,12 @@ function render(){
     h.push('<section><h2>Meet the kittens</h2>');
     if (PHOTOS.indexOf('all.jpg') >= 0) h.push('<figure class="group"><img src="photos/all.jpg" alt="' + esc(names.join(', ')) + ' together on the bed"><figcaption>All three, on their favourite blanket.</figcaption></figure>');
     h.push('<div class="kgrid">' + names.map(function(n){
-      var parts = n.split(' '), latin = parts.shift(), photo = photoFor(latin);
-      return '<div class="kcard">' + (photo ? '<img src="photos/' + esc(photo) + '" alt="' + esc(latin) + '">' : '<div class="ph">' + catSvg() + '<span>Photo coming soon</span></div>') +
-        '<div class="nm"><b>' + esc(latin) + '</b>' + (parts.length ? '<span>' + esc(parts.join(' ')) + '</span>' : '') + '</div></div>';
+      var parts = n.split(' '), latin = parts.shift(), photo = photoFor(latin), bio = (st.bios || {})[latin.toLowerCase()] || {};
+      return '<div class="kcard"><div class="pic">' + (photo ? '<img src="photos/' + esc(photo) + '" alt="' + esc(latin) + '">' : '<div class="ph">' + catSvg() + '<span>Photo coming soon</span></div>') + '</div>' +
+        '<div class="nm"><div class="who"><b>' + esc(latin) + '</b>' + (parts.length ? '<span>' + esc(parts.join(' ')) + '</span>' : '') + '</div>' +
+        (bio.looks ? '<p class="looks">' + esc(bio.looks) + '</p>' : '') +
+        (bio.likes && bio.likes.length ? '<p class="likes"><span class="k">Likes</span> ' + esc(bio.likes.join(', ')) + '</p>' : '') +
+        (bio.tip ? '<p class="tip">' + esc(bio.tip) + '</p>' : '') + '</div></div>';
     }).join('') + '</div>');
     var gallery = PHOTOS.filter(function(f){ return /^gallery-/.test(f); }).sort();
     if (gallery.length) h.push('<h3 class="more">More of the kittens</h3><div class="gallery">' + gallery.map(function(f){
