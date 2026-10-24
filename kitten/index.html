@@ -129,6 +129,9 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-vis
 .care .feed td{font-weight:400;padding:0 0 .15rem}
 .care-note{background:var(--open-soft);color:var(--open-fg);border-left:3px solid var(--open);border-radius:6px;padding:.45rem .6rem;font-size:.88rem;margin:0}
 .fact .rec{background:var(--open-soft);color:var(--open-fg);border-left:3px solid var(--open);border-radius:6px;padding:.45rem .6rem;font-size:.9rem}
+.welcome{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--open);border-radius:12px;padding:.85rem 1rem;display:grid;gap:.5rem;max-width:40rem;line-height:1.5}
+.welcome p{margin:0}
+.welcome .sig{font-family:var(--display);font-weight:700;color:var(--ink)}
 .care .tbd{color:var(--muted);font-weight:400;font-style:italic}
 .chore{display:flex;gap:.6rem;align-items:center;justify-content:space-between;border:1px solid var(--line);border-radius:10px;padding:.55rem .65rem;font-size:.92rem}
 .chore.due{background:var(--open-soft);border-color:var(--open);color:var(--open-fg)}
@@ -243,6 +246,7 @@ function render(){
   h.push('<p class="lead">' + esc(st.owners || 'Dan and Ellie') + ' are away. The kittens need a visit at least once a day.</p>');
   var a = parseDate(st.trip.start), b = parseDate(st.trip.end);
   h.push('<div class="dates">' + (a && b ? '🗓 ' + fmtLong(a) + ' – ' + fmtLong(b) + ' · ' + ds.length + ' days' : 'Travel dates coming soon') + '</div>');
+  h.push('<div class="welcome"><p>Thank you for being here. We miss the kittens a lot and are happy to know that even while away, the kittens will have such caring and trustworthy people.</p><p>Please let me know if you have any questions and please send photos. There is a photo card printer and photo album of the cats that you are welcome to use.</p><p class="sig">Dan and Ellie</p></div>');
   h.push('</header>');
 
   if (names.length) {
