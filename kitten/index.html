@@ -323,7 +323,7 @@ function render(){
     }).join('') + '</div>');
     // Dan's photos first (credited to him), then ones visitors uploaded (credited, removable), then the add button.
     var gallery = PHOTOS.filter(function(f){ return /^gallery-/.test(f); }).sort(), galleryUps = UPLOADS.filter(function(u){ return !u.slot; }), count = gallery.length + galleryUps.length;
-    h.push('<details class="more" id="moreKittens"' + (galleryOpen ? ' open' : '') + '><summary>More of the kittens <span class="ro">' + count + ' photo' + (count === 1 ? '' : 's') + '</span></summary><div class="gallery">' +
+    h.push('<details class="more" id="moreKittens"' + (galleryOpen ? ' open' : '') + '><summary>Add photos of the kittens <span class="ro">' + count + ' photo' + (count === 1 ? '' : 's') + '</span></summary><div class="gallery">' +
       gallery.map(function(f){ return '<div class="tile"><a href="photos/' + esc(f) + '" target="_blank" rel="noopener"><img src="photos/' + esc(f) + '" alt="The kittens, from ' + esc(firstOwner()) + '" loading="lazy"></a><span class="by">' + esc(firstOwner()) + '</span></div>'; }).join('') +
       galleryUps.map(function(u){
         return '<div class="tile"><a href="uploads/' + esc(u.file) + '" target="_blank" rel="noopener"><img src="uploads/' + esc(u.file) + '" alt="The kittens' + (u.name ? ', from ' + esc(u.name) : '') + '" loading="lazy"></a>' +
