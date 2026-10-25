@@ -315,7 +315,7 @@ function render(){
       return '<div class="kcard"><div class="pic">' + (photo ? '<img src="photos/' + esc(photo) + '" alt="' + esc(latin) + '">' : '<div class="ph">' + catSvg() + '<span>Photo coming soon</span></div>') + '</div>' +
         '<div class="nm"><div class="who"><b>' + esc(latin) + '</b>' + (parts.length ? '<span>' + esc(parts.join(' ')) + '</span>' : '') + '</div>' +
         (bio.looks ? '<p class="looks">' + esc(bio.looks) + '</p>' : '') +
-        (bio.likes && bio.likes.length ? '<p class="likes"><span class="k">Likes</span> ' + esc(bio.likes.join(', ')) + '</p>' : '') +
+        (bio.likes && bio.likes.length ? '<p class="likes"><span class="k">Note</span> ' + esc(bio.likes.join(', ')) + '</p>' : '') +
         (bio.tip ? '<p class="tip">' + esc(bio.tip) + '</p>' : '') + '</div></div>';
     }).join('') + '</div>');
     // Dan's photos first (credited to him), then ones visitors uploaded (credited, removable), then the add button.
