@@ -286,7 +286,11 @@ function render(){
   }
 
   h.push('<section><h2>What a visit involves</h2><p class="note">20–30 minutes.</p>');
-  h.push('<ol class="steps"><li>Give wet food, unless someone already did today. Check the feeder, fountain and litter box; refill or empty as needed, and tap <b>Done</b> on what you did (<a href="#care">details</a>).</li><li>5–10 minutes with each kitten: play, pets, check she\'s eating and acting normal. Gently touch her belly and paws when you can. While playing with one, put the other two in the closet.</li><li>Let everyone out of the closet. Scan the bedroom: nothing knocked over.</li><li>Lock up; key back in the lockbox.</li></ol>');
+  var lastWet = CHORES.filter(function(c){ return c.task === 'wetfood'; })[0];
+  h.push('<ol class="steps"><li>Have the three kitties share one wet food can a day (most recent: ' + (lastWet ? esc(dayWord(lastWet.date) + ' by ' + lastWet.name) : 'none yet') + ').</li>' +
+    '<li>Check the feeder, fountain and litter box; refill or empty as needed, and tap <b>Done</b> on what you did (<a href="#care">details</a>).</li>' +
+    '<li>5–10 minutes of dedicated attention for each kitten: play, pets. Gently touch her belly and paws when you can. Other two can be in closet if needed.</li>' +
+    '<li>Let everyone out of the closet. Scan the bedroom: nothing knocked over, and no potential liabilities (their jumping improves every day). Lock up; key back in the lockbox.</li></ol>');
   h.push('<div class="facts"><div class="fact">' + (PHOTOS.indexOf('door.jpg') >= 0 ? '<a class="fact-pic" href="photos/door.jpg" target="_blank" rel="noopener"><img src="photos/door.jpg" alt="The bedroom door: double doors at the top of the stairs" loading="lazy"></a>' : '') + '<span class="k">Getting in</span><span>Text Dan or Ellie for access.</span><span>Bedroom: top of the stairs, the double doors with the red tassel. Close them behind you.</span><span class="rec">📹 The bedroom has a camera that records while we\'re away.</span></div>');
   h.push('<div class="fact"><span class="k">Visits per day</span><span>At least one. Multiple sitters a day is fine.</span></div>');
   h.push('<div class="fact"><span class="k">Vacuum</span><span>At the foot of the stairs, for litter or food spills.</span></div>');
