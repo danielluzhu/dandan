@@ -1,7 +1,7 @@
 <!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><link rel="icon" href="favicon.svg" type="image/svg+xml"><link rel="icon" href="favicon.ico" sizes="48x48"><link rel="apple-touch-icon" href="apple-touch-icon.png"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <title>Let's play with the kitties</title>
 <meta name="claude:viewport-fit-sides" content="cover">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:ital,wght@0,400;0,600;0,700;0,800;1,400&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Nunito:ital,wght@0,400;0,600;0,700;0,800;1,400&display=swap">
 <style id="css">
 /* Layout: one column, 720px measure; schedule is a Sunday-first month calendar listing each day's sitters, sticky sign-up bar at the bottom.
    Look: warm and bright. Cream page, coral accents, honey for open days and warnings, sage for covered days. */
@@ -14,7 +14,7 @@
   --danger:#c0392b; --on-ink:#ffffff;
   --glow-a:#ffe0c2; --glow-b:#fff0bf; --welcome-a:#fff4e4; --welcome-b:#ffe6d3;
   --shadow:0 1px 2px rgba(150,90,40,.06),0 8px 24px rgba(150,90,40,.08);
-  --display:"Fredoka","Avenir Next","Segoe UI",system-ui,sans-serif;
+  --display:"Fraunces",Georgia,"Times New Roman",serif;
   --body:"Nunito","Helvetica Neue",Arial,system-ui,sans-serif;
 }
 @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
@@ -40,7 +40,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:16px
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 96px}
 .wrap{max-width:720px;margin:0 auto}
 h1,h2,h3{font-family:var(--display);line-height:1.15;text-wrap:balance;margin:0}
-h1{font-size:clamp(2.2rem,7vw,3.3rem);font-weight:700;letter-spacing:-.01em}
+h1{font-size:clamp(2.2rem,7vw,3.3rem);font-weight:600;letter-spacing:-.015em}
 h2{font-size:1.5rem;font-weight:600;margin-bottom:.6rem}
 h3{font-size:1.05rem;font-weight:700}
 p{margin:0}
@@ -241,6 +241,11 @@ ol.steps li::before{content:counter(step);position:absolute;left:.8rem;top:.7rem
 .bar{border-top:0;box-shadow:0 -8px 30px rgba(150,90,40,.12);border-radius:20px 20px 0 0}
 .card{border-radius:22px;border:0;box-shadow:0 20px 60px rgba(60,30,10,.25)}
 .field input,.field textarea,.field select{border-radius:12px}
+/* Headings use the serif; small labels, buttons and numbers stay in the body font. */
+.btn,.fact .k,.care-steps .k,.cal-head span,.cal-title,.dates,.kcard .likes .k,ol.steps li::before,.gallery .add-photo,details.more summary,.hist summary{font-family:var(--body)}
+.fact .k,.care-steps .k,.kcard .likes .k{font-weight:800}
+.btn{font-weight:800}
+details.more summary{font-weight:800}
 </style>
 <div id="app"></div>
 <script id="state" type="application/json">{"trip":{"start":"2026-10-24","end":"2026-11-11"},"owners":"Dan and Ellie","contact":{"phone":"","email":"","other":""},"kittens":["Soniu 소牛","Mimi 咪咪","Cookoo 哭哭"],"bios":{"soniu":{"looks":"Long hair, whitest.","likes":["climbing","being held","purring"]},"mimi":{"looks":"Blueberry eyes, small face.","likes":["hunting","eating"],"tip":"Still learning not to nibble hands. If she does, ignore her for a few seconds and then play with her with a toy (nibbling is a sign of an under-stimulated hunter)."},"cookoo":{"looks":"Three legs, black spot on chin.","likes":["being held","crying"]}},"notes":"","care":[{"icon":"🍽️","title":"Food","device":"Auto feeder","photoPos":"50% 12%","rows":[["Feeding schedule",[["9am","3 portions"],["1pm","2 portions"],["5pm","3 portions"],["9pm","2 portions"]]]],"steps":[],"tasks":[{"id":"feeder","label":"Refill the feeder","when":"Every 3 weeks","every":21}]},{"icon":"🥫","title":"Wet food","device":"Friskies (cans)","photo":"care-wetfood.jpg","photoPos":"50% 50%","credit":"Photo: Open Pet Food Facts, CC BY-SA","rows":[["How much","1 can daily, shared by all three"]],"steps":["Spoon the whole can onto one plate for all three.","Put the empty can in the trash bins outside.","When they're done, wash the plate and spoon: kitchen sink if chunks are left, otherwise the upstairs bathroom sink."],"tasks":[{"id":"wetfood","label":"Give wet food","every":1}],"note":"Never put cans or scraps in indoor trash: it attracts ants."},{"icon":"💧","title":"Water","device":"Fountain: PETKIT Eversweet Max 2","rows":[["Top up","When the light flashes red or it's below half (lift the lid to check)"]],"steps":["Lift off the control module (the top). Keep it dry.","Unlatch and remove the steel tray, then the lid and filter holder.","Fill with fresh water to MAX.","Replace the lid and filter holder; slot the tray under the outlet and latch it.","Push the control module back on. The red lights go off."],"note":"Never rinse or soak the control module. Flashing red status light means low battery: tell Dan.","tasks":[{"id":"water","label":"Replace the water","when":"Weekly: empty, rinse, refill","every":7}]},{"icon":"💩","title":"Litter","device":"Litter box: PETKIT Purobot Max Pro 2","rows":[],"steps":["Press the latch right to open the front bin door.","Pull the drawstring closed. Slide the bin out; lift out the bag.","New bag (PETKIT only): lay it flat, fold on the dashed line, drawstring through the Y-slot, lid on.","Slide the bin in; close the door."],"note":"To add litter: press Menu to “Maintenance Mode”, then OK. Pour to MAX, press OK, then double-press OK to level. Never press “Empty cat litter”: it dumps everything.","tasks":[{"id":"bin","label":"Empty the bin","when":"When the screen says “Full waste bin”"},{"id":"litter","label":"Add litter","when":"When the screen says “Insufficient cat litter”"}]}],"handling":[{"icon":"🤲","title":"Holding","items":["Let her come to you. Offer a hand to sniff and pet her first.","One hand under her chest behind the front legs, the other under her bottom. Never lift by the scruff, legs or tail.","Hold her close to your chest. Sitting down is safest in case she jumps.","Ease her down gently, especially 3-legged Cookoo.","Kitty not in the mood? Set her down gently. Never drop her."],"note":"They all like being held, especially Soniu and Cookoo, but it depends on their mood. Sometimes they'd rather hunt.","ordered":true},{"icon":"🪶","title":"Playing","items":["Use a wand or toy, never hands or feet, so they don't learn to bite hands.","Move it like prey: drag it along the floor, away from her, behind things. Let her catch it often.","One kitten at a time (independent time matters!); the other two wait in the closet.","End with a catch. Put string and wand toys away after: they can swallow string."],"note":"They all love hunting. If she nibbles (especially Mimi, sometimes Soniu), stop and ignore her for a few seconds. Nibbling means she's in hunting mode and needs more play.","ordered":true}]}</script>
