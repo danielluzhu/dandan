@@ -1,40 +1,47 @@
 <!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><link rel="icon" href="favicon.svg" type="image/svg+xml"><link rel="icon" href="favicon.ico" sizes="48x48"><link rel="apple-touch-icon" href="apple-touch-icon.png"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <title>Let's play with the kitties</title>
 <meta name="claude:viewport-fit-sides" content="cover">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gabarito:wght@500;700;800&family=Nunito+Sans:ital,wght@0,400;0,600;0,700;1,400&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:ital,wght@0,400;0,600;0,700;0,800;1,400&display=swap">
 <style id="css">
-/* Layout: one column, 720px measure; schedule is a Sunday-first month calendar listing each day's sitters, sticky sign-up bar at the bottom. */
+/* Layout: one column, 720px measure; schedule is a Sunday-first month calendar listing each day's sitters, sticky sign-up bar at the bottom.
+   Look: warm and bright. Cream page, coral accents, honey for open days and warnings, sage for covered days. */
 :root{
-  --bg:#f7f8f4; --surface:#ffffff; --fg:#1d2a2a; --muted:#5d6b69; --line:#dfe5df;
-  --ink:#1f4f4a; --ink-soft:#e3efec;
-  --open:#f2b231; --open-soft:#fff3d6; --open-fg:#4d3500;
-  --taken:#9fb3ad; --taken-soft:#eef2f0;
-  --sel:#1f4f4a; --sel-soft:#d6e8e3;
-  --danger:#b4453a; --on-ink:#ffffff;
-  --display:"Gabarito","Avenir Next","Segoe UI",system-ui,sans-serif;
-  --body:"Nunito Sans","Helvetica Neue",Arial,system-ui,sans-serif;
+  --bg:#fff8f0; --surface:#ffffff; --fg:#3b2a1f; --muted:#8a6f5f; --line:#f1e0cc;
+  --ink:#c2501f; --ink-soft:#ffe8da;
+  --open:#f6b73c; --open-soft:#fff2d4; --open-fg:#6b4300;
+  --taken:#8cbf88; --taken-soft:#eff7ec;
+  --sel:#c2501f; --sel-soft:#ffe1d1;
+  --danger:#c0392b; --on-ink:#ffffff;
+  --glow-a:#ffe0c2; --glow-b:#fff0bf; --welcome-a:#fff4e4; --welcome-b:#ffe6d3;
+  --shadow:0 1px 2px rgba(150,90,40,.06),0 8px 24px rgba(150,90,40,.08);
+  --display:"Fredoka","Avenir Next","Segoe UI",system-ui,sans-serif;
+  --body:"Nunito","Helvetica Neue",Arial,system-ui,sans-serif;
 }
 @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
-  --bg:#141a19; --surface:#1d2524; --fg:#eef2ef; --muted:#a3b1ad; --line:#2f3b39;
-  --ink:#8fd1c3; --ink-soft:#1f3532;
-  --open:#f2b231; --open-soft:#3d2f0e; --open-fg:#ffe2a3;
-  --taken:#5b6b67; --taken-soft:#232d2b;
-  --sel:#8fd1c3; --sel-soft:#1f3532;
-  --danger:#f08a7e; --on-ink:#141a19; color-scheme:dark }}
+  --bg:#1e1712; --surface:#2a211a; --fg:#f8ece0; --muted:#bfa796; --line:#3d3027;
+  --ink:#ff9c6e; --ink-soft:#4a2e20;
+  --open:#f6b73c; --open-soft:#3f3014; --open-fg:#ffe2a3;
+  --taken:#6f9a6b; --taken-soft:#26301f;
+  --sel:#ff9c6e; --sel-soft:#4a2e20;
+  --danger:#ff8a7a; --on-ink:#1e1712;
+  --glow-a:#3a2618; --glow-b:#33290f; --welcome-a:#33261c; --welcome-b:#3a281d;
+  --shadow:0 1px 2px rgba(0,0,0,.3); color-scheme:dark }}
 :root[data-theme="dark"]{
-  --bg:#141a19; --surface:#1d2524; --fg:#eef2ef; --muted:#a3b1ad; --line:#2f3b39;
-  --ink:#8fd1c3; --ink-soft:#1f3532;
-  --open:#f2b231; --open-soft:#3d2f0e; --open-fg:#ffe2a3;
-  --taken:#5b6b67; --taken-soft:#232d2b;
-  --sel:#8fd1c3; --sel-soft:#1f3532;
-  --danger:#f08a7e; --on-ink:#141a19; color-scheme:dark }
+  --bg:#1e1712; --surface:#2a211a; --fg:#f8ece0; --muted:#bfa796; --line:#3d3027;
+  --ink:#ff9c6e; --ink-soft:#4a2e20;
+  --open:#f6b73c; --open-soft:#3f3014; --open-fg:#ffe2a3;
+  --taken:#6f9a6b; --taken-soft:#26301f;
+  --sel:#ff9c6e; --sel-soft:#4a2e20;
+  --danger:#ff8a7a; --on-ink:#1e1712;
+  --glow-a:#3a2618; --glow-b:#33290f; --welcome-a:#33261c; --welcome-b:#3a281d;
+  --shadow:0 1px 2px rgba(0,0,0,.3); color-scheme:dark }
 *{box-sizing:border-box}
 body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:16px;line-height:1.55;
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 96px}
 .wrap{max-width:720px;margin:0 auto}
 h1,h2,h3{font-family:var(--display);line-height:1.15;text-wrap:balance;margin:0}
-h1{font-size:clamp(2rem,6vw,2.9rem);font-weight:800;letter-spacing:-.01em}
-h2{font-size:1.35rem;font-weight:700;margin-bottom:.5rem}
+h1{font-size:clamp(2.2rem,7vw,3.3rem);font-weight:700;letter-spacing:-.01em}
+h2{font-size:1.5rem;font-weight:600;margin-bottom:.6rem}
 h3{font-size:1.05rem;font-weight:700}
 p{margin:0}
 a{color:var(--ink)}
@@ -55,7 +62,6 @@ section{padding-block:1.25rem;border-top:1px solid var(--line)}
 .fact .slot-add{justify-self:start;margin-top:.4rem}
 .fact .k{font-size:.8rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-family:var(--display);font-weight:700}
 ol.steps{margin:.5rem 0 0;padding-left:1.25rem;display:grid;gap:.45rem}
-ol.steps li::marker{font-family:var(--display);font-weight:700;color:var(--ink)}
 .note{color:var(--muted);font-size:.95rem}
 .legend{display:flex;flex-wrap:wrap;gap:.75rem 1.25rem;font-size:.9rem;color:var(--muted);margin:.5rem 0 1rem}
 .legend span{display:inline-flex;align-items:center;gap:.4rem}
@@ -93,7 +99,7 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-vis
 .btn.small{padding:.35rem .7rem;font-size:.9rem}
 .btn.danger{border-color:var(--danger);color:var(--danger);background:transparent}
 .btn[disabled]{opacity:.5;cursor:default}
-.modal{position:fixed;inset:0;background:rgba(10,20,18,.45);display:flex;align-items:flex-end;justify-content:center;z-index:30;padding:max(16px,env(safe-area-inset-left,0px))}
+.modal{position:fixed;inset:0;background:rgba(60,30,10,.4);display:flex;align-items:flex-end;justify-content:center;z-index:30;padding:max(16px,env(safe-area-inset-left,0px))}
 @media (min-width:600px){.modal{align-items:center}}
 .card{background:var(--surface);color:var(--fg);border-radius:16px;max-width:520px;width:100%;max-height:min(90vh,100%);overflow:auto;padding:1.25rem;display:grid;gap:.9rem;border:1px solid var(--line)}
 .field{display:grid;gap:.3rem}
@@ -200,6 +206,41 @@ details.more .gallery{margin:0;padding:0 .6rem .6rem}
 .gallery .add-photo[disabled]{opacity:.6;cursor:default}
 .gallery img{display:block;width:100%;aspect-ratio:1;object-fit:cover}
 @media (prefers-reduced-motion:no-preference){.gallery img{transition:transform .2s}.gallery a:hover img{transform:scale(1.03)}}
+/* ---- warm theme: soft glow, rounded shadowed cards, coral badges ---- */
+body{background:radial-gradient(900px 420px at 0% -5%,var(--glow-a),transparent 65%),radial-gradient(800px 420px at 100% 0%,var(--glow-b),transparent 60%),var(--bg);background-repeat:no-repeat}
+header.hero{padding-block:2.75rem 1.75rem}
+.hero .hl{color:var(--ink);background:linear-gradient(transparent 72%,color-mix(in srgb,var(--open) 45%,transparent) 72%);padding:0 .08em}
+.dates{background:var(--surface);color:var(--fg);box-shadow:var(--shadow);border:1px solid var(--line)}
+.welcome{background:linear-gradient(135deg,var(--welcome-a),var(--welcome-b));border:0;border-radius:20px;padding:1.1rem 1.25rem;box-shadow:var(--shadow);font-size:1.02rem}
+.welcome .sig{color:var(--ink);font-size:1.05rem}
+section{border-top:0;padding-block:1.75rem}
+h2{display:flex;align-items:center;gap:.55rem}
+h2::before{content:"";width:.55rem;height:1.35rem;border-radius:999px;background:linear-gradient(var(--ink),var(--open));flex:none}
+.fact,.care-card,.kcard,.group,details.more,.empty{border-color:var(--line);border-radius:20px;box-shadow:var(--shadow)}
+.fact{padding:1rem 1.1rem}
+.fact-pic,.care-pic{margin-top:-1rem}
+.fact-pic{margin-left:-1.1rem;margin-right:-1.1rem}
+.fact .k,.care-steps .k{color:var(--ink)}
+.care-i{border-radius:14px;background:linear-gradient(135deg,var(--ink-soft),var(--open-soft))}
+.care-note,.fact .rec,.kcard .tip{border-left:0;border-radius:12px;padding:.55rem .75rem}
+.chore{border-radius:14px;background:var(--bg)}
+.btn{border-radius:999px;padding:.55rem 1.15rem}
+.btn.small{padding:.35rem .85rem}
+.btn:not(.ghost):not(.danger){box-shadow:0 4px 12px rgba(194,80,31,.25)}
+.kcard .who b{color:var(--ink)}
+.gallery a,.gallery .add-photo{border-radius:16px}
+/* Visit steps: numbered coral badges. */
+ol.steps{list-style:none;padding-left:0;counter-reset:step;gap:.6rem}
+ol.steps li{counter-increment:step;position:relative;padding:.7rem .9rem .7rem 3.1rem;background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow)}
+ol.steps li::before{content:counter(step);position:absolute;left:.8rem;top:.7rem;width:1.65rem;height:1.65rem;border-radius:50%;background:var(--ink);color:var(--on-ink);font-family:var(--display);font-weight:600;display:grid;place-items:center;font-size:.95rem}
+/* Calendar: rounder chips, sage for covered, honey for open, coral for today. */
+.cal button{border-radius:10px}
+.cal .res{background:var(--taken-soft);border-color:transparent;border-left:3px solid var(--taken)}
+.cal-day.today .dn{color:var(--ink)}
+.dot{border-radius:50%}
+.bar{border-top:0;box-shadow:0 -8px 30px rgba(150,90,40,.12);border-radius:20px 20px 0 0}
+.card{border-radius:22px;border:0;box-shadow:0 20px 60px rgba(60,30,10,.25)}
+.field input,.field textarea,.field select{border-radius:12px}
 </style>
 <div id="app"></div>
 <script id="state" type="application/json">{"trip":{"start":"2026-10-24","end":"2026-11-11"},"owners":"Dan and Ellie","contact":{"phone":"","email":"","other":""},"kittens":["Soniu 소牛","Mimi 咪咪","Cookoo 哭哭"],"bios":{"soniu":{"looks":"Long hair, whitest.","likes":["climbing","being held","purring"]},"mimi":{"looks":"Blueberry eyes, small face.","likes":["hunting","eating"],"tip":"Still learning not to nibble hands. If she does, ignore her for a few seconds and then play with her with a toy (nibbling is a sign of an under-stimulated hunter)."},"cookoo":{"looks":"Three legs, black spot on chin.","likes":["being held","crying"]}},"notes":"","care":[{"icon":"🍽️","title":"Food","device":"Auto feeder","photoPos":"50% 12%","rows":[["Feeding schedule",[["9am","3 portions"],["1pm","2 portions"],["5pm","3 portions"],["9pm","2 portions"]]]],"steps":[],"tasks":[{"id":"feeder","label":"Refill the feeder","when":"Every 3 weeks","every":21}]},{"icon":"🥫","title":"Wet food","device":"Friskies (cans)","photo":"care-wetfood.jpg","photoPos":"50% 50%","credit":"Photo: Open Pet Food Facts, CC BY-SA","rows":[["How much","1 can daily, shared by all three"]],"steps":["Spoon the whole can onto one plate for all three.","Put the empty can in the trash bins outside.","When they're done, wash the plate and spoon: kitchen sink if chunks are left, otherwise the upstairs bathroom sink."],"tasks":[{"id":"wetfood","label":"Give wet food","every":1}],"note":"Never put cans or scraps in indoor trash: it attracts ants."},{"icon":"💧","title":"Water","device":"Fountain: PETKIT Eversweet Max 2","rows":[["Top up","When the light flashes red or it's below half (lift the lid to check)"]],"steps":["Lift off the control module (the top). Keep it dry.","Unlatch and remove the steel tray, then the lid and filter holder.","Fill with fresh water to MAX.","Replace the lid and filter holder; slot the tray under the outlet and latch it.","Push the control module back on. The red lights go off."],"note":"Never rinse or soak the control module. Flashing red status light means low battery: tell Dan.","tasks":[{"id":"water","label":"Replace the water","when":"Weekly: empty, rinse, refill","every":7}]},{"icon":"💩","title":"Litter","device":"Litter box: PETKIT Purobot Max Pro 2","rows":[],"steps":["Press the latch right to open the front bin door.","Pull the drawstring closed. Slide the bin out; lift out the bag.","New bag (PETKIT only): lay it flat, fold on the dashed line, drawstring through the Y-slot, lid on.","Slide the bin in; close the door."],"note":"To add litter: press Menu to “Maintenance Mode”, then OK. Pour to MAX, press OK, then double-press OK to level. Never press “Empty cat litter”: it dumps everything.","tasks":[{"id":"bin","label":"Empty the bin","when":"When the screen says “Full waste bin”"},{"id":"litter","label":"Add litter","when":"When the screen says “Insufficient cat litter”"}]}],"handling":[{"icon":"🤲","title":"Holding","items":["Let her come to you. Offer a hand to sniff and pet her first.","One hand under her chest behind the front legs, the other under her bottom. Never lift by the scruff, legs or tail.","Hold her close to your chest. Sitting down is safest in case she jumps.","Ease her down gently, especially 3-legged Cookoo.","Kitty not in the mood? Set her down gently. Never drop her."],"note":"They all like being held, especially Soniu and Cookoo, but it depends on their mood. Sometimes they'd rather hunt.","ordered":true},{"icon":"🪶","title":"Playing","items":["Use a wand or toy, never hands or feet, so they don't learn to bite hands.","Move it like prey: drag it along the floor, away from her, behind things. Let her catch it often.","One kitten at a time (independent time matters!); the other two wait in the closet.","End with a catch. Put string and wand toys away after: they can swallow string."],"note":"They all love hunting. If she nibbles (especially Mimi, sometimes Soniu), stop and ignore her for a few seconds. Nibbling means she's in hunting mode and needs more play.","ordered":true}]}</script>
@@ -263,10 +304,10 @@ function catSvg(){ return '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="
 function render(){
   var st = S, ds = days(st), names = kittenNames(st), h = [];
   h.push('<div class="wrap">');
-  h.push('<header class="hero"><h1>Let\'s play with the kitties</h1>');
+  h.push('<header class="hero"><h1>Let\'s play with the <span class="hl">kitties</span></h1>');
   var a = parseDate(st.trip.start), b = parseDate(st.trip.end);
   h.push('<div class="dates">' + (a && b ? '🗓 ' + fmtLong(a) + ' – ' + fmtLong(b) + ' · ' + ds.length + ' days' : 'Travel dates coming soon') + '</div>');
-  h.push('<div class="welcome"><p>Thank you for being here! We miss the kittens and are glad they\'re in such caring, trustworthy hands.</p><p>Send us any questions and photos, and <b>please use the photo card printer and album on the desk!</b></p><p class="sig">Dan and Ellie</p></div>');
+  h.push('<div class="welcome"><p>Thank you for being here! We miss the kittens and are glad they\'re in such caring, trustworthy hands.</p><p>Send us any questions and photos, and <b>please use the photo card printer and album on the desk!</b></p><p class="sig">♥ Dan and Ellie</p></div>');
   h.push('</header>');
 
   if (names.length) {
