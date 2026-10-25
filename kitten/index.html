@@ -242,12 +242,12 @@ function timeOptions(cur){ return TIMES.map(function(t){ return '<option value="
 function choreStatus(t){
   var log = CHORES.filter(function(c){ return c.task === t.id; }), last = log[0];
   var lastTxt = last ? 'Last done ' + dayWord(last.date) + ' by ' + last.name : 'Not done yet';
-  if (!t.every) return {due: false, text: lastTxt};
-  if (!last) return {due: true, text: 'Not done yet: due now'};
+  if (!t.every) return {due: false, lines: [lastTxt]};
+  if (!last) return {due: true, lines: ['Not done yet: due now']};
   var next = parseDate(last.date); next.setDate(next.getDate() + t.every);
   var today = parseDate(todaySF()), diff = Math.round((next - today) / 864e5);
   var nextTxt = diff < 0 ? 'Overdue since ' + fmtShort(next) : diff === 0 ? 'Due today' : diff === 1 ? (t.every === 1 ? 'Done for today' : 'Due tomorrow') : 'Next due ' + fmtShort(next);
-  return {due: diff <= 0, text: lastTxt + ' · ' + nextTxt};
+  return {due: diff <= 0, lines: [lastTxt, nextTxt]};
 }
 function dayWord(k){ var d = Math.round((parseDate(todaySF()) - parseDate(k)) / 864e5); return d === 0 ? 'today' : d === 1 ? 'yesterday' : fmtShort(parseDate(k)); }
 function choreTask(id){ var found = null; (S.care || []).forEach(function(c){ (c.tasks || []).forEach(function(t){ if (t.id === id) found = t; }); }); return found; }
@@ -323,7 +323,7 @@ function render(){
       // Recurring tasks: sitters sign off when they do one, so the next sitter knows whether it's due.
       (c.tasks || []).forEach(function(t){
         var cs = choreStatus(t), log = CHORES.filter(function(x){ return x.task === t.id; });
-        h.push('<div class="chore-box"><div class="chore' + (cs.due ? ' due' : '') + '"><div class="chore-t"><b>' + esc(t.label) + '</b><span class="when' + (t.when ? '' : ' tbd') + '">' + (t.when ? esc(t.when) : 'How often: to be added') + '</span><span class="chore-s">' + esc(cs.text) + '</span></div>' +
+        h.push('<div class="chore-box"><div class="chore' + (cs.due ? ' due' : '') + '"><div class="chore-t"><b>' + esc(t.label) + '</b><span class="when' + (t.when ? '' : ' tbd') + '">' + (t.when ? esc(t.when) : 'How often: to be added') + '</span>' + cs.lines.map(function(l){ return '<span class="chore-s">' + esc(l) + '</span>'; }).join('') + '</div>' +
           '<button class="btn small' + (cs.due ? '' : ' ghost') + '" data-chore="' + esc(t.id) + '" aria-label="' + esc(t.label) + ': sign off">Done</button></div>' +
           // Older sign-offs fold away; the latest is already in the status line.
           (log.length ? '<details class="hist" data-hist="' + esc(t.id) + '"' + (histOpen[t.id] ? ' open' : '') + '><summary>History (' + log.length + ')</summary><ul class="log">' +
