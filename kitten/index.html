@@ -43,7 +43,7 @@ header.hero{padding-block:2.5rem 1.5rem;display:grid;gap:.9rem}
 .hero .lead{font-size:1.1rem;max-width:60ch;color:var(--fg)}
 .dates{display:inline-flex;align-items:center;gap:.5rem;background:var(--ink-soft);color:var(--ink);border-radius:999px;padding:.35rem .9rem;font-family:var(--display);font-weight:700;width:max-content;max-width:100%}
 section{padding-block:1.25rem;border-top:1px solid var(--line)}
-.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:.75rem;margin-top:.75rem}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:.75rem;margin-top:.75rem;align-items:start}
 .fact{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:.9rem 1rem;display:grid;gap:.25rem}
 .fact{overflow:hidden;align-content:start}
 .fact-pic{display:block;margin:-.9rem -1rem .5rem;border-bottom:1px solid var(--line)}
@@ -289,6 +289,7 @@ function render(){
   h.push('<ol class="steps"><li>Give wet food, unless someone already did today. Check the feeder, fountain and litter box; refill or empty as needed, and tap <b>Done</b> on what you did (<a href="#care">details</a>).</li><li>5–10 minutes with each kitten: play, pets, check she\'s eating and acting normal. Gently touch her belly and paws when you can. While playing with one, put the other two in the closet.</li><li>Let everyone out of the closet. Scan the bedroom: nothing knocked over.</li><li>Lock up; key back in the lockbox.</li></ol>');
   h.push('<div class="facts"><div class="fact">' + (PHOTOS.indexOf('door.jpg') >= 0 ? '<a class="fact-pic" href="photos/door.jpg" target="_blank" rel="noopener"><img src="photos/door.jpg" alt="The bedroom door: double doors at the top of the stairs" loading="lazy"></a>' : '') + '<span class="k">Getting in</span><span>Text Dan or Ellie for access.</span><span>Bedroom: top of the stairs, the double doors with the red tassel. Close them behind you.</span><span class="rec">📹 The bedroom has a camera that records while we\'re away.</span></div>');
   h.push('<div class="fact"><span class="k">Visits per day</span><span>At least one. Multiple sitters a day is fine.</span></div>');
+  h.push('<div class="fact"><span class="k">Vacuum</span><span>At the foot of the stairs, for litter or food spills.</span></div>');
   if (st.notes) h.push('<div class="fact"><span class="k">Notes from the owners</span><span>' + esc(st.notes).replace(/\n/g,'<br>') + '</span></div>');
   h.push('</div></section>');
 
