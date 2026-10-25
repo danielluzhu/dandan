@@ -196,6 +196,27 @@ details.more .gallery{margin:0;padding:0 .6rem .6rem}
 .gallery .add-photo{appearance:none;font:inherit;font-weight:700;color:var(--ink);background:var(--ink-soft);border:1.5px dashed var(--ink);border-radius:12px;aspect-ratio:1;cursor:pointer;display:grid;place-content:center;gap:.2rem;text-align:center;padding:.5rem}
 .gallery .add-photo b{font-size:1.8rem;line-height:1}
 .gallery .add-photo[disabled]{opacity:.6;cursor:default}
+.gallery .cc{position:absolute;left:.4rem;top:.4rem;background:rgba(0,0,0,.55);color:#fff;font-size:.75rem;font-weight:700;padding:.1rem .45rem;border-radius:999px;pointer-events:none}
+.viewer{max-width:640px}
+.viewer .big{display:block;margin:-1.25rem -1.25rem 0;background:#000;border-radius:16px 16px 0 0;overflow:hidden}
+.viewer .big img{display:block;width:100%;max-height:60vh;object-fit:contain}
+.viewer .vhead{display:flex;justify-content:space-between;align-items:center;gap:.5rem;font-size:.88rem;color:var(--muted)}
+.viewer .vhead a{color:var(--ink);font-weight:700}
+.comments{display:grid;gap:.6rem}
+.comments .empty-c{color:var(--muted);font-size:.92rem;margin:0}
+.cmt{display:grid;gap:.15rem;font-size:.93rem}
+.cmt .meta{display:flex;align-items:baseline;gap:.45rem;flex-wrap:wrap}
+.cmt .meta b{color:var(--fg)}
+.cmt .meta small{color:var(--muted);font-size:.78rem}
+.cmt p{margin:0;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.45}
+.cmt .cacts{display:flex;gap:.9rem}
+.cmt .cacts button{appearance:none;border:0;background:none;padding:.15rem 0;font:inherit;font-size:.82rem;font-weight:700;color:var(--muted);cursor:pointer}
+.cmt .cacts button.reply{color:var(--ink)}
+.replies{display:grid;gap:.6rem;margin:.35rem 0 0 .25rem;padding-left:.75rem;border-left:2px solid var(--line)}
+.replies .replies .replies .replies{margin-left:0;padding-left:0;border-left:0}
+.cform{display:grid;gap:.5rem;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:.7rem}
+.cform .field input,.cform .field textarea{background:var(--surface)}
+.cform .actions{justify-content:space-between;align-items:center}
 .gallery img{display:block;width:100%;aspect-ratio:1;object-fit:cover}
 @media (prefers-reduced-motion:no-preference){.gallery img{transition:transform .2s}.gallery a:hover img{transform:scale(1.03)}}
 /* ---- warm theme: soft glow, rounded shadowed cards, coral badges ---- */
@@ -255,6 +276,9 @@ var sel = {};              // days this visitor has picked: 'YYYY-MM-DD' -> true
 var modal = null, editing = null;
 var UPLOADS = [];          // photos visitors added: {id, file, name, slot}; slot '' is the gallery
 var CHORES = [];           // chore sign-offs, newest first: {id, task, date, name}
+var COMMENTS = [];         // comments on photos, oldest first: {id, photo, parent, name, body, created_at}
+var viewing = null;        // the photo open in the viewer: {file, src, by}
+var replyTo = null;        // comment id the viewer's form is replying to; null for a new comment on the photo
 var uploading = false;     // true while gallery photos upload, or the slot name (e.g. 'vacuum') being uploaded to
 var photoSlot = '';        // where the file picker's photos go: '' for the gallery, or a slot like 'vacuum'
 var galleryOpen = false;   // the page re-renders often, so remember whether the gallery is expanded
@@ -323,9 +347,9 @@ function render(){
     // Dan's photos first (credited to him), then ones visitors uploaded (credited, removable), then the add button.
     var gallery = PHOTOS.filter(function(f){ return /^gallery-/.test(f); }).sort(), galleryUps = UPLOADS.filter(function(u){ return !u.slot; }), count = gallery.length + galleryUps.length;
     h.push('<details class="more" id="moreKittens"' + (galleryOpen ? ' open' : '') + '><summary>Add photos of the kittens <span class="ro">' + count + ' photo' + (count === 1 ? '' : 's') + '</span></summary><div class="gallery">' +
-      gallery.map(function(f){ return '<div class="tile"><a href="photos/' + esc(f) + '" target="_blank" rel="noopener"><img src="photos/' + esc(f) + '" alt="The kittens, from ' + esc(firstOwner()) + '" loading="lazy"></a><span class="by">' + esc(firstOwner()) + '</span></div>'; }).join('') +
+      gallery.map(function(f){ return '<div class="tile"><a href="photos/' + esc(f) + '" data-view="' + esc(f) + '" data-by="' + esc(firstOwner()) + '"><img src="photos/' + esc(f) + '" alt="The kittens, from ' + esc(firstOwner()) + '" loading="lazy"></a>' + commentBadge(f) + '<span class="by">' + esc(firstOwner()) + '</span></div>'; }).join('') +
       galleryUps.map(function(u){
-        return '<div class="tile"><a href="uploads/' + esc(u.file) + '" target="_blank" rel="noopener"><img src="uploads/' + esc(u.file) + '" alt="The kittens' + (u.name ? ', from ' + esc(u.name) : '') + '" loading="lazy"></a>' +
+        return '<div class="tile"><a href="uploads/' + esc(u.file) + '" data-view="' + esc(u.file) + '" data-by="' + esc(u.name) + '"><img src="uploads/' + esc(u.file) + '" alt="The kittens' + (u.name ? ', from ' + esc(u.name) : '') + '" loading="lazy"></a>' + commentBadge(u.file) +
           (u.name ? '<span class="by">' + esc(u.name) + '</span>' : '') + '<button class="rm" data-photo="' + u.id + '" aria-label="Remove this photo" title="Remove">×</button></div>';
       }).join('') +
       '<button class="add-photo" id="addPhotos"' + (uploading ? ' disabled' : '') + '>' + (uploading === true ? 'Uploading…' : '<b>+</b>Add your photos') + '</button>' +
@@ -432,7 +456,7 @@ function render(){
 }
 
 function openModal(html){ modal = document.createElement('div'); modal.className = 'modal'; modal.innerHTML = '<div class="card" role="dialog" aria-modal="true">' + html + '</div>'; app.appendChild(modal); var f = modal.querySelector('input,textarea'); if (f) f.focus(); }
-function closeModal(){ if (modal) modal.remove(); modal = null; editing = null; }
+function closeModal(){ var wasViewing = viewing; if (modal) modal.remove(); modal = null; editing = null; viewing = null; replyTo = null; if (wasViewing) render(); }
 function toast(msg){ var t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; document.body.appendChild(t); setTimeout(function(){ t.remove(); }, 2200); }
 
 function reserveForm(){
@@ -453,6 +477,68 @@ function editForm(id){
     '<div class="actions"><button class="btn danger" id="e_remove">Remove</button><button class="btn ghost" id="m_cancel">Cancel</button><button class="btn" id="e_save">Save</button></div>');
 }
 
+// ---- photo viewer with comments and replies ----
+function commentBadge(f){ var n = COMMENTS.filter(function(c){ return c.photo === f; }).length; return n ? '<span class="cc">💬 ' + n + '</span>' : ''; }
+// Comment times are stored in UTC; show them in San Francisco time like the rest of the site.
+function whenSF(s){
+  var d = new Date(String(s).replace(' ', 'T') + 'Z'); if (isNaN(d)) return '';
+  try { var k = new Intl.DateTimeFormat('en-CA', {timeZone: 'America/Los_Angeles', year: 'numeric', month: '2-digit', day: '2-digit'}).format(d);
+    var t = new Intl.DateTimeFormat('en-US', {timeZone: 'America/Los_Angeles', hour: 'numeric', minute: '2-digit'}).format(d);
+    var w = dayWord(k); return (w === 'today' || w === 'yesterday' ? w.charAt(0).toUpperCase() + w.slice(1) : w) + ', ' + t; } catch(e){ return ''; }
+}
+function commentForm(){
+  var to = replyTo ? COMMENTS.filter(function(c){ return c.id === replyTo; })[0] : null;
+  return '<div class="cform">' +
+    '<div class="field"><label for="k_body">' + (to ? 'Reply to ' + esc(to.name) : 'Add a comment') + '</label><textarea id="k_body" maxlength="1000" rows="2"></textarea></div>' +
+    '<div class="field"><label for="k_name">Your name</label><input id="k_name" value="' + esc(visitor.name) + '" autocomplete="name" maxlength="60"></div>' +
+    '<div class="actions">' + (to ? '<button class="btn small ghost" id="k_cancel">Cancel reply</button>' : '<span></span>') + '<button class="btn small" id="k_post">' + (to ? 'Reply' : 'Post') + '</button></div></div>';
+}
+function commentTree(list, parent){
+  return list.filter(function(c){ return c.parent === parent; }).map(function(c){
+    var kids = commentTree(list, c.id);
+    return '<div class="cmt"><div class="meta"><b>' + esc(c.name) + '</b><small>' + esc(whenSF(c.created_at)) + '</small></div><p>' + esc(c.body) + '</p>' +
+      '<div class="cacts"><button class="reply" data-reply="' + c.id + '">Reply</button><button data-uncomment="' + c.id + '">Remove</button></div>' +
+      (replyTo === c.id ? commentForm() : '') +
+      (kids ? '<div class="replies">' + kids + '</div>' : '') + '</div>';
+  }).join('');
+}
+function viewerHtml(){
+  var v = viewing, list = COMMENTS.filter(function(c){ return c.photo === v.file; });
+  return '<a class="big" href="' + esc(v.src) + '" target="_blank" rel="noopener"><img src="' + esc(v.src) + '" alt="The kittens' + (v.by ? ', from ' + esc(v.by) : '') + '"></a>' +
+    '<div class="vhead"><span>' + (v.by ? 'From ' + esc(v.by) : '') + '</span><a href="' + esc(v.src) + '" target="_blank" rel="noopener">Full size ↗</a></div>' +
+    '<h3>Comments' + (list.length ? ' (' + list.length + ')' : '') + '</h3>' +
+    '<div class="comments">' + (list.length ? commentTree(list, null) : '<p class="empty-c">No comments yet. Say something about this one!</p>') + '</div>' +
+    (replyTo ? '' : commentForm()) +
+    '<div class="actions"><button class="btn ghost" id="m_cancel">Close</button></div>';
+}
+// Redraw the open viewer in place, keeping whatever the visitor has typed.
+function showViewer(focus){
+  if (!modal) { openModal(viewerHtml()); modal.firstChild.classList.add('viewer'); modal.firstChild.scrollTop = 0; document.activeElement && document.activeElement.blur(); return; }
+  var b = document.getElementById('k_body'), n = document.getElementById('k_name'), draft = b ? b.value : '', nm = n ? n.value : null;
+  modal.firstChild.innerHTML = viewerHtml();
+  b = document.getElementById('k_body'); n = document.getElementById('k_name');
+  if (b) b.value = draft; if (n && nm !== null) n.value = nm;
+  if (focus && b) { b.focus(); b.scrollIntoView({block: 'nearest'}); }
+}
+function postComment(){
+  var b = document.getElementById('k_body'), n = document.getElementById('k_name');
+  var body = b.value.trim(), nm = n.value.trim();
+  if (!body) { b.focus(); toast('Write something first'); return; }
+  if (!nm) { n.focus(); toast('Add your name first'); return; }
+  visitor.name = nm; try { localStorage.setItem('kitten-visitor', JSON.stringify(visitor)); } catch(e){}
+  var btn = document.getElementById('k_post'); btn.disabled = true; btn.textContent = 'Posting…';
+  fetch('api/comments', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({photo: viewing.file, parent: replyTo, name: nm, body: body})})
+    .then(function(r){ return r.json().then(function(j){ return {ok: r.ok, j: j}; }); })
+    .then(function(res){
+      if (res.j && res.j.comments) applyServer(res.j);
+      if (!res.ok && res.j && res.j.error === 'no_photo') { closeModal(); toast('That photo was removed'); return; }
+      if (!res.ok && res.j && res.j.error === 'gone') { replyTo = null; showViewer(true); toast('That comment was removed'); return; }
+      if (!res.ok) throw new Error();
+      replyTo = null; b.value = ''; showViewer(); toast('Posted');
+    })
+    .catch(function(){ btn.disabled = false; btn.textContent = replyTo ? 'Reply' : 'Post'; toast('Could not post. Try again.'); });
+}
+
 function choreForm(id){
   var t = choreTask(id); if (!t) return;
   editing = t;
@@ -464,7 +550,7 @@ function choreForm(id){
 }
 
 // ---- shared reservation list, kept by the server ----
-function applyServer(st){ RES = st.reservations || []; TIMES = st.times || TIMES; PHOTOS = st.photos || PHOTOS; UPLOADS = st.uploads || UPLOADS; CHORES = st.chores || CHORES; }
+function applyServer(st){ RES = st.reservations || []; TIMES = st.times || TIMES; PHOTOS = st.photos || PHOTOS; UPLOADS = st.uploads || UPLOADS; CHORES = st.chores || CHORES; COMMENTS = st.comments || COMMENTS; }
 function loadState(){
   return fetch('api/state').then(function(r){ return r.json(); }).then(function(st){ applyServer(st); if (!modal) render(); }).catch(function(){});
 }
@@ -489,6 +575,17 @@ function save(method, url, body, btnId, label, done){
 app.addEventListener('click', function(ev){
   var t = ev.target.closest('button, a'); if (!t) return;
   var id = t.id;
+  if (t.hasAttribute('data-view')) { ev.preventDefault(); viewing = {file: t.getAttribute('data-view'), src: t.getAttribute('href'), by: t.getAttribute('data-by')}; replyTo = null; showViewer(); return; }
+  if (t.hasAttribute('data-reply')) { replyTo = +t.getAttribute('data-reply'); showViewer(true); return; }
+  if (id === 'k_cancel') { replyTo = null; showViewer(); return; }
+  if (id === 'k_post') { postComment(); return; }
+  if (t.hasAttribute('data-uncomment')) {
+    var hasKids = COMMENTS.some(function(c){ return c.parent === +t.getAttribute('data-uncomment'); });
+    if (!confirm(hasKids ? 'Remove this comment and its replies?' : 'Remove this comment?')) return;
+    fetch('api/comments/' + t.getAttribute('data-uncomment'), {method: 'DELETE'}).then(function(r){ return r.json(); })
+      .then(function(st){ applyServer(st); if (replyTo && !COMMENTS.some(function(c){ return c.id === replyTo; })) replyTo = null; showViewer(); toast('Removed'); }, function(){ toast('Could not remove. Try again.'); });
+    return;
+  }
   if (t.classList.contains('add')) { var k = t.getAttribute('data-date'); if (sel[k]) delete sel[k]; else sel[k] = true; render(); return; }
   if (t.classList.contains('res')) { editForm(+t.getAttribute('data-id')); return; }
   if (t.hasAttribute('data-chore')) { choreForm(t.getAttribute('data-chore')); return; }

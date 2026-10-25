@@ -43,6 +43,15 @@ db.run(`CREATE TABLE IF NOT EXISTS chores (
   name TEXT NOT NULL,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 )`);
+// Comments on photos; a reply points at the comment it answers through parent.
+db.run(`CREATE TABLE IF NOT EXISTS comments (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  photo TEXT NOT NULL,            -- file name: a gallery-*.jpg in photos/ or an uploaded up-*.jpg
+  parent INTEGER,                 -- comment being replied to; NULL for a comment on the photo itself
+  name TEXT NOT NULL,
+  body TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+)`);
 // The first version allowed one sitter per day in `claims`; carry those over once.
 if (db.query("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'claims'").get()) {
   db.transaction(() => {
@@ -61,6 +70,18 @@ const ICONS = {
   "/apple-touch-icon.png": "image/png",
 };
 
+// Removes a comment and every reply under it.
+function deleteThread(id) {
+  db.query(`WITH RECURSIVE t(id) AS (SELECT ? UNION SELECT c.id FROM comments c JOIN t ON c.parent = t.id)
+    DELETE FROM comments WHERE id IN (SELECT id FROM t)`).run(id);
+}
+// Whether a photo can be commented on: one of Dan's gallery photos, or a visitor's upload.
+function photoExists(f) {
+  if (UPLOAD_RE.test(f)) return !!db.query("SELECT 1 FROM photos WHERE file = ?").get(f);
+  if (!PHOTO_RE.test(f) || !/^gallery-/.test(f)) return false;
+  try { return readdirSync(PHOTO_DIR).includes(f); } catch { return false; }
+}
+
 const json = (body, status = 200) => Response.json(body, { status });
 
 function state() {
@@ -69,7 +90,8 @@ function state() {
   try { photos = readdirSync(PHOTO_DIR).filter((f) => PHOTO_RE.test(f)); } catch {}
   const uploads = db.query("SELECT id, file, name, slot FROM photos ORDER BY id").all();
   const chores = db.query("SELECT id, task, date, name FROM chores ORDER BY date DESC, id DESC").all();
-  return { reservations, times: TIMES, photos, uploads, chores };
+  const comments = db.query("SELECT id, photo, parent, name, body, created_at FROM comments ORDER BY id").all();
+  return { reservations, times: TIMES, photos, uploads, chores, comments };
 }
 
 // Validates a reservation body; returns { name, time } or an error code.
@@ -158,6 +180,7 @@ Bun.serve({
         if (r.error) { failed++; continue; }
         if (slot) for (const old of db.query("SELECT id, file FROM photos WHERE slot = ?").all(slot)) {
           db.query("DELETE FROM photos WHERE id = ?").run(old.id); rmSync(UPLOAD_DIR + old.file, { force: true });
+          db.query("DELETE FROM comments WHERE photo = ?").run(old.file);
         }
         insert.run(r.file, name, slot);
       }
@@ -166,9 +189,28 @@ Bun.serve({
     const ph = /^\/api\/photos\/(\d+)$/.exec(pathname);
     if (ph && req.method === "DELETE") {
       const row = db.query("SELECT file FROM photos WHERE id = ?").get(Number(ph[1]));
-      if (row) { db.query("DELETE FROM photos WHERE id = ?").run(Number(ph[1])); rmSync(UPLOAD_DIR + row.file, { force: true }); }
+      if (row) {
+        db.query("DELETE FROM photos WHERE id = ?").run(Number(ph[1])); rmSync(UPLOAD_DIR + row.file, { force: true });
+        db.query("DELETE FROM comments WHERE photo = ?").run(row.file);
+      }
       return json(state());
     }
+
+    // Comment on a photo, or reply to a comment on it; anyone can remove a comment (and its replies).
+    if (pathname === "/api/comments" && req.method === "POST") {
+      const b = await req.json().catch(() => ({}));
+      const photo = String(b.photo ?? ""), parent = b.parent == null ? null : Number(b.parent);
+      const name = String(b.name ?? "").trim().slice(0, 60), text = String(b.body ?? "").trim().slice(0, 1000);
+      if (!name) return json({ error: "name_required" }, 400);
+      if (!text) return json({ error: "body_required" }, 400);
+      if (!photoExists(photo)) return json({ error: "no_photo", ...state() }, 404);
+      if (parent !== null && !db.query("SELECT 1 FROM comments WHERE id = ? AND photo = ?").get(parent, photo))
+        return json({ error: "gone", ...state() }, 404);
+      db.query("INSERT INTO comments (photo, parent, name, body) VALUES (?, ?, ?, ?)").run(photo, parent, name, text);
+      return json(state());
+    }
+    const cm = /^\/api\/comments\/(\d+)$/.exec(pathname);
+    if (cm && req.method === "DELETE") { deleteThread(Number(cm[1])); return json(state()); }
 
     // Sign off a chore as done on a given day; anyone can remove a sign-off made by mistake.
     if (pathname === "/api/chores" && req.method === "POST") {
