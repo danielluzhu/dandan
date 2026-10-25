@@ -4,7 +4,8 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Nunito:ital,wght@0,400;0,600;0,700;0,800;1,400&display=swap">
 <style id="css">
 /* Layout: one column, 720px measure; schedule is a Sunday-first month calendar listing each day's sitters, sticky sign-up bar at the bottom.
-   Look: warm and bright. Cream page, coral accents, honey for open days and warnings, sage for covered days. */
+   Look: warm and bright. Cream page, coral accents, honey for open days and warnings, sage for covered days.
+   Always light, even when the device is in dark mode. */
 :root{
   --bg:#fff8f0; --surface:#ffffff; --fg:#3b2a1f; --muted:#8a6f5f; --line:#f1e0cc;
   --ink:#c2501f; --ink-soft:#ffe8da;
@@ -17,15 +18,6 @@
   --display:"Fraunces",Georgia,"Times New Roman",serif;
   --body:"Nunito","Helvetica Neue",Arial,system-ui,sans-serif;
 }
-@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
-  --bg:#1e1712; --surface:#2a211a; --fg:#f8ece0; --muted:#bfa796; --line:#3d3027;
-  --ink:#ff9c6e; --ink-soft:#4a2e20;
-  --open:#f6b73c; --open-soft:#3f3014; --open-fg:#ffe2a3;
-  --taken:#6f9a6b; --taken-soft:#26301f;
-  --sel:#ff9c6e; --sel-soft:#4a2e20;
-  --danger:#ff8a7a; --on-ink:#1e1712;
-  --glow-a:#3a2618; --glow-b:#33290f; --welcome-a:#33261c; --welcome-b:#3a281d;
-  --shadow:0 1px 2px rgba(0,0,0,.3); color-scheme:dark }}
 :root[data-theme="dark"]{
   --bg:#1e1712; --surface:#2a211a; --fg:#f8ece0; --muted:#bfa796; --line:#3d3027;
   --ink:#ff9c6e; --ink-soft:#4a2e20;
