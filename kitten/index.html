@@ -220,6 +220,8 @@ try { var v = JSON.parse(localStorage.getItem('kitten-visitor') || 'null'); if (
 
 function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 function parseDate(s){ var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s||''); return m ? new Date(+m[1], +m[2]-1, +m[3]) : null; }
+// Everything on the site runs on San Francisco time, wherever the viewer is.
+function todaySF(){ try { return new Intl.DateTimeFormat('en-CA', {timeZone: 'America/Los_Angeles', year: 'numeric', month: '2-digit', day: '2-digit'}).format(new Date()); } catch(e){ return iso(new Date()); } }
 function iso(d){ return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
 var DOW = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'], MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 var MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -243,11 +245,11 @@ function choreStatus(t){
   if (!t.every) return {due: false, text: lastTxt};
   if (!last) return {due: true, text: 'Not done yet: due now'};
   var next = parseDate(last.date); next.setDate(next.getDate() + t.every);
-  var today = parseDate(iso(new Date())), diff = Math.round((next - today) / 864e5);
+  var today = parseDate(todaySF()), diff = Math.round((next - today) / 864e5);
   var nextTxt = diff < 0 ? 'Overdue since ' + fmtShort(next) : diff === 0 ? 'Due today' : diff === 1 ? (t.every === 1 ? 'Done for today' : 'Due tomorrow') : 'Next due ' + fmtShort(next);
   return {due: diff <= 0, text: lastTxt + ' · ' + nextTxt};
 }
-function dayWord(k){ var d = Math.round((parseDate(iso(new Date())) - parseDate(k)) / 864e5); return d === 0 ? 'today' : d === 1 ? 'yesterday' : fmtShort(parseDate(k)); }
+function dayWord(k){ var d = Math.round((parseDate(todaySF()) - parseDate(k)) / 864e5); return d === 0 ? 'today' : d === 1 ? 'yesterday' : fmtShort(parseDate(k)); }
 function choreTask(id){ var found = null; (S.care || []).forEach(function(c){ (c.tasks || []).forEach(function(t){ if (t.id === id) found = t; }); }); return found; }
 
 function catSvg(){ return '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M6 13 5 4l7 5h8l7-5-1 9c2 2 3 5 3 8 0 6-6 9-13 9S3 27 3 21c0-3 1-6 3-8z" fill="var(--ink-soft)" stroke="var(--ink)" stroke-width="1.5" stroke-linejoin="round"/><circle cx="12" cy="18" r="1.5" fill="var(--ink)"/><circle cx="20" cy="18" r="1.5" fill="var(--ink)"/><path d="M14.5 22h3l-1.5 1.5z" fill="var(--ink)"/></svg>'; }
@@ -341,7 +343,7 @@ function render(){
   } else {
     h.push('<div class="legend"><span><i class="dot open"></i>No one yet</span><span><i class="dot taken"></i>Covered</span><span><i class="dot sel"></i>Your picks</span></div>');
     // Calendar: whole weeks, Sunday first, padded with greyed-out days outside the trip.
-    var first = ds[0], last = ds[ds.length - 1], todayKey = iso(new Date());
+    var first = ds[0], last = ds[ds.length - 1], todayKey = todaySF();
     var from = new Date(first); from.setDate(from.getDate() - from.getDay());
     var to = new Date(last); to.setDate(to.getDate() + 6 - to.getDay());
     var months = MONTHS[first.getMonth()] + (first.getMonth() !== last.getMonth() ? ' – ' + MONTHS[last.getMonth()] : '') + ' ' + last.getFullYear();
@@ -401,7 +403,7 @@ function editForm(id){
 function choreForm(id){
   var t = choreTask(id); if (!t) return;
   editing = t;
-  var today = iso(new Date());
+  var today = todaySF();
   openModal('<h3>' + esc(t.label) + '</h3>' +
     '<div class="row"><div class="field"><label for="c_name">Your name</label><input id="c_name" value="' + esc(visitor.name) + '" autocomplete="name" maxlength="60"></div>' +
     '<div class="field"><label for="c_date">Done on</label><input id="c_date" type="date" value="' + today + '" max="' + today + '"></div></div>' +
