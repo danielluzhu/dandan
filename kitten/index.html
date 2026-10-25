@@ -102,13 +102,16 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-vis
 .picked span{background:var(--sel-soft);color:var(--sel);border-radius:8px;padding:.2rem .55rem;font-size:.9rem;font-weight:600}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom,0px));background:var(--fg);color:var(--bg);padding:.5rem .9rem;border-radius:999px;font-weight:700;z-index:40;max-width:calc(100% - 32px)}
 .ro{font-size:.85rem;color:var(--muted)}
-.care{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:.75rem;margin-top:.75rem}
+.care{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.75rem;margin-top:.75rem}
 .care-card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:.9rem 1rem;display:grid;gap:.7rem;align-content:start}
 .care-h{display:flex;gap:.65rem;align-items:center}
 .care-pic{display:block;margin:-.9rem -1rem 0;border-bottom:1px solid var(--line)}
 .care-pic img{display:block;width:100%;aspect-ratio:1;object-fit:cover;object-position:50% 40%}
 .care-card{overflow:hidden}
-@media (max-width:599px){.care-pic img{aspect-ratio:4/3}}
+@media (max-width:559px){.care{grid-template-columns:1fr}}
+.care-pic img{aspect-ratio:4/3}
+.care-pic{position:relative}
+.care-pic .credit{position:absolute;right:.4rem;bottom:.4rem;background:rgba(0,0,0,.55);color:#fff;font-size:.68rem;padding:.05rem .4rem;border-radius:999px}
 .care-i{font-size:1.5rem;width:2.4rem;height:2.4rem;display:grid;place-items:center;background:var(--ink-soft);border-radius:10px;flex:none}
 .care-h .ro{display:block;line-height:1.3}
 .care dl{margin:0;display:grid;gap:.15rem;font-size:.92rem}
@@ -144,6 +147,12 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-vis
 .chore-s{font-size:.85rem}
 .chore.due .chore-s{font-weight:700}
 .chore .btn{flex:none}
+.chore-box{display:grid;gap:.35rem}
+.hist{font-size:.88rem;padding:0 .2rem}
+.hist summary{cursor:pointer;color:var(--muted);list-style:none;display:flex;align-items:center;gap:.35rem}
+.hist summary::-webkit-details-marker{display:none}
+.hist summary::before{content:"▸";transition:transform .15s}
+.hist[open] summary::before{transform:rotate(90deg)}
 .log{list-style:none;margin:.2rem 0 0;padding:0;display:grid;gap:.25rem;font-size:.92rem}
 .log li{display:flex;align-items:center;justify-content:space-between;gap:.5rem;border-top:1px solid var(--line);padding-top:.25rem}
 .log .unlog{appearance:none;border:0;background:none;color:var(--muted);font-size:1.2rem;line-height:1;cursor:pointer;padding:.2rem .4rem}
@@ -188,7 +197,7 @@ details.more .gallery{margin:0;padding:0 .6rem .6rem}
 @media (prefers-reduced-motion:no-preference){.gallery img{transition:transform .2s}.gallery a:hover img{transform:scale(1.03)}}
 </style>
 <div id="app"></div>
-<script id="state" type="application/json">{"trip":{"start":"2026-10-24","end":"2026-11-11"},"owners":"Dan and Ellie","contact":{"phone":"","email":"","other":""},"kittens":["Soniu 소牛","Mimi 咪咪","Cookoo 哭哭"],"bios":{"soniu":{"looks":"Long hair, whitest.","likes":["climbing","being held","purring"]},"mimi":{"looks":"Blueberry eyes, small face.","likes":["hunting","eating"],"tip":"Still learning not to nibble hands. It won't hurt; if she does, ignore her for several seconds."},"cookoo":{"looks":"Three legs, black spot on chin.","likes":["being held","crying"]}},"notes":"","care":[{"icon":"🍽️","title":"Food","device":"Auto feeder","photoPos":"50% 12%","rows":[["Feeding schedule",[["9am","3 portions"],["1pm","2 portions"],["5pm","3 portions"],["9pm","2 portions"]]],["Wet food","Every visit"]],"steps":[],"tasks":[{"id":"feeder","label":"Refill the feeder","when":""}]},{"icon":"💧","title":"Water","device":"Fountain: PETKIT Eversweet Max 2","rows":[["Top up","When the water light flashes red, or it's below half (lift the lid to check)"]],"steps":["Lift the control module (the top) straight off. Keep it dry.","Unlatch and lift off the steel tray, then the lid and filter holder.","Fill with fresh water to the MAX line.","Lid and filter holder back in. Slot the tray under the outlet and latch it.","Push the control module back on. The red lights go off."],"note":"Never rinse or soak the control module. Status light flashing red means low battery: tell Dan.","tasks":[{"id":"water","label":"Replace the water","when":"Every 2–3 days: empty, rinse, refill","every":3}]},{"icon":"💩","title":"Litter","device":"Litter box: PETKIT Purobot Max Pro 2","rows":[],"steps":["Open the bin door on the front (press the latch right).","Pull the drawstring to close the bag. Slide the bin out; lift the bag out.","New bag (PETKIT bags only): lay it flat in the bin, fold on the dashed line, drawstring through the Y-slot, lid back on.","Slide the bin in; close the door."],"note":"Adding litter: press Menu until “Maintenance Mode”, then OK. Pour up to the MAX line, press OK, then double-press OK to level. Never press “Empty cat litter”: it dumps all the litter.","tasks":[{"id":"bin","label":"Empty the bin","when":"When the screen says “Full waste bin”"},{"id":"litter","label":"Add litter","when":"When the screen says “Insufficient cat litter”"}]}],"handling":[{"icon":"🤲","title":"Holding","items":["Let her come to you first. Offer a hand to sniff, and pet her before picking her up.","One hand under her chest, just behind the front legs; the other under her bottom and back legs. Never lift by the scruff, legs or tail.","Hold her close against your chest so she feels steady. Sitting down is safest in case she jumps.","Cookoo has three legs: support her back end well, and set her down gently so she lands on all her paws.","If she wriggles, lashes her tail or flattens her ears, put her down low to the floor. Don't drop her or hold on."],"note":"Soniu and Cookoo love being held."},{"icon":"🪶","title":"Playing","items":["Use a wand or toy, never your hands or feet, so they don't learn that hands are for biting.","Make the toy act like prey: drag it along the floor, away from her, and hide it behind things. Let her catch it often.","Play with one kitten at a time while the other two wait in the closet (see the visit steps).","Cookoo plays best on the floor. Skip big jumps for her.","End by letting her catch the toy. Put string and wand toys away after, out of reach: they can swallow string."],"note":"Mimi loves hunting. If she nibbles you, stop and ignore her for several seconds."}]}</script>
+<script id="state" type="application/json">{"trip":{"start":"2026-10-24","end":"2026-11-11"},"owners":"Dan and Ellie","contact":{"phone":"","email":"","other":""},"kittens":["Soniu 소牛","Mimi 咪咪","Cookoo 哭哭"],"bios":{"soniu":{"looks":"Long hair, whitest.","likes":["climbing","being held","purring"]},"mimi":{"looks":"Blueberry eyes, small face.","likes":["hunting","eating"],"tip":"Still learning not to nibble hands. It won't hurt; if she does, ignore her for several seconds."},"cookoo":{"looks":"Three legs, black spot on chin.","likes":["being held","crying"]}},"notes":"","care":[{"icon":"🍽️","title":"Food","device":"Auto feeder","photoPos":"50% 12%","rows":[["Feeding schedule",[["9am","3 portions"],["1pm","2 portions"],["5pm","3 portions"],["9pm","2 portions"]]]],"steps":[],"tasks":[{"id":"feeder","label":"Refill the feeder","when":""}]},{"icon":"🥫","title":"Wet food","device":"Friskies (cans)","photo":"care-wetfood.jpg","photoPos":"50% 50%","credit":"Photo: Open Pet Food Facts, CC BY-SA","rows":[],"steps":[],"tasks":[{"id":"wetfood","label":"Give wet food","when":"Once a day. If someone already did today, skip it.","every":1}]},{"icon":"💧","title":"Water","device":"Fountain: PETKIT Eversweet Max 2","rows":[["Top up","When the water light flashes red, or it's below half (lift the lid to check)"]],"steps":["Lift the control module (the top) straight off. Keep it dry.","Unlatch and lift off the steel tray, then the lid and filter holder.","Fill with fresh water to the MAX line.","Lid and filter holder back in. Slot the tray under the outlet and latch it.","Push the control module back on. The red lights go off."],"note":"Never rinse or soak the control module. Status light flashing red means low battery: tell Dan.","tasks":[{"id":"water","label":"Replace the water","when":"Every 2–3 days: empty, rinse, refill","every":3}]},{"icon":"💩","title":"Litter","device":"Litter box: PETKIT Purobot Max Pro 2","rows":[],"steps":["Open the bin door on the front (press the latch right).","Pull the drawstring to close the bag. Slide the bin out; lift the bag out.","New bag (PETKIT bags only): lay it flat in the bin, fold on the dashed line, drawstring through the Y-slot, lid back on.","Slide the bin in; close the door."],"note":"Adding litter: press Menu until “Maintenance Mode”, then OK. Pour up to the MAX line, press OK, then double-press OK to level. Never press “Empty cat litter”: it dumps all the litter.","tasks":[{"id":"bin","label":"Empty the bin","when":"When the screen says “Full waste bin”"},{"id":"litter","label":"Add litter","when":"When the screen says “Insufficient cat litter”"}]}],"handling":[{"icon":"🤲","title":"Holding","items":["Let her come to you first. Offer a hand to sniff, and pet her before picking her up.","One hand under her chest, just behind the front legs; the other under her bottom and back legs. Never lift by the scruff, legs or tail.","Hold her close against your chest so she feels steady. Sitting down is safest in case she jumps.","Cookoo has three legs: support her back end well, and set her down gently so she lands on all her paws.","If she wriggles, lashes her tail or flattens her ears, put her down low to the floor. Don't drop her or hold on."],"note":"Soniu and Cookoo love being held."},{"icon":"🪶","title":"Playing","items":["Use a wand or toy, never your hands or feet, so they don't learn that hands are for biting.","Make the toy act like prey: drag it along the floor, away from her, and hide it behind things. Let her catch it often.","Play with one kitten at a time while the other two wait in the closet (see the visit steps).","Cookoo plays best on the floor. Skip big jumps for her.","End by letting her catch the toy. Put string and wand toys away after, out of reach: they can swallow string."],"note":"Mimi loves hunting. If she nibbles you, stop and ignore her for several seconds."}]}</script>
 <script id="app-js">
 (function(){
 'use strict';
@@ -205,6 +214,7 @@ var CHORES = [];           // chore sign-offs, newest first: {id, task, date, na
 var uploading = false;
 var galleryOpen = false;   // the page re-renders often, so remember whether the gallery is expanded
 var careOpen = {};         // ...and which care cards have their how-to open, by title
+var histOpen = {};         // ...and which chore histories are expanded, by task id
 var visitor = {name:'', time:'Flexible'};
 try { var v = JSON.parse(localStorage.getItem('kitten-visitor') || 'null'); if (v && v.name) visitor = {name: v.name, time: v.time || 'Flexible'}; } catch(e){}
 
@@ -229,14 +239,15 @@ function timeOptions(cur){ return TIMES.map(function(t){ return '<option value="
 // Where a recurring task stands: last sign-off, and for timed tasks when it's next due.
 function choreStatus(t){
   var log = CHORES.filter(function(c){ return c.task === t.id; }), last = log[0];
-  var lastTxt = last ? 'Last done ' + fmtShort(parseDate(last.date)) + ' by ' + last.name : 'Not done yet';
+  var lastTxt = last ? 'Last done ' + dayWord(last.date) + ' by ' + last.name : 'Not done yet';
   if (!t.every) return {due: false, text: lastTxt};
   if (!last) return {due: true, text: 'Not done yet: due now'};
   var next = parseDate(last.date); next.setDate(next.getDate() + t.every);
   var today = parseDate(iso(new Date())), diff = Math.round((next - today) / 864e5);
-  var nextTxt = diff < 0 ? 'Overdue since ' + fmtShort(next) : diff === 0 ? 'Due today' : diff === 1 ? 'Due tomorrow' : 'Next due ' + fmtShort(next);
+  var nextTxt = diff < 0 ? 'Overdue since ' + fmtShort(next) : diff === 0 ? 'Due today' : diff === 1 ? (t.every === 1 ? 'Done for today' : 'Due tomorrow') : 'Next due ' + fmtShort(next);
   return {due: diff <= 0, text: lastTxt + ' · ' + nextTxt};
 }
+function dayWord(k){ var d = Math.round((parseDate(iso(new Date())) - parseDate(k)) / 864e5); return d === 0 ? 'today' : d === 1 ? 'yesterday' : fmtShort(parseDate(k)); }
 function choreTask(id){ var found = null; (S.care || []).forEach(function(c){ (c.tasks || []).forEach(function(t){ if (t.id === id) found = t; }); }); return found; }
 
 function catSvg(){ return '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M6 13 5 4l7 5h8l7-5-1 9c2 2 3 5 3 8 0 6-6 9-13 9S3 27 3 21c0-3 1-6 3-8z" fill="var(--ink-soft)" stroke="var(--ink)" stroke-width="1.5" stroke-linejoin="round"/><circle cx="12" cy="18" r="1.5" fill="var(--ink)"/><circle cx="20" cy="18" r="1.5" fill="var(--ink)"/><path d="M14.5 22h3l-1.5 1.5z" fill="var(--ink)"/></svg>'; }
@@ -276,7 +287,7 @@ function render(){
   }
 
   h.push('<section><h2>What a visit involves</h2><p class="note">20–30 minutes.</p>');
-  h.push('<ol class="steps"><li>Give wet food. Check the feeder, fountain and litter box; refill or empty as needed, and tap <b>Done</b> on what you did (<a href="#care">details</a>).</li><li>5–10 minutes with each kitten: play, pets, check she\'s eating and acting normal. Gently touch her belly and paws when you can. While playing with one, put the other two in the closet.</li><li>Let everyone out of the closet. Scan the bedroom: nothing knocked over.</li><li>Lock up; key back in the lockbox.</li></ol>');
+  h.push('<ol class="steps"><li>Give wet food, unless someone already did today. Check the feeder, fountain and litter box; refill or empty as needed, and tap <b>Done</b> on what you did (<a href="#care">details</a>).</li><li>5–10 minutes with each kitten: play, pets, check she\'s eating and acting normal. Gently touch her belly and paws when you can. While playing with one, put the other two in the closet.</li><li>Let everyone out of the closet. Scan the bedroom: nothing knocked over.</li><li>Lock up; key back in the lockbox.</li></ol>');
   h.push('<div class="facts"><div class="fact">' + (PHOTOS.indexOf('door.jpg') >= 0 ? '<a class="fact-pic" href="photos/door.jpg" target="_blank" rel="noopener"><img src="photos/door.jpg" alt="The bedroom door: double doors at the top of the stairs" loading="lazy"></a>' : '') + '<span class="k">Getting in</span><span>Text Dan or Ellie for access.</span><span>Bedroom: top of the stairs, the double doors with the red tassel. Close them behind you.</span><span class="rec">📹 The bedroom has a camera that records while we\'re away.</span></div>');
   h.push('<div class="fact"><span class="k">Visits per day</span><span>At least one. Multiple sitters a day is fine.</span></div>');
   if (st.notes) h.push('<div class="fact"><span class="k">Notes from the owners</span><span>' + esc(st.notes).replace(/\n/g,'<br>') + '</span></div>');
@@ -293,8 +304,8 @@ function render(){
   if (st.care && st.care.length) {
     h.push('<section id="care"><h2>Food, water &amp; litter</h2><div class="care">');
     st.care.forEach(function(c){
-      var cp = 'care-' + c.title.toLowerCase() + '.jpg';
-      h.push('<div class="care-card">' + (PHOTOS.indexOf(cp) >= 0 ? '<a class="care-pic" href="photos/' + cp + '" target="_blank" rel="noopener"><img src="photos/' + cp + '" alt="' + esc(c.device) + '" loading="lazy"' + (c.photoPos ? ' style="object-position:' + esc(c.photoPos) + '"' : '') + '></a>' : '') + '<div class="care-h"><span class="care-i" aria-hidden="true">' + c.icon + '</span><div><h3>' + esc(c.title) + '</h3><span class="ro">' + esc(c.device) + '</span></div></div>');
+      var cp = c.photo || 'care-' + c.title.toLowerCase() + '.jpg';
+      h.push('<div class="care-card">' + (PHOTOS.indexOf(cp) >= 0 ? '<a class="care-pic" href="photos/' + cp + '" target="_blank" rel="noopener"><img src="photos/' + cp + '" alt="' + esc(c.device) + '" loading="lazy"' + (c.photoPos ? ' style="object-position:' + esc(c.photoPos) + '"' : '') + '>' + (c.credit ? '<span class="credit">' + esc(c.credit) + '</span>' : '') + '</a>' : '') + '<div class="care-h"><span class="care-i" aria-hidden="true">' + c.icon + '</span><div><h3>' + esc(c.title) + '</h3><span class="ro">' + esc(c.device) + '</span></div></div>');
       if (c.rows && c.rows.length) {
         h.push('<dl>');
         c.rows.forEach(function(r){
@@ -305,9 +316,12 @@ function render(){
       }
       // Recurring tasks: sitters sign off when they do one, so the next sitter knows whether it's due.
       (c.tasks || []).forEach(function(t){
-        var cs = choreStatus(t);
-        h.push('<div class="chore' + (cs.due ? ' due' : '') + '"><div class="chore-t"><b>' + esc(t.label) + '</b><span class="when' + (t.when ? '' : ' tbd') + '">' + (t.when ? esc(t.when) : 'How often: to be added') + '</span><span class="chore-s">' + esc(cs.text) + '</span></div>' +
-          '<button class="btn small' + (cs.due ? '' : ' ghost') + '" data-chore="' + esc(t.id) + '" aria-label="' + esc(t.label) + ': sign off">Done</button></div>');
+        var cs = choreStatus(t), log = CHORES.filter(function(x){ return x.task === t.id; });
+        h.push('<div class="chore-box"><div class="chore' + (cs.due ? ' due' : '') + '"><div class="chore-t"><b>' + esc(t.label) + '</b><span class="when' + (t.when ? '' : ' tbd') + '">' + (t.when ? esc(t.when) : 'How often: to be added') + '</span><span class="chore-s">' + esc(cs.text) + '</span></div>' +
+          '<button class="btn small' + (cs.due ? '' : ' ghost') + '" data-chore="' + esc(t.id) + '" aria-label="' + esc(t.label) + ': sign off">Done</button></div>' +
+          // Older sign-offs fold away; the latest is already in the status line.
+          (log.length ? '<details class="hist" data-hist="' + esc(t.id) + '"' + (histOpen[t.id] ? ' open' : '') + '><summary>History (' + log.length + ')</summary><ul class="log">' +
+            log.map(function(x){ return '<li><span>' + esc(fmtShort(parseDate(x.date))) + ' · ' + esc(x.name) + '</span><button class="unlog" data-log="' + x.id + '" aria-label="Remove this sign-off" title="Remove">×</button></li>'; }).join('') + '</ul></details>' : '') + '</div>');
       });
       // Maintenance steps and warnings fold away; the at-a-glance rows above stay visible.
       h.push('<details class="care-steps" data-care="' + esc(c.title) + '"' + (careOpen[c.title] ? ' open' : '') + '><summary><span class="k">How to</span></summary>' +
@@ -383,11 +397,10 @@ function editForm(id){
 function choreForm(id){
   var t = choreTask(id); if (!t) return;
   editing = t;
-  var log = CHORES.filter(function(c){ return c.task === id; }).slice(0, 5), today = iso(new Date());
+  var today = iso(new Date());
   openModal('<h3>' + esc(t.label) + '</h3>' +
     '<div class="row"><div class="field"><label for="c_name">Your name</label><input id="c_name" value="' + esc(visitor.name) + '" autocomplete="name" maxlength="60"></div>' +
     '<div class="field"><label for="c_date">Done on</label><input id="c_date" type="date" value="' + today + '" max="' + today + '"></div></div>' +
-    (log.length ? '<p class="ro">Recent</p><ul class="log">' + log.map(function(c){ return '<li><span>' + esc(fmtShort(parseDate(c.date))) + ' · ' + esc(c.name) + '</span><button class="unlog" data-log="' + c.id + '" aria-label="Remove this sign-off" title="Remove">×</button></li>'; }).join('') + '</ul>' : '') +
     '<div class="actions"><button class="btn ghost" id="m_cancel">Cancel</button><button class="btn" id="c_save">Sign off</button></div>');
 }
 
@@ -421,9 +434,9 @@ app.addEventListener('click', function(ev){
   if (t.classList.contains('res')) { editForm(+t.getAttribute('data-id')); return; }
   if (t.hasAttribute('data-chore')) { choreForm(t.getAttribute('data-chore')); return; }
   if (t.classList.contains('unlog')) {
-    var task = editing && editing.id;
+    if (!confirm('Remove this sign-off?')) return;
     fetch('api/chores/' + t.getAttribute('data-log'), {method: 'DELETE'}).then(function(r){ return r.json(); })
-      .then(function(st){ applyServer(st); closeModal(); render(); if (task) choreForm(task); toast('Removed'); }, function(){ toast('Could not remove. Try again.'); });
+      .then(function(st){ applyServer(st); render(); toast('Removed'); }, function(){ toast('Could not remove. Try again.'); });
     return;
   }
   if (id === 'addPhotos') { photoInput.value = ''; photoInput.click(); return; }
@@ -482,6 +495,7 @@ photoInput.addEventListener('change', function(){
 app.addEventListener('toggle', function(ev){
   if (ev.target.id === 'moreKittens') galleryOpen = ev.target.open;
   var care = ev.target.getAttribute && ev.target.getAttribute('data-care'); if (care) careOpen[care] = ev.target.open;
+  var hist = ev.target.getAttribute && ev.target.getAttribute('data-hist'); if (hist) histOpen[hist] = ev.target.open;
 }, true);
 document.addEventListener('keydown', function(ev){ if (ev.key === 'Escape' && modal) closeModal(); });
 
