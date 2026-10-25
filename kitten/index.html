@@ -48,6 +48,11 @@ section{padding-block:1.25rem;border-top:1px solid var(--line)}
 .fact{overflow:hidden;align-content:start}
 .fact-pic{display:block;margin:-.9rem -1rem .5rem;border-bottom:1px solid var(--line)}
 .fact-pic img{display:block;width:100%;aspect-ratio:4/3;object-fit:cover;object-position:50% 62%}
+.slot-pic{position:relative}
+.slot-pic a{display:block}
+.slot-pic .by{position:absolute;left:.5rem;bottom:.5rem;background:rgba(0,0,0,.55);color:#fff;font-size:.75rem;font-weight:700;padding:.1rem .45rem;border-radius:999px}
+.slot-pic .rm{position:absolute;top:.4rem;right:.4rem;width:1.75rem;height:1.75rem;border-radius:50%;border:0;background:rgba(0,0,0,.55);color:#fff;font-size:1.1rem;line-height:1;cursor:pointer;display:grid;place-items:center}
+.fact .slot-add{justify-self:start;margin-top:.4rem}
 .fact .k{font-size:.8rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-family:var(--display);font-weight:700}
 ol.steps{margin:.5rem 0 0;padding-left:1.25rem;display:grid;gap:.45rem}
 ol.steps li::marker{font-family:var(--display);font-weight:700;color:var(--ink)}
@@ -209,9 +214,10 @@ var TIMES = ['Morning','Midday','Afternoon','Evening','Flexible'];
 var PHOTOS = [];           // files in photos/, from the server
 var sel = {};              // days this visitor has picked: 'YYYY-MM-DD' -> true
 var modal = null, editing = null;
-var UPLOADS = [];          // photos visitors added: {id, file, name}
+var UPLOADS = [];          // photos visitors added: {id, file, name, slot}; slot '' is the gallery
 var CHORES = [];           // chore sign-offs, newest first: {id, task, date, name}
-var uploading = false;
+var uploading = false;     // true while gallery photos upload, or the slot name (e.g. 'vacuum') being uploaded to
+var photoSlot = '';        // where the file picker's photos go: '' for the gallery, or a slot like 'vacuum'
 var galleryOpen = false;   // the page re-renders often, so remember whether the gallery is expanded
 var careOpen = {};         // ...and which care cards have their how-to open, by title
 var histOpen = {};         // ...and which chore histories are expanded, by task id
@@ -275,14 +281,14 @@ function render(){
         (bio.tip ? '<p class="tip">' + esc(bio.tip) + '</p>' : '') + '</div></div>';
     }).join('') + '</div>');
     // Dan's photos first (credited to him), then ones visitors uploaded (credited, removable), then the add button.
-    var gallery = PHOTOS.filter(function(f){ return /^gallery-/.test(f); }).sort(), count = gallery.length + UPLOADS.length;
+    var gallery = PHOTOS.filter(function(f){ return /^gallery-/.test(f); }).sort(), galleryUps = UPLOADS.filter(function(u){ return !u.slot; }), count = gallery.length + galleryUps.length;
     h.push('<details class="more" id="moreKittens"' + (galleryOpen ? ' open' : '') + '><summary>More of the kittens <span class="ro">' + count + ' photo' + (count === 1 ? '' : 's') + '</span></summary><div class="gallery">' +
       gallery.map(function(f){ return '<div class="tile"><a href="photos/' + esc(f) + '" target="_blank" rel="noopener"><img src="photos/' + esc(f) + '" alt="The kittens, from ' + esc(firstOwner()) + '" loading="lazy"></a><span class="by">' + esc(firstOwner()) + '</span></div>'; }).join('') +
-      UPLOADS.map(function(u){
+      galleryUps.map(function(u){
         return '<div class="tile"><a href="uploads/' + esc(u.file) + '" target="_blank" rel="noopener"><img src="uploads/' + esc(u.file) + '" alt="The kittens' + (u.name ? ', from ' + esc(u.name) : '') + '" loading="lazy"></a>' +
           (u.name ? '<span class="by">' + esc(u.name) + '</span>' : '') + '<button class="rm" data-photo="' + u.id + '" aria-label="Remove this photo" title="Remove">×</button></div>';
       }).join('') +
-      '<button class="add-photo" id="addPhotos"' + (uploading ? ' disabled' : '') + '>' + (uploading ? 'Uploading…' : '<b>+</b>Add your photos') + '</button>' +
+      '<button class="add-photo" id="addPhotos"' + (uploading ? ' disabled' : '') + '>' + (uploading === true ? 'Uploading…' : '<b>+</b>Add your photos') + '</button>' +
       '</div></details>');
     h.push('</section>');
   }
@@ -294,7 +300,12 @@ function render(){
     '<li>5–10 minutes of dedicated attention for each kitten: play, pets. Gently touch her belly and paws when you can. Other two can be in closet if needed.</li>' +
     '<li>Let everyone out of the closet. Scan the bedroom: nothing knocked over, and no potential liabilities (their jumping improves every day). Lock up; key back in the lockbox.</li></ol>');
   h.push('<div class="facts"><div class="fact">' + (PHOTOS.indexOf('door.jpg') >= 0 ? '<a class="fact-pic" href="photos/door.jpg" target="_blank" rel="noopener"><img src="photos/door.jpg" alt="The bedroom door: double doors at the top of the stairs" loading="lazy"></a>' : '') + '<span class="k">Getting in</span><span>Upstairs double door bedroom</span><span>Lockbox on cabinet by the stairs</span><span class="rec">📹 The bedroom has a camera that records while we\'re away.</span></div>');
-  h.push('<div class="fact"><span class="k">Vacuum</span><span>At the foot of the stairs, for litter or food spills.</span></div>');
+  // Anyone can add (or replace) a photo of where the vacuum is.
+  var vac = UPLOADS.filter(function(u){ return u.slot === 'vacuum'; }).pop();
+  h.push('<div class="fact">' + (vac ? '<div class="fact-pic slot-pic"><a href="uploads/' + esc(vac.file) + '" target="_blank" rel="noopener"><img src="uploads/' + esc(vac.file) + '" alt="Where the vacuum is" loading="lazy"></a>' +
+      (vac.name ? '<span class="by">' + esc(vac.name) + '</span>' : '') + '<button class="rm" data-photo="' + vac.id + '" aria-label="Remove this photo" title="Remove">×</button></div>' : '') +
+    '<span class="k">Vacuum</span><span>At the foot of the stairs, for litter or food spills.</span>' +
+    '<button class="btn small ghost slot-add" data-slot="vacuum"' + (uploading ? ' disabled' : '') + '>' + (uploading === 'vacuum' ? 'Uploading…' : vac ? 'Replace photo' : '+ Add a photo of where it is') + '</button></div>');
   if (st.notes) h.push('<div class="fact"><span class="k">Notes from the owners</span><span>' + esc(st.notes).replace(/\n/g,'<br>') + '</span></div>');
   h.push('</div></section>');
 
@@ -443,7 +454,8 @@ app.addEventListener('click', function(ev){
       .then(function(st){ applyServer(st); render(); toast('Removed'); }, function(){ toast('Could not remove. Try again.'); });
     return;
   }
-  if (id === 'addPhotos') { photoInput.value = ''; photoInput.click(); return; }
+  if (id === 'addPhotos') { photoSlot = ''; photoInput.multiple = true; photoInput.value = ''; photoInput.click(); return; }
+  if (t.classList.contains('slot-add')) { photoSlot = t.getAttribute('data-slot'); photoInput.multiple = false; photoInput.value = ''; photoInput.click(); return; }
   if (t.classList.contains('rm')) {
     if (!confirm('Remove this photo?')) return;
     fetch('api/photos/' + t.getAttribute('data-photo'), {method: 'DELETE'}).then(function(r){ return r.json(); })
@@ -487,12 +499,13 @@ photoInput.addEventListener('change', function(){
   var fd = new FormData();
   files.forEach(function(f){ fd.append('photos', f); });
   fd.append('name', visitor.name || '');
-  uploading = true; render();
+  var slot = photoSlot; if (slot) fd.append('slot', slot);
+  uploading = slot || true; render();
   fetch('api/photos', {method: 'POST', body: fd}).then(function(r){ return r.json(); }).then(function(st){
     if (st.uploads) applyServer(st);
     var bad = (st.failed || 0) + big, ok = files.length + big - bad;
     toast(ok ? 'Added ' + ok + ' photo' + (ok > 1 ? 's' : '') + (bad ? '; ' + bad + ' could not be used' : '') : 'Could not use ' + (bad > 1 ? 'those files' : 'that file'));
-  }, function(){ toast('Upload failed. Try again.'); }).then(function(){ uploading = false; galleryOpen = true; render(); });
+  }, function(){ toast('Upload failed. Try again.'); }).then(function(){ uploading = false; if (!slot) galleryOpen = true; render(); });
 });
 
 // 'toggle' doesn't bubble, so listen in the capture phase.

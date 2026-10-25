@@ -30,6 +30,11 @@ db.run(`CREATE TABLE IF NOT EXISTS photos (
   name TEXT NOT NULL DEFAULT '',  -- who uploaded it, if they said
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 )`);
+// Photos for a spot on the page (e.g. where the vacuum is) rather than the gallery; '' means gallery.
+if (!db.query("SELECT 1 FROM pragma_table_info('photos') WHERE name = 'slot'").get())
+  db.run("ALTER TABLE photos ADD COLUMN slot TEXT NOT NULL DEFAULT ''");
+const SLOTS = ["", "vacuum"];
+
 // Sign-offs for recurring chores (replace the water, empty the bin...): who did it, and on which day.
 db.run(`CREATE TABLE IF NOT EXISTS chores (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -62,7 +67,7 @@ function state() {
   const reservations = db.query("SELECT id, date, name, time FROM reservations ORDER BY date, id").all();
   let photos = [];
   try { photos = readdirSync(PHOTO_DIR).filter((f) => PHOTO_RE.test(f)); } catch {}
-  const uploads = db.query("SELECT id, file, name FROM photos ORDER BY id").all();
+  const uploads = db.query("SELECT id, file, name, slot FROM photos ORDER BY id").all();
   const chores = db.query("SELECT id, task, date, name FROM chores ORDER BY date DESC, id DESC").all();
   return { reservations, times: TIMES, photos, uploads, chores };
 }
@@ -138,16 +143,23 @@ Bun.serve({
     if (pathname === "/api/state" && req.method === "GET") return json(state());
 
     // Anyone can add photos of the kittens (up to 10 at a time) and remove uploaded ones.
+    // A slot photo (one per slot) replaces the previous one.
     if (pathname === "/api/photos" && req.method === "POST") {
       const form = await req.formData().catch(() => null);
-      const files = form ? form.getAll("photos").filter((f) => f instanceof Blob).slice(0, 10) : [];
+      const slot = form ? String(form.get("slot") ?? "") : "";
+      if (!SLOTS.includes(slot)) return json({ error: "bad_slot" }, 400);
+      const files = form ? form.getAll("photos").filter((f) => f instanceof Blob).slice(0, slot ? 1 : 10) : [];
       if (!files.length) return json({ error: "no_files" }, 400);
       const name = String(form.get("name") ?? "").trim().slice(0, 60);
-      const insert = db.query("INSERT INTO photos (file, name) VALUES (?, ?)");
+      const insert = db.query("INSERT INTO photos (file, name, slot) VALUES (?, ?, ?)");
       let failed = 0;
       for (const f of files) {
         const r = await savePhoto(f);
-        if (r.error) failed++; else insert.run(r.file, name);
+        if (r.error) { failed++; continue; }
+        if (slot) for (const old of db.query("SELECT id, file FROM photos WHERE slot = ?").all(slot)) {
+          db.query("DELETE FROM photos WHERE id = ?").run(old.id); rmSync(UPLOAD_DIR + old.file, { force: true });
+        }
+        insert.run(r.file, name, slot);
       }
       return json({ ...state(), failed }, failed === files.length ? 400 : 200);
     }
