@@ -322,14 +322,18 @@ function render(){
     st.care.forEach(function(c){
       var cp = c.photo || 'care-' + c.title.toLowerCase() + '.jpg';
       h.push('<div class="care-card">' + (PHOTOS.indexOf(cp) >= 0 ? '<a class="care-pic" href="photos/' + cp + '" target="_blank" rel="noopener"><img src="photos/' + cp + '" alt="' + esc(c.device) + '" loading="lazy"' + (c.photoPos ? ' style="object-position:' + esc(c.photoPos) + '"' : '') + '>' + (c.credit ? '<span class="credit">' + esc(c.credit) + '</span>' : '') + '</a>' : '') + '<div class="care-h"><span class="care-i" aria-hidden="true">' + c.icon + '</span><div><h3>' + esc(c.title) + '</h3><span class="ro">' + esc(c.device) + '</span></div></div>');
-      if (c.rows && c.rows.length) {
+      // Plain facts as a list; tables (the feeding schedule) fold away like the how-to.
+      var facts = (c.rows || []).filter(function(r){ return !Array.isArray(r[1]); }), tables = (c.rows || []).filter(function(r){ return Array.isArray(r[1]); });
+      if (facts.length) {
         h.push('<dl>');
-        c.rows.forEach(function(r){
-          var v = Array.isArray(r[1]) ? '<table class="feed">' + r[1].map(function(x){ return '<tr><th>' + esc(x[0]) + '</th><td>' + esc(x[1]) + '</td></tr>'; }).join('') + '</table>' : esc(r[1]);
-          h.push('<dt>' + esc(r[0]) + '</dt><dd' + (r[1] && r[1].length ? '' : ' class="tbd"') + '>' + (r[1] && r[1].length ? v : 'To be added') + '</dd>');
-        });
+        facts.forEach(function(r){ h.push('<dt>' + esc(r[0]) + '</dt><dd' + (r[1] ? '' : ' class="tbd"') + '>' + (r[1] ? esc(r[1]) : 'To be added') + '</dd>'); });
         h.push('</dl>');
       }
+      tables.forEach(function(r){
+        var key = c.title + ': ' + r[0];
+        h.push('<details class="care-steps" data-care="' + esc(key) + '"' + (careOpen[key] ? ' open' : '') + '><summary><span class="k">' + esc(r[0]) + '</span></summary><table class="feed">' +
+          r[1].map(function(x){ return '<tr><th>' + esc(x[0]) + '</th><td>' + esc(x[1]) + '</td></tr>'; }).join('') + '</table></details>');
+      });
       // Recurring tasks: sitters sign off when they do one, so the next sitter knows whether it's due.
       (c.tasks || []).forEach(function(t){
         var cs = choreStatus(t), log = CHORES.filter(function(x){ return x.task === t.id; });
