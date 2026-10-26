@@ -245,6 +245,7 @@ h2::before{content:"";width:.55rem;height:1.35rem;border-radius:999px;background
 /* Visit steps: numbered coral badges. */
 ol.steps{list-style:none;padding-left:0;counter-reset:step;gap:.6rem}
 ol.steps li{counter-increment:step;position:relative;padding:.7rem .9rem .7rem 3.1rem;background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow)}
+ol.steps .last-fed{display:flex;flex-wrap:wrap;align-items:center;gap:.4rem .6rem;margin-top:.4rem;color:var(--muted);font-size:.92rem}
 ol.steps li::before{content:counter(step);position:absolute;left:.8rem;top:.7rem;width:1.65rem;height:1.65rem;border-radius:50%;background:var(--ink);color:var(--on-ink);font-family:var(--display);font-weight:600;display:grid;place-items:center;font-size:.95rem}
 /* Calendar: rounder chips, sage for covered, honey for open, coral for today. */
 .cal button{border-radius:10px}
@@ -359,7 +360,9 @@ function render(){
 
   h.push('<section><h2>What a visit involves</h2><p class="note">20–30 minutes.</p>');
   var lastWet = CHORES.filter(function(c){ return c.task === 'wetfood'; })[0];
-  h.push('<ol class="steps"><li>Wet food: one can a day, shared by all three (last: ' + (lastWet ? esc(dayWord(lastWet.date) + ' by ' + lastWet.name) : 'none yet') + ').</li>' +
+  var wetDue = !lastWet || lastWet.date < todaySF();
+  h.push('<ol class="steps"><li>Wet food: one can a day, shared by all three.<span class="last-fed">Last fed: ' + (lastWet ? esc(dayWord(lastWet.date) + ' by ' + lastWet.name) : 'not yet') +
+    ' <button class="btn small' + (wetDue ? '' : ' ghost') + '" data-chore="wetfood" aria-label="Update when wet food was last given">' + (wetDue ? 'I fed them' : 'Update') + '</button></span></li>' +
     '<li>Check the feeder, fountain and litter box; refill or empty as needed, and tap <b>Done</b> (<a href="#care">details</a>).</li>' +
     '<li>5 minutes with each kitty: play and pets. Gently touch her belly and paws. The others can wait in the closet if needed.</li>' +
     '<li>Make sure everyone is comfortable in the room. Scan the bedroom for anything knocked over or risky (their jumping improves daily). Lock up; key back in the lockbox.</li></ol>');
