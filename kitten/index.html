@@ -518,11 +518,25 @@ function viewerHtml(){
 function showViewer(focus){
   if (!modal) { openModal(viewerHtml()); modal.firstChild.classList.add('viewer'); modal.firstChild.scrollTop = 0; document.activeElement && document.activeElement.blur(); return; }
   var b = document.getElementById('k_body'), n = document.getElementById('k_name'), draft = b ? b.value : '', nm = n ? n.value : null;
-  modal.firstChild.innerHTML = viewerHtml();
+  var card = modal.firstChild, top = card.scrollTop, act = document.activeElement, actId = act && card.contains(act) ? act.id : '', sel = act && act.selectionStart != null ? [act.selectionStart, act.selectionEnd] : null;
+  card.innerHTML = viewerHtml(); card.scrollTop = top;
   b = document.getElementById('k_body'); n = document.getElementById('k_name');
   if (b) b.value = draft; if (n && nm !== null) n.value = nm;
+  var back = actId && document.getElementById(actId); if (back && !focus) { back.focus({preventScroll: true}); if (sel) try { back.setSelectionRange(sel[0], sel[1]); } catch(e){} }
   if (focus && b) { b.focus(); b.scrollIntoView({block: 'nearest'}); }
 }
+// Comments go live for everyone at once: while a photo is open, pull in new ones every few seconds.
+function photoComments(){ return JSON.stringify(COMMENTS.filter(function(c){ return viewing && c.photo === viewing.file; })); }
+setInterval(function(){
+  if (!viewing || document.hidden) return;
+  var before = photoComments();
+  fetch('api/state').then(function(r){ return r.json(); }).then(function(st){
+    if (!viewing) return;
+    applyServer(st);
+    if (replyTo && !COMMENTS.some(function(c){ return c.id === replyTo; })) replyTo = null;
+    if (photoComments() !== before) showViewer();
+  }).catch(function(){});
+}, 4000);
 function postComment(){
   var b = document.getElementById('k_body'), n = document.getElementById('k_name');
   var body = b.value.trim(), nm = n.value.trim();
