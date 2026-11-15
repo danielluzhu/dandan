@@ -1,6 +1,7 @@
 # diary
 
-A daily diary on port **3030** — one page per day, with **Notes** and a short **Summary**.
+A daily diary on port **3030** — one page per day: a **summary** of the day with any number
+of **notes** inside it, each stamped with the time it was written (“+ New note”, or Alt+N).
 It saves as you type, and anything written as a to-do lands on the to-do list (`../todo`,
 port 1242), sorted into the right project the same way the to-do list's free-form notes are.
 
@@ -19,6 +20,11 @@ Remember to / have to / gotta / don't forget to …
   to-do alone.
 - The side panel shows the day's to-dos (tick them off there too) and everything due today or
   overdue on the to-do list. ☑ *To-do list* in the sidebar opens it.
+- **Version history** (🕘 History, Alt+H, or *History* on a note), like a Google Doc's: every
+  stretch of editing on a note or the summary is a version — edits within 10 minutes of each
+  other fold into one — shown as what changed (added words green, removed red). Filter to one
+  note, and restore any version. Deleting a note keeps it in history, so it can be restored.
+- Notes show when they were written and when they were last edited.
 - Alt+← / Alt+→ move between days.
 
 ```bash
@@ -38,7 +44,11 @@ sudo systemctl daemon-reload && sudo systemctl enable --now dz-diary
 | Method | Path | |
 |---|---|---|
 | GET | `/api/entries` | days with writing, newest first, with a snippet |
-| GET, PUT | `/api/entries/:date` | PUT `{notes, summary, extract?, link?}`; `extract` turns finished to-do lines into to-dos |
+| GET, PUT | `/api/entries/:date` | the day: `{summary, notes: [...]}`; PUT `{summary, extract?, link?}` saves the summary; `extract` turns finished to-do lines into to-dos |
+| POST | `/api/entries/:date/notes` | new note `{body, extract?, link?}`, stamped now |
+| PUT, DELETE | `/api/notes/:id` | save `{body, extract?, link?}`; DELETE keeps it in history |
+| GET | `/api/entries/:date/history` | versions, newest first, each with the text `before` it |
+| POST | `/api/revisions/:id/restore` | put a note or the summary back as that version had it |
 | GET | `/api/entries/:date/todos` | the day's to-dos, live from the to-do list |
 | PATCH | `/api/todos/:id` | `{done}` — passed through to the to-do list |
 | GET | `/api/due?today=YYYY-MM-DD` | open to-dos due today or earlier |

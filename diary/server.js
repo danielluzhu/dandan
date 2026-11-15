@@ -9,12 +9,37 @@ const TODO_API = (process.env.TODO_URL || "http://localhost:1242").replace(/\/$/
 const db = new Database(DB_PATH, { create: true });
 db.exec("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;");
 db.exec(`
+  -- A day: its summary, with the day's notes inside it. (\`notes\` is from before notes were
+  -- their own rows; it's moved into the notes table on start and left empty.)
   CREATE TABLE IF NOT EXISTS entries (
     date       TEXT PRIMARY KEY,               -- YYYY-MM-DD
     notes      TEXT NOT NULL DEFAULT '',
     summary    TEXT NOT NULL DEFAULT '',
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
+  -- Separate notes within a day, each stamped with when it was written. Deleting one only
+  -- marks it, so its history can bring it back.
+  CREATE TABLE IF NOT EXISTS notes (
+    id         INTEGER PRIMARY KEY,
+    date       TEXT NOT NULL REFERENCES entries(date) ON DELETE CASCADE,
+    body       TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL,                  -- ISO 8601, UTC
+    updated_at TEXT NOT NULL,
+    deleted_at TEXT
+  );
+  CREATE INDEX IF NOT EXISTS notes_date ON notes(date);
+  -- Version history, like a doc's: a snapshot of a note (or, with note_id NULL, the day's
+  -- summary) after each stretch of editing. \`event\` marks created / deleted / restored.
+  CREATE TABLE IF NOT EXISTS revisions (
+    id         INTEGER PRIMARY KEY,
+    date       TEXT NOT NULL REFERENCES entries(date) ON DELETE CASCADE,
+    note_id    INTEGER REFERENCES notes(id) ON DELETE CASCADE,
+    body       TEXT NOT NULL,
+    event      TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS revisions_date ON revisions(date);
   -- Which to-do each diary line created, so saving again never duplicates it.
   -- \`key\` is the line's task text, normalised.
   CREATE TABLE IF NOT EXISTS links (
@@ -28,6 +53,43 @@ db.exec(`
 `);
 
 class BadRequest extends Error {}
+
+const now = () => new Date().toISOString();
+const sqlToIso = (s) => (s && !s.includes("T") ? s.replace(" ", "T") + ".000Z" : s);
+// Edits closer together than this are one version, the way a doc's history groups them.
+const VERSION_GAP_MS = 10 * 60 * 1000;
+
+/* Add to a note's (or the summary's) history. Plain edits fold into the latest version while
+   it's recent; created / deleted / restored always start a new one. */
+function record(date, noteId, body, event = null, at = now()) {
+  const last = db.query("SELECT * FROM revisions WHERE date = ? AND note_id IS ? ORDER BY id DESC LIMIT 1").get(date, noteId);
+  if (!event && last && last.body === body) return;
+  if (!event && last && last.event !== "deleted" && Date.parse(at) - Date.parse(last.updated_at) < VERSION_GAP_MS) {
+    db.query("UPDATE revisions SET body = ?, updated_at = ? WHERE id = ?").run(body, at, last.id);
+    return;
+  }
+  db.query("INSERT INTO revisions (date, note_id, body, event, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)").run(date, noteId, body, event, at, at);
+}
+
+const ensureDay = (date) => db.query("INSERT OR IGNORE INTO entries (date) VALUES (?)").run(date);
+
+// One-time move of each day's single block of notes into a first note, timed at its last save.
+db.transaction(() => {
+  for (const e of db.query("SELECT * FROM entries WHERE notes != ''").all()) {
+    const at = sqlToIso(e.updated_at);
+    if (e.notes.trim()) {
+      const n = db.query("INSERT INTO notes (date, body, created_at, updated_at) VALUES (?, ?, ?, ?) RETURNING id").get(e.date, e.notes, at, at);
+      record(e.date, n.id, e.notes, "created", at);
+    }
+    if (e.summary.trim() && !db.query("SELECT 1 FROM revisions WHERE date = ? AND note_id IS NULL").get(e.date))
+      record(e.date, null, e.summary, "created", at);
+    db.query("UPDATE entries SET notes = '' WHERE date = ?").run(e.date);
+  }
+})();
+
+const liveNotes = (date) => db.query("SELECT * FROM notes WHERE date = ? AND deleted_at IS NULL ORDER BY created_at, id").all(date);
+// Everything written on a day, for finding to-dos.
+const dayText = (date) => [...liveNotes(date).map((n) => n.body), getDay(date).summary].join("\n");
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -83,14 +145,14 @@ const prettyDate = (d) =>
    when a line was edited rather than added (its old text is gone and one contains the other),
    rename its to-do instead of making a second one. Never deletes a to-do. */
 const syncing = new Map();  // date → the sync in flight, so two saves can't both create a to-do
-function syncTodos(date, entry, link) {
-  const run = (syncing.get(date) || Promise.resolve()).then(() => syncOnce(date, entry, link));
+function syncTodos(date, link) {
+  const run = (syncing.get(date) || Promise.resolve()).then(() => syncOnce(date, link));
   syncing.set(date, run.catch(() => {}));
   return run;
 }
 
-async function syncOnce(date, entry, link) {
-  const found = findTodos(entry.notes + "\n" + entry.summary);
+async function syncOnce(date, link) {
+  const found = findTodos(dayText(date));
   const links = db.query("SELECT * FROM links WHERE date = ?").all(date);
   const byKey = new Map(links.map((l) => [l.key, l]));
   const orphans = links.filter((l) => !found.some((f) => f.key === l.key));
@@ -123,8 +185,8 @@ async function syncOnce(date, entry, link) {
 
 /* The to-dos an entry links to, as the to-do list has them now. Lines since removed from the
    entry drop out of view, but their link is kept so retyping them doesn't make a duplicate. */
-async function linkedTodos(date, entry) {
-  const keys = new Set(findTodos(entry.notes + "\n" + entry.summary).map((f) => f.key));
+async function linkedTodos(date) {
+  const keys = new Set(findTodos(dayText(date)).map((f) => f.key));
   const links = db.query("SELECT * FROM links WHERE date = ? ORDER BY id").all(date).filter((l) => keys.has(l.key));
   if (!links.length) return { todos: [], projects: [] };
   const state = await todoApi("GET", "state");
@@ -134,7 +196,52 @@ async function linkedTodos(date, entry) {
   return { todos, projects: state.projects.filter((p) => pids.has(p.id)) };
 }
 
-const getEntry = (date) => db.query("SELECT * FROM entries WHERE date = ?").get(date) || { date, notes: "", summary: "", updated_at: null };
+function getDay(date) {
+  const e = db.query("SELECT date, summary, updated_at FROM entries WHERE date = ?").get(date);
+  const summarized = db.query("SELECT created_at, updated_at FROM revisions WHERE date = ? AND note_id IS NULL ORDER BY id").all(date);
+  return {
+    date,
+    summary: e?.summary ?? "",
+    summary_created_at: summarized[0]?.created_at ?? null,
+    summary_updated_at: summarized.at(-1)?.updated_at ?? null,
+    notes: e ? liveNotes(date) : [],
+  };
+}
+
+// Saves while typing keep the text; to-dos are made once a line is finished (`extract`).
+const linkOf = (body) => (typeof body.link === "string" ? body.link.slice(0, 500) : "");
+async function afterSave(date, body, payload) {
+  const sync = body.extract ? await syncTodos(date, linkOf(body)) : {};
+  return json({ ...payload, errors: sync.errors || [], created: sync.created || [] });
+}
+
+/* A day's history, newest first. Each version carries the one before it (of the same note
+   or summary) so the page can show what changed. */
+function history(date) {
+  const revs = db.query("SELECT * FROM revisions WHERE date = ? ORDER BY id").all(date);
+  const prev = new Map();
+  const out = revs.map((r) => {
+    const key = r.note_id ?? "summary";
+    const before = prev.get(key);
+    prev.set(key, r.body);
+    return { ...r, before: before ?? "" };
+  });
+  const notes = db.query("SELECT id, created_at, deleted_at, body FROM notes WHERE date = ?").all(date);
+  return { revisions: out.reverse(), notes };
+}
+
+/* Put a note (or the summary) back the way a version had it. A deleted note comes back too. */
+function restore(revId) {
+  const r = db.query("SELECT * FROM revisions WHERE id = ?").get(revId);
+  if (!r) throw new BadRequest("No such version");
+  const at = now();
+  db.transaction(() => {
+    if (r.note_id == null) db.query("UPDATE entries SET summary = ?, updated_at = datetime('now') WHERE date = ?").run(r.body, r.date);
+    else db.query("UPDATE notes SET body = ?, updated_at = ?, deleted_at = NULL WHERE id = ?").run(r.body, at, r.note_id);
+    record(r.date, r.note_id, r.body, "restored", at);
+  })();
+  return r.date;
+}
 
 const json = (body, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
@@ -146,29 +253,84 @@ async function api(req, url) {
   // Every day with something written, newest first, with a snippet for the sidebar.
   if (resource === "entries" && !arg && req.method === "GET") {
     return json(db.query(`
-      SELECT date, substr(CASE WHEN trim(summary) != '' THEN summary ELSE notes END, 1, 140) AS snippet, updated_at
-      FROM entries WHERE trim(notes) != '' OR trim(summary) != '' ORDER BY date DESC`).all());
+      SELECT e.date, substr(CASE WHEN trim(e.summary) != '' THEN e.summary
+          ELSE (SELECT n.body FROM notes n WHERE n.date = e.date AND n.deleted_at IS NULL AND trim(n.body) != '' ORDER BY n.created_at LIMIT 1) END, 1, 140) AS snippet,
+        (SELECT COUNT(*) FROM notes n WHERE n.date = e.date AND n.deleted_at IS NULL AND trim(n.body) != '') AS note_count
+      FROM entries e
+      WHERE trim(e.summary) != '' OR EXISTS (SELECT 1 FROM notes n WHERE n.date = e.date AND n.deleted_at IS NULL AND trim(n.body) != '')
+      ORDER BY e.date DESC`).all());
   }
 
   if (resource === "entries" && arg) {
     if (!DATE_RE.test(arg)) throw new BadRequest("Dates look like 2026-11-15");
-    if (req.method === "GET" && !sub) return json(getEntry(arg));
-    // POST too, so a save can go out with the page as it closes.
+    if (req.method === "GET" && !sub) return json(getDay(arg));
+    // The day's summary. POST too, so a save can go out with the page as it closes.
     if ((req.method === "PUT" || req.method === "POST") && !sub) {
-      const notes = String(body.notes ?? "").slice(0, 200000);
       const summary = String(body.summary ?? "").slice(0, 20000);
-      const entry = db.query(`
-        INSERT INTO entries (date, notes, summary, updated_at) VALUES (?, ?, ?, datetime('now'))
-        ON CONFLICT(date) DO UPDATE SET notes = excluded.notes, summary = excluded.summary, updated_at = excluded.updated_at
-        RETURNING *`).get(arg, notes, summary);
-      // Saves while typing keep the text; to-dos are made once a line is finished.
-      const sync = body.extract ? await syncTodos(arg, entry, typeof body.link === "string" ? body.link.slice(0, 500) : "") : {};
-      return json({ entry, errors: sync.errors || [], created: sync.created || [] });
+      db.transaction(() => {
+        ensureDay(arg);
+        db.query("UPDATE entries SET summary = ?, updated_at = datetime('now') WHERE date = ?").run(summary, arg);
+        const first = !db.query("SELECT 1 FROM revisions WHERE date = ? AND note_id IS NULL").get(arg);
+        if (!first || summary.trim()) record(arg, null, summary, first ? "created" : null);
+        // A page loaded before notes were separate still sends the day's notes as one block:
+        // keep it in the day's first note rather than lose it.
+        if (typeof body.notes === "string") {
+          const at = now(), first = liveNotes(arg)[0];
+          if (first) { db.query("UPDATE notes SET body = ?, updated_at = ? WHERE id = ?").run(body.notes, at, first.id); record(arg, first.id, body.notes, null, at); }
+          else if (body.notes.trim()) {
+            const n = db.query("INSERT INTO notes (date, body, created_at, updated_at) VALUES (?, ?, ?, ?) RETURNING id").get(arg, body.notes, at, at);
+            record(arg, n.id, body.notes, "created", at);
+          }
+        }
+      })();
+      return afterSave(arg, body, { day: getDay(arg) });
+    }
+    // A new note, stamped now.
+    if (req.method === "POST" && sub === "notes") {
+      const at = now();
+      const text = String(body.body ?? "").slice(0, 200000);
+      const note = db.transaction(() => {
+        ensureDay(arg);
+        const n = db.query("INSERT INTO notes (date, body, created_at, updated_at) VALUES (?, ?, ?, ?) RETURNING *").get(arg, text, at, at);
+        record(arg, n.id, text, "created", at);
+        return n;
+      })();
+      return afterSave(arg, body, { note });
     }
     if (req.method === "GET" && sub === "todos") {
-      try { return json(await linkedTodos(arg, getEntry(arg))); }
+      try { return json(await linkedTodos(arg)); }
       catch (err) { return json({ todos: [], projects: [], error: `Couldn't reach the to-do list: ${err.message}` }); }
     }
+    if (req.method === "GET" && sub === "history") return json(history(arg));
+  }
+
+  if (resource === "notes" && arg) {
+    const note = db.query("SELECT * FROM notes WHERE id = ?").get(Number(arg));
+    if (!note) return json({ error: "Not found" }, 404);
+    if (req.method === "PUT" || req.method === "POST") {
+      const text = String(body.body ?? "").slice(0, 200000);
+      const at = now();
+      const saved = db.transaction(() => {
+        const n = db.query("UPDATE notes SET body = ?, updated_at = ?, deleted_at = NULL WHERE id = ? RETURNING *").get(text, at, note.id);
+        record(note.date, note.id, text, null, at);
+        return n;
+      })();
+      return afterSave(note.date, body, { note: saved });
+    }
+    if (req.method === "DELETE") {
+      db.transaction(() => {
+        db.query("UPDATE notes SET deleted_at = ? WHERE id = ?").run(now(), note.id);
+        // An empty note leaves no trace; one with writing can be restored from history.
+        if (note.body.trim()) record(note.date, note.id, note.body, "deleted");
+        else db.query("DELETE FROM notes WHERE id = ?").run(note.id);
+      })();
+      return json({ ok: true });
+    }
+  }
+
+  if (resource === "revisions" && arg && sub === "restore" && req.method === "POST") {
+    const date = restore(Number(arg));
+    return json({ day: getDay(date) });
   }
 
   // Tick a linked to-do from the diary.

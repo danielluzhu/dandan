@@ -31,20 +31,25 @@
         <button class="icon-btn" id="next" title="Next day (Alt+→)" aria-label="Next day">›</button>
         <input type="date" id="pick" aria-label="Go to date">
         <span class="saved" id="saved" aria-live="polite"></span>
+        <button class="btn" id="open-history" title="Version history (Alt+H)">🕘 History</button>
       </header>
 
       <div class="page">
-        <section class="writing">
-          <label class="field-label" for="notes">Notes</label>
-          <textarea id="notes" class="notes" spellcheck="true" placeholder="What happened today?
+        <section class="day">
+          <div class="summary-card">
+            <div class="card-head">
+              <label class="field-label" for="summary">The day</label>
+              <span class="stamp" id="summary-stamp"></span>
+            </div>
+            <textarea id="summary" class="summary" spellcheck="true" placeholder="The day in a sentence or two — fill it in whenever."></textarea>
 
-To-dos are picked up as you write and added to your to-do list:
-- [ ] call the vet
-todo: print the poster #print
-…or just “need to clean the toilet tomorrow”."></textarea>
-
-          <label class="field-label" for="summary">Summary</label>
-          <textarea id="summary" class="summary" rows="3" spellcheck="true" placeholder="The day in a sentence or two."></textarea>
+            <div class="notes-head">
+              <span class="field-label">Notes</span>
+              <span class="hint-inline">each note is stamped with when you wrote it</span>
+            </div>
+            <div class="notes" id="notes"></div>
+            <button class="add-note" id="add-note" title="New note (Alt+N)">+ New note</button>
+          </div>
         </section>
 
         <aside class="panels">
@@ -62,6 +67,18 @@ todo: print the poster #print
         </aside>
       </div>
     </main>
+
+    <aside class="history" id="history" hidden aria-label="Version history">
+      <div class="history-head">
+        <div>
+          <h2>Version history</h2>
+          <p class="history-sub" id="history-sub"></p>
+        </div>
+        <button class="icon-btn" id="close-history" aria-label="Close history">×</button>
+      </div>
+      <div class="history-filter" id="history-filter"></div>
+      <div class="history-list" id="history-list"></div>
+    </aside>
   </div>
 
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
