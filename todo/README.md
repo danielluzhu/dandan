@@ -4,6 +4,11 @@ A to-do list app on port **1242** — tasks, projects, and labels.
 
 - **Tasks**: create, edit (title, notes, label, project, due date), complete, delete (with undo).
 - **Projects**: create, edit (name, description, color), delete — deleting a project deletes its tasks.
+- **Sub-projects**: projects nest, any depth. Drag project A onto project B in the sidebar (or onto
+  a sub-project card) and A goes inside B; drop it on the *Projects* heading to bring it back to the
+  top level. “+ Sub-project” on a project page, or *Inside* in the project editor, does the same.
+  A project's page shows its sub-projects as cards; the sidebar folds them with ▾. Deleting a
+  project moves its sub-projects up a level. Tasks can be dragged onto any project to move them there.
 - **Subsections**: split a project into named parts (e.g. Design, Build) — rename, reorder, collapse,
   delete (its tasks move to *No subsection*). Each has its own quick “+ Add task”.
 - **North Stars are sub-projects**: tasks can live inside a North Star (drag one onto it, use its
@@ -35,7 +40,7 @@ sudo systemctl daemon-reload && sudo systemctl enable --now dz-todo
 | Method | Path | |
 |---|---|---|
 | GET | `/api/state` | all projects (with open/total counts) and todos |
-| GET, POST | `/api/projects` | list / create `{name, description?, color?}` |
+| GET, POST | `/api/projects` | list / create `{name, description?, color?, parent_id?}` |
 | GET, PATCH, DELETE | `/api/projects/:id` | |
 | GET, POST | `/api/todos` | list / create `{title, notes?, label?, project_id?, section_id?, parent_id?, due_date?}` |
 | GET, PATCH, DELETE | `/api/todos/:id` | PATCH also takes `{done}` |

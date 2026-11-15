@@ -41,6 +41,9 @@ if (!db.query("SELECT 1 FROM pragma_table_info('todos') WHERE name = 'section_id
 // Each North Star is also a sub-project: other tasks can live inside it (one level deep).
 if (!db.query("SELECT 1 FROM pragma_table_info('todos') WHERE name = 'parent_id'").get())
   db.exec("ALTER TABLE todos ADD COLUMN parent_id INTEGER REFERENCES todos(id) ON DELETE CASCADE");
+// Projects nest: a project can live inside another, any depth deep.
+if (!db.query("SELECT 1 FROM pragma_table_info('projects') WHERE name = 'parent_id'").get())
+  db.exec("ALTER TABLE projects ADD COLUMN parent_id INTEGER REFERENCES projects(id) ON DELETE SET NULL");
 
 const LABELS = new Set(["urgent", "north_star", null]);
 
@@ -82,7 +85,15 @@ function cleanTodo(body, partial) {
   return out;
 }
 
-function cleanProject(body, partial) {
+/* A project's ancestors, nearest first. */
+function ancestorsOf(id) {
+  const out = [];
+  for (let cur = db.query("SELECT parent_id FROM projects WHERE id = ?").get(id)?.parent_id; cur != null && !out.includes(cur);
+       cur = db.query("SELECT parent_id FROM projects WHERE id = ?").get(cur)?.parent_id) out.push(cur);
+  return out;
+}
+
+function cleanProject(body, partial, id = null) {
   const out = {};
   if (!partial || "name" in body) {
     const name = String(body.name ?? "").trim();
@@ -93,6 +104,15 @@ function cleanProject(body, partial) {
   if ("color" in body) {
     if (!/^#[0-9a-f]{6}$/i.test(body.color || "")) throw new BadRequest("Color must be #rrggbb");
     out.color = body.color;
+  }
+  if ("parent_id" in body) {
+    const pid = body.parent_id == null || body.parent_id === "" ? null : Number(body.parent_id);
+    if (pid !== null) {
+      if (!db.query("SELECT 1 FROM projects WHERE id = ?").get(pid)) throw new BadRequest("No such project");
+      if (id != null && (pid === id || ancestorsOf(pid).includes(id)))
+        throw new BadRequest("A project can't go inside itself or one of its own sub-projects");
+    }
+    out.parent_id = pid;
   }
   return out;
 }
@@ -207,9 +227,13 @@ async function api(req, url) {
       if (req.method === "POST") return json(insert("projects", cleanProject(body, false)), 201);
     } else {
       if (req.method === "GET") return json(db.query("SELECT * FROM projects WHERE id = ?").get(id) ?? null) ;
-      if (req.method === "PATCH") return json(update("projects", id, cleanProject(body, true)) ?? null);
+      if (req.method === "PATCH") return json(update("projects", id, cleanProject(body, true, id)) ?? null);
       if (req.method === "DELETE") {
-        const r = db.query("DELETE FROM projects WHERE id = ?").run(id);
+        // Sub-projects survive their parent: they move up a level.
+        const r = db.transaction(() => {
+          db.query("UPDATE projects SET parent_id = (SELECT parent_id FROM projects WHERE id = ?) WHERE parent_id = ?").run(id, id);
+          return db.query("DELETE FROM projects WHERE id = ?").run(id);
+        })();
         return r.changes ? json({ ok: true }) : notFound();
       }
     }

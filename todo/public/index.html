@@ -15,7 +15,7 @@
         <span>Todo</span>
       </div>
       <nav class="views" id="views"></nav>
-      <div class="side-head">
+      <div class="side-head" data-pdrop="root" title="Drop a project here to move it to the top level">
         <span>Projects</span>
         <button class="icon-btn" id="new-project" title="New project" aria-label="New project">+</button>
       </div>
@@ -58,6 +58,7 @@
     <form method="dialog" id="project-form" autocomplete="off">
       <h2 id="pd-title">New project</h2>
       <label>Name<input id="pd-name" maxlength="200" required></label>
+      <label>Inside<select id="pd-parent"></select></label>
       <label>Description<textarea id="pd-desc" rows="3" maxlength="5000" placeholder="What is this project for?"></textarea></label>
       <div class="field">
         <span class="field-label">Color</span>

@@ -287,6 +287,33 @@ select, input[type="date"] {
 .star-self { margin-bottom: 8px; border: 1px solid var(--star-soft); border-radius: 12px; background: var(--panel); }
 .star-self .todo-row { cursor: pointer; }
 
+/* nested projects */
+.nav-project { position: relative; }
+.p-icon { display: inline-flex; align-items: center; width: auto; gap: 0; }
+.p-fold { width: 14px; font-size: 10px; color: var(--faint); display: inline-block; text-align: center; transition: transform .15s; border-radius: 4px; }
+.p-fold:hover { color: var(--text); background: var(--hover); }
+.p-fold.folded { transform: rotate(-90deg); }
+.p-fold.none { visibility: hidden; }
+.p-grip { position: static; margin-left: 4px; opacity: 0; }
+.nav-project:hover .p-grip { opacity: 1; }
+@media (hover: none) { .p-grip { opacity: 1; padding: 0 4px; } }
+.nav-project .count { margin-left: auto; }
+.nav-item.dragging { opacity: .35; }
+.nav-project.drop-over { outline: 2px solid var(--accent); background: var(--accent-soft); }
+.is-dragging-project .side-head[data-pdrop] { outline: 2px dashed var(--line); outline-offset: 2px; border-radius: 6px; }
+.side-head.drop-over { outline-color: var(--accent) !important; background: var(--accent-soft); color: var(--accent); }
+.p-crumb { display: block; font-size: 13px; margin-bottom: 4px; }
+.subprojects { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; margin: 4px 0 10px; }
+.subproject {
+  display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 2px 8px; text-decoration: none; color: var(--text);
+  border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px; background: var(--panel);
+}
+.subproject:hover { border-color: var(--faint); }
+.subproject .dot { margin: 0; }
+.sp-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sp-meta { grid-column: 2; font-size: 12px; color: var(--muted); }
+.subproject.drop-over { border-color: var(--accent); background: var(--accent-soft); }
+
 /* inline editor */
 .editor { padding: 2px 12px 14px 40px; display: grid; gap: 10px; }
 .editor input.e-title {

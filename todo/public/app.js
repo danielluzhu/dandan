@@ -21,13 +21,17 @@ const state = {
   confirmSection: null, // subsection whose delete is awaiting confirmation
   quickAdd: null,       // "s<id>" (subsection) or "n<id>" (North Star) with an inline add-task box open
   nsCollapsed: new Set(readCollapsed()),  // North Stars whose tasks are folded away
+  pCollapsed: new Set(readCollapsed("todo.pCollapsed")),  // projects whose sub-projects are folded in the sidebar
 };
 
-function readCollapsed() {
-  try { return JSON.parse(localStorage.getItem("todo.nsCollapsed") || "[]"); } catch { return []; }
+function readCollapsed(key = "todo.nsCollapsed") {
+  try { return JSON.parse(localStorage.getItem(key) || "[]"); } catch { return []; }
 }
 function saveCollapsed() {
-  try { localStorage.setItem("todo.nsCollapsed", JSON.stringify([...state.nsCollapsed])); } catch {}
+  try {
+    localStorage.setItem("todo.nsCollapsed", JSON.stringify([...state.nsCollapsed]));
+    localStorage.setItem("todo.pCollapsed", JSON.stringify([...state.pCollapsed]));
+  } catch {}
 }
 
 /* ---------- helpers ---------- */
@@ -73,6 +77,25 @@ const projectById = (id) => state.projects.find((p) => p.id === id);
 const sectionById = (id) => state.sections.find((s) => s.id === id);
 const sectionsOf = (projectId) => state.sections.filter((s) => s.project_id === projectId);
 const currentProject = () => (state.view.startsWith("p") ? projectById(Number(state.view.slice(1))) : null);
+const subProjectsOf = (id) => state.projects.filter((p) => (p.parent_id ?? null) === id);
+// Every project in sidebar order — each one followed by its sub-projects — with its depth.
+// A project whose parent is missing is treated as top-level.
+function projectTree(skip = null) {
+  const out = [];
+  const walk = (p, depth) => {
+    if (p.id === skip) return;
+    out.push({ p, depth });
+    subProjectsOf(p.id).forEach((c) => walk(c, depth + 1));
+  };
+  state.projects.filter((p) => p.parent_id == null || !projectById(p.parent_id)).forEach((p) => walk(p, 0));
+  return out;
+}
+const ancestorsOf = (p) => {
+  const out = [];
+  for (let a = projectById(p.parent_id); a && !out.includes(a); a = projectById(a.parent_id)) out.unshift(a);
+  return out;
+};
+const projectOptions = (skip) => projectTree(skip).map(({ p, depth }) => h("option", { value: p.id }, "\u2003".repeat(depth) + p.name));
 const todoById = (id) => state.todos.find((t) => t.id === id);
 const childrenOf = (id) => state.todos.filter((t) => t.parent_id === id);
 const isStar = (t) => t && t.label === "north_star" && t.parent_id == null;
@@ -150,7 +173,7 @@ function render() {
 function navItem(view, icon, name, count) {
   return h("button", {
     class: "nav-item" + (state.view === view ? " active" : ""),
-    onclick: () => go(view),
+    onclick: () => { if (!dragJustEnded()) go(view); },
   }, icon, h("span", { class: "name" }, name), h("span", { class: "count" }, count || ""));
 }
 
@@ -181,11 +204,30 @@ function renderSidebar() {
     starNav,
     urgentNav,
   );
-  const projects = state.projects.flatMap((p) => [
-    navItem("p" + p.id, h("span", { class: "dot", style: `background:${p.color}` }), p.name, p.open_count),
-    ...starNavs(p.id),
-  ]);
+  const hidden = new Set();  // projects inside a folded parent
+  const projects = projectTree().flatMap(({ p, depth }) => {
+    if (p.parent_id != null && (hidden.has(p.parent_id) || state.pCollapsed.has(p.parent_id))) { hidden.add(p.id); return []; }
+    const subs = subProjectsOf(p.id).length;
+    const fold = subs
+      ? h("span", { class: "p-fold" + (state.pCollapsed.has(p.id) ? " folded" : ""), title: state.pCollapsed.has(p.id) ? "Show sub-projects" : "Hide sub-projects",
+          onclick: (e) => { e.stopPropagation(); toggleProjectFold(p.id); } }, "▾")
+      : h("span", { class: "p-fold none" });
+    const el = navItem("p" + p.id, h("span", { class: "nav-icon p-icon" }, fold, h("span", { class: "dot", style: `background:${p.color}` })), p.name, p.open_count);
+    el.style.paddingLeft = 10 + depth * 16 + "px";
+    el.classList.add("nav-project");
+    el.dataset.drop = "project";
+    el.dataset.project = p.id;
+    el.addEventListener("pointerdown", (e) => pressProject(e, p, el));
+    el.append(h("span", { class: "grip p-grip", "aria-hidden": "true" }, "⠿"));
+    return [el, ...starNavs(p.id).map((s) => { s.style.paddingLeft = 30 + depth * 16 + "px"; return s; })];
+  });
   $("#projects").replaceChildren(...(projects.length ? projects : [h("div", { class: "side-empty" }, "No projects yet — add one with +")]));
+}
+
+function toggleProjectFold(id) {
+  if (state.pCollapsed.has(id)) state.pCollapsed.delete(id); else state.pCollapsed.add(id);
+  saveCollapsed();
+  renderSidebar();
 }
 
 function progressEl(kids) {
@@ -222,9 +264,13 @@ function renderHeader() {
     urgent: "Everything marked urgent, across every project.",
     north_star: "The tasks that matter most — the ones that move the needle.",
   };
-  $("#view-desc").textContent = p ? p.description : descs[state.view] || "";
+  const up = p ? ancestorsOf(p) : [];
+  $("#view-desc").replaceChildren(
+    up.length ? h("span", { class: "crumb p-crumb" }, "Inside ", up.map((a, i) => [i ? " › " : "", h("a", { href: "#p" + a.id }, a.name)])) : "",
+    p ? p.description : descs[state.view] || "");
   $("#head-actions").replaceChildren(
     ...(p ? [
+      h("button", { class: "btn small", onclick: () => openProjectDialog(null, p.id) }, "+ Sub-project"),
       h("button", { class: "btn small", onclick: startAddSection }, "+ Subsection"),
       h("button", { class: "btn small", onclick: () => openProjectDialog(p) }, "Edit project"),
     ] : []),
@@ -250,7 +296,7 @@ function renderComposer() {
   const prev = sel.value;
   sel.replaceChildren(
     h("option", { value: "" }, "No project (Inbox)"),
-    ...state.projects.map((pr) => h("option", { value: pr.id }, pr.name)),
+    ...projectOptions(),
   );
   sel.value = p ? String(p.id) : state.view === "inbox" ? "" : prev && projectById(Number(prev)) ? prev : "";
   sel.hidden = !!p || !!star;
@@ -283,6 +329,7 @@ function renderList() {
 
   const star = currentStar();
   if (star) return renderStarList(list, star, open, done);
+  const subs = subProjectsEl();
 
   if (!todos.length) {
     const p = currentProject();
@@ -293,6 +340,7 @@ function renderList() {
         : "Nothing to do. Add a task above, or create a project in the sidebar."));
     if (!state.query && p && !sectionsOf(p.id).length) list.append(addSectionEl());
     if (!state.query && p && sectionsOf(p.id).length) { list.replaceChildren(...sectionsOf(p.id).map((s) => blockEl(s, [])), addSectionEl()); }
+    if (subs) list.prepend(subs);
     list.querySelector("[data-autofocus]")?.focus();
     return;
   }
@@ -319,11 +367,30 @@ function renderList() {
   }
   if (p) parts.push(addSectionEl());
   if (done.length) parts.push(section("", "Completed", done, { collapsible: true }));
-  list.replaceChildren(...parts);
+  list.replaceChildren(...(subs ? [subs] : []), ...parts);
   list.querySelector("[data-autofocus]")?.focus();
 
   const focusEl = list.querySelector(".todo.open .e-title");
   if (focusEl && state.focusEditor) { focusEl.focus(); state.focusEditor = false; }
+}
+
+/* A project's sub-projects, as cards above its tasks. Each is a drop target for tasks. */
+function subProjectsEl() {
+  const p = currentProject();
+  const subs = p && !state.query ? subProjectsOf(p.id) : [];
+  if (!subs.length) return null;
+  const openIn = (id) => {  // open tasks in a project and everything inside it
+    let n = projectById(id)?.open_count || 0;
+    for (const c of subProjectsOf(id)) n += openIn(c.id);
+    return n;
+  };
+  return h("div", { class: "subprojects" }, subs.map((c) => {
+    const n = openIn(c.id), inner = subProjectsOf(c.id).length;
+    return h("a", { class: "subproject", href: "#p" + c.id, "data-drop": "project", "data-project": c.id },
+      h("span", { class: "dot", style: `background:${c.color}` }),
+      h("span", { class: "sp-name" }, c.name),
+      h("span", { class: "sp-meta" }, `${n} open` + (inner ? ` · ${inner} sub-project${inner === 1 ? "" : "s"}` : "")));
+  }));
 }
 
 /* A North Star's own page: the North Star itself as a card, then its tasks by label. */
@@ -569,7 +636,7 @@ function editorEl(t) {
 
   const proj = h("select", { "aria-label": "Project", onchange: (e) => save({ project_id: e.target.value || null }) },
     h("option", { value: "" }, "No project (Inbox)"),
-    state.projects.map((p) => h("option", { value: p.id }, p.name)));
+    projectOptions());
   proj.value = t.project_id == null ? "" : String(t.project_id);
 
   const tSecs = t.project_id != null ? sectionsOf(t.project_id) : [];
@@ -762,8 +829,11 @@ function renderSwatches() {
   })));
 }
 
-function openProjectDialog(p) {
+function openProjectDialog(p, parentId = null) {
   editing = p;
+  const sel = $("#pd-parent");
+  sel.replaceChildren(h("option", { value: "" }, "Top level"), ...projectOptions(p?.id));
+  sel.value = String((p ? p.parent_id : parentId) ?? "");
   deleteArmed = false;
   pickedColor = p ? p.color : COLORS[state.projects.length % COLORS.length];
   $("#pd-title").textContent = p ? "Edit project" : "New project";
@@ -784,7 +854,7 @@ $("#pd-cancel").addEventListener("click", () => dlg.close());
 
 $("#project-form").addEventListener("submit", async (e) => {
   e.preventDefault();
-  const body = { name: $("#pd-name").value, description: $("#pd-desc").value, color: pickedColor };
+  const body = { name: $("#pd-name").value, description: $("#pd-desc").value, color: pickedColor, parent_id: $("#pd-parent").value || null };
   try {
     const saved = editing
       ? await api("PATCH", `projects/${editing.id}`, body)
@@ -800,6 +870,7 @@ $("#project-form").addEventListener("submit", async (e) => {
 $("#pd-delete").addEventListener("click", async () => {
   const p = editing;
   const n = state.todos.filter((t) => t.project_id === p.id).length;
+  const subs = subProjectsOf(p.id).length;
   if (!deleteArmed) {
     deleteArmed = true;
     $("#pd-delete").textContent = "Yes, delete it";
@@ -807,6 +878,7 @@ $("#pd-delete").addEventListener("click", async () => {
     $("#pd-confirm").textContent = n
       ? `This permanently deletes “${p.name}” and its ${n} task${n === 1 ? "" : "s"}. Click again to confirm.`
       : `This permanently deletes “${p.name}”. Click again to confirm.`;
+    if (subs) $("#pd-confirm").textContent += ` Its ${subs} sub-project${subs === 1 ? "" : "s"} move up a level and keep their tasks.`;
     $("#pd-confirm").hidden = false;
     return;
   }
@@ -863,6 +935,7 @@ function endDrag() {
 }
 
 document.addEventListener("pointermove", (e) => {
+  if (pdrag) return moveProjectDrag(e);
   if (!drag) return;
   if (!drag.active) {
     if (Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0) < 6) return;
@@ -878,6 +951,7 @@ document.addEventListener("pointermove", (e) => {
 });
 
 document.addEventListener("pointerup", () => {
+  if (pdrag) return dropProject();
   if (!drag) return;
   const { t, over, active } = drag;
   endDrag();
@@ -886,7 +960,18 @@ document.addEventListener("pointerup", () => {
   // data-section, when present, is a subsection.
   const fields = {};
   const where = [];
-  const before = { label: t.label, section_id: t.section_id, parent_id: t.parent_id, done: !!t.done };
+  const before = { label: t.label, project_id: t.project_id, section_id: t.section_id, parent_id: t.parent_id, done: !!t.done };
+  if (over.dataset.drop === "project") {
+    const pid = Number(over.dataset.project);
+    if (pid !== t.project_id) fields.project_id = pid;
+    if (t.parent_id != null) fields.parent_id = null;
+    if (t.done) fields.done = false;
+    if (!Object.keys(fields).length) return;
+    replaceTodo({ ...t, ...fields, done: 0, completed_at: null });
+    render();
+    patchTodo(t.id, fields);
+    return toast(`Moved to ${projectById(pid)?.name}`, { label: "Undo", run: () => patchTodo(t.id, before) });
+  }
   if (over.dataset.drop === "into") {
     const pid = Number(over.dataset.parent);
     if (pid === t.id) return;
@@ -927,8 +1012,80 @@ document.addEventListener("pointerup", () => {
   toast(`Moved to ${where.join(" · ")}`, { label: "Undo", run: () => patchTodo(t.id, before) });
 });
 
-document.addEventListener("pointercancel", endDrag);
-document.addEventListener("keydown", (e) => { if (e.key === "Escape" && drag) endDrag(); });
+document.addEventListener("pointercancel", () => { endDrag(); endProjectDrag(); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") { endDrag(); endProjectDrag(); } });
+
+/* ---------- drag projects into projects ----------
+   Dragging project A onto project B puts A inside B; dropping it on the
+   “Projects” heading takes it back to the top level. Same pointer approach as
+   tasks: a mouse drags from anywhere on the item, touch from its grip. */
+let pdrag = null;
+
+function pressProject(e, p, el) {
+  if (e.button !== 0 || e.target.closest(".p-fold")) return;
+  const viaGrip = !!e.target.closest(".grip");
+  if (e.pointerType !== "mouse" && !viaGrip) return;
+  pdrag = { p, el, x0: e.clientX, y0: e.clientY, active: false, over: null };
+  if (viaGrip) e.preventDefault();
+}
+
+function moveProjectDrag(e) {
+  if (!pdrag.active) {
+    if (Math.hypot(e.clientX - pdrag.x0, e.clientY - pdrag.y0) < 6) return;
+    pdrag.ghost = pdrag.el.cloneNode(true);
+    pdrag.ghost.classList.add("drag-ghost");
+    pdrag.ghost.style.width = pdrag.el.getBoundingClientRect().width + "px";
+    pdrag.ghost.style.paddingLeft = "10px";
+    document.body.append(pdrag.ghost);
+    pdrag.el.classList.add("dragging");
+    document.body.classList.add("is-dragging", "is-dragging-project");
+    pdrag.active = true;
+  }
+  pdrag.ghost.style.transform = `translate(${e.clientX - 20}px, ${e.clientY - 16}px) rotate(1.5deg)`;
+  let over = document.elementFromPoint(e.clientX, e.clientY)?.closest("[data-pdrop], [data-drop='project']") || null;
+  // Can't drop a project into itself or anything inside it.
+  if (over?.dataset.project) {
+    const target = projectById(Number(over.dataset.project));
+    if (!target || target.id === pdrag.p.id || ancestorsOf(target).some((a) => a.id === pdrag.p.id)) over = null;
+  }
+  if (over !== pdrag.over) {
+    pdrag.over?.classList.remove("drop-over");
+    over?.classList.add("drop-over");
+    pdrag.over = over;
+  }
+}
+
+function endProjectDrag() {
+  if (!pdrag) return;
+  if (pdrag.active) {
+    pdrag.ghost.remove();
+    pdrag.el.classList.remove("dragging");
+    pdrag.over?.classList.remove("drop-over");
+    document.body.classList.remove("is-dragging", "is-dragging-project");
+    dragEndedAt = Date.now();
+  }
+  pdrag = null;
+}
+
+async function dropProject() {
+  const { p, over, active } = pdrag;
+  endProjectDrag();
+  if (!active || !over) return;
+  const parentId = over.dataset.pdrop === "root" ? null : Number(over.dataset.project);
+  if ((p.parent_id ?? null) === parentId) return;
+  const before = p.parent_id ?? null;
+  const move = async (to) => {
+    try {
+      await api("PATCH", `projects/${p.id}`, { parent_id: to });
+      if (to != null) state.pCollapsed.delete(to), saveCollapsed();
+      await refreshProjects();
+      render();
+    } catch (err) { fail(err); }
+  };
+  await move(parentId);
+  toast(parentId == null ? `Moved “${p.name}” to the top level` : `Moved “${p.name}” into ${projectById(parentId)?.name}`,
+    { label: "Undo", run: () => move(before) });
+}
 
 /* ---------- keyboard ---------- */
 document.addEventListener("keydown", (e) => {
