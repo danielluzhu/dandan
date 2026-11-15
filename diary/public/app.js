@@ -454,16 +454,21 @@ $("#go-today").addEventListener("click", () => openDay(todayISO()));
 $("#pick").addEventListener("change", (e) => { if (DATE_RE.test(e.target.value)) openDay(e.target.value); });
 $("#menu").addEventListener("click", () => $("#sidebar").classList.toggle("show"));
 $("#add-note").addEventListener("click", addNote);
+$("#show-keys").addEventListener("click", () => $("#keys-dialog").showModal());
 $("#open-history").addEventListener("click", () => ($("#history").hidden ? openHistory() : closeHistory()));
 $("#close-history").addEventListener("click", closeHistory);
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && !$("#history").hidden) return closeHistory();
+  // "?" only when not writing, so it can still be typed into a note.
+  if (e.key === "?" && !e.target.closest("textarea, input")) { e.preventDefault(); return $("#keys-dialog").showModal(); }
   if (!e.altKey) return;
   const k = e.code;
   if (e.key === "ArrowLeft") { e.preventDefault(); openDay(shift(state.date, -1)); }
   else if (e.key === "ArrowRight") { e.preventDefault(); openDay(shift(state.date, 1)); }
   else if (k === "KeyN") { e.preventDefault(); addNote(); }
   else if (k === "KeyH") { e.preventDefault(); $("#history").hidden ? openHistory() : closeHistory(); }
+  else if (k === "KeyT") { e.preventDefault(); openDay(todayISO()); }
+  else if (k === "Slash") { e.preventDefault(); $("#keys-dialog").showModal(); }
 });
 window.addEventListener("hashchange", () => {
   const d = location.hash.slice(1) || todayISO();

@@ -16,6 +16,7 @@
       </div>
       <button class="nav-item today-btn" id="go-today">✎ Today</button>
       <a class="nav-item todo-link js-todo" href="http://localhost:1242" target="_blank" rel="noopener">☑ To-do list <span class="ext">↗</span></a>
+      <button class="nav-item" id="show-keys">⌨ Shortcuts <span class="ext">Alt /</span></button>
       <div class="side-head">Entries</div>
       <nav class="entries" id="entries"></nav>
     </aside>
@@ -80,6 +81,31 @@
       <div class="history-list" id="history-list"></div>
     </aside>
   </div>
+
+  <dialog id="keys-dialog" class="keys">
+    <form method="dialog">
+      <h2>Keyboard shortcuts</h2>
+      <dl>
+        <dt><kbd>Alt</kbd> <kbd>N</kbd></dt><dd>New note</dd>
+        <dt><kbd>Alt</kbd> <kbd>H</kbd></dt><dd>Open or close version history</dd>
+        <dt><kbd>Alt</kbd> <kbd>←</kbd> <kbd>→</kbd></dt><dd>Previous / next day</dd>
+        <dt><kbd>Alt</kbd> <kbd>T</kbd></dt><dd>Go to today</dd>
+        <dt><kbd>Esc</kbd></dt><dd>Close version history</dd>
+        <dt><kbd>Enter</kbd></dt><dd>Finishes a line — any to-do on it goes to the to-do list</dd>
+        <dt><kbd>Alt</kbd> <kbd>/</kbd> <span class="or">or</span> <kbd>?</kbd></dt><dd>Show this list</dd>
+      </dl>
+      <p class="keys-note">On a Mac, <kbd>Alt</kbd> is <kbd>⌥ Option</kbd>.</p>
+      <h3>Writing to-dos</h3>
+      <dl>
+        <dt><code>- [ ] call mom</code></dt><dd>A to-do</dd>
+        <dt><code>- [x] call mom</code></dt><dd>Marks it done</dd>
+        <dt><code>todo: …</code></dt><dd>A to-do</dd>
+        <dt><code>need to …</code></dt><dd>Also: have to, remember to, gotta, don't forget to</dd>
+        <dt><code>#print</code> · <code>!</code> · <code>friday</code></dt><dd>Project, urgent, due date</dd>
+      </dl>
+      <div class="keys-actions"><button class="btn primary">Done</button></div>
+    </form>
+  </dialog>
 
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
   <script src="app.js"></script>

@@ -16,6 +16,7 @@
       </div>
       <nav class="views" id="views"></nav>
       <a class="nav-item diary-link" id="diary-link" href="http://localhost:3030" target="_blank" rel="noopener"><span class="nav-icon">📔</span><span class="name">Diary</span><span class="count">↗</span></a>
+      <button class="nav-item" id="show-keys"><span class="nav-icon">⌨</span><span class="name">Shortcuts</span><span class="count">?</span></button>
       <div class="side-head" data-pdrop="root" title="Drop a project here to move it to the top level">
         <span>Projects</span>
         <button class="icon-btn" id="new-project" title="New project" aria-label="New project">+</button>
@@ -87,6 +88,27 @@
         <button type="submit" class="btn primary" id="pd-save">Save</button>
       </div>
       <p class="confirm-note" id="pd-confirm" hidden></p>
+    </form>
+  </dialog>
+
+  <dialog id="keys-dialog" class="keys">
+    <form method="dialog">
+      <h2>Keyboard shortcuts</h2>
+      <dl>
+        <dt><kbd>N</kbd></dt><dd>New task</dd>
+        <dt><kbd>/</kbd></dt><dd>Filter tasks</dd>
+        <dt><kbd>Esc</kbd></dt><dd>Close the task editor, or cancel a drag</dd>
+        <dt><kbd>Enter</kbd></dt><dd>Add the task / save a title</dd>
+        <dt><kbd>Ctrl</kbd> <kbd>Enter</kbd> <span class="or">or</span> <kbd>⌘</kbd> <kbd>Enter</kbd></dt><dd>Add everything in Free-form notes</dd>
+        <dt><kbd>?</kbd></dt><dd>Show this list</dd>
+      </dl>
+      <h3>In free-form notes</h3>
+      <dl>
+        <dt><code>#print</code></dt><dd>File it in a project by name</dd>
+        <dt><code>!</code> · <code>urgent</code></dt><dd>Mark it Urgent</dd>
+        <dt><code>today</code> · <code>friday</code> · <code>11/20</code></dt><dd>Set the due date</dd>
+      </dl>
+      <div class="dialog-actions"><span class="spacer"></span><button class="btn primary">Done</button></div>
     </form>
   </dialog>
 

@@ -189,6 +189,24 @@ h2 { margin: 0; font-size: 13px; font-weight: 600; letter-spacing: .04em; text-t
 .due.overdue { color: var(--urgent); font-weight: 600; }
 .due.today { color: var(--todo); font-weight: 600; }
 
+/* keyboard shortcuts */
+dialog.keys { border: 1px solid var(--line); border-radius: 16px; padding: 0; width: min(500px, calc(100vw - 32px)); background: var(--panel); color: var(--text); box-shadow: var(--shadow); }
+dialog.keys::backdrop { background: rgba(20, 14, 8, 0.45); backdrop-filter: blur(2px); }
+.keys form { padding: 22px; display: grid; gap: 12px; }
+.keys h2 { font-size: 18px; letter-spacing: 0; text-transform: none; color: var(--text); }
+.keys h3 { margin: 6px 0 0; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.keys dl { display: grid; grid-template-columns: auto 1fr; gap: 8px 16px; margin: 0; align-items: baseline; }
+.keys dt { white-space: nowrap; }
+.keys dd { margin: 0; color: var(--muted); font-size: 14px; }
+.keys code { font-size: 13px; background: var(--hover); padding: 1px 5px; border-radius: 4px; }
+.keys .or { font-size: 12px; color: var(--faint); }
+.keys-note { margin: 0; font-size: 12.5px; color: var(--faint); }
+.keys-actions { display: flex; justify-content: flex-end; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+kbd { display: inline-block; min-width: 24px; text-align: center; padding: 1px 7px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 6px; background: var(--bg); font: 600 12.5px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace; }
+#show-keys .ext { font-size: 12px; }
+@media (max-width: 520px) { .keys dl { grid-template-columns: 1fr; gap: 2px; } .keys dd { margin-bottom: 8px; } }
+
 .toast {
   position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); max-width: calc(100vw - 32px);
   background: var(--text); color: var(--bg); padding: 10px 14px; border-radius: 10px; box-shadow: var(--shadow); font-size: 14px; z-index: 10;

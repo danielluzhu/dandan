@@ -33,7 +33,8 @@ A to-do list app on port **1242** — tasks, projects, and labels.
   *home* / *chores* project, say), creating the project if there isn't one. `#print` picks a
   project by name; `!`, “urgent” or “asap” marks it Urgent; today / tomorrow / friday / this
   weekend / next week / 11/20 set the due date. Cmd/Ctrl+Enter adds them.
-- Keys: `N` new task, `/` filter, `Esc` close the editor.
+- Keys: `N` new task, `/` filter, `Esc` close the editor, `?` (or ⌨ Shortcuts in the sidebar)
+  lists every shortcut.
 
 ```bash
 bun run start    # http://localhost:1242

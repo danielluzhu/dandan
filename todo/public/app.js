@@ -911,6 +911,7 @@ $("#dump-text").addEventListener("input", () => { clearTimeout(dumpTimer); dumpT
 $("#dump-text").addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); submitDump(); } });
 $("#dump-add").addEventListener("click", submitDump);
 
+$("#show-keys").addEventListener("click", () => $("#keys-dialog").showModal());
 $("#search").addEventListener("input", (e) => { state.query = e.target.value; renderList(); });
 $("#menu").addEventListener("click", () => $("#sidebar").classList.toggle("show"));
 $("#new-project").addEventListener("click", () => openProjectDialog(null));
@@ -1193,6 +1194,7 @@ document.addEventListener("keydown", (e) => {
   if (typing || e.metaKey || e.ctrlKey || e.altKey) return;
   if (e.key === "n") { e.preventDefault(); $("#new-title").focus(); }
   else if (e.key === "/") { e.preventDefault(); $("#search").focus(); }
+  else if (e.key === "?") { e.preventDefault(); $("#keys-dialog").showModal(); }
   else if (e.key === "Escape" && state.openId != null) closeEditor();
 });
 
