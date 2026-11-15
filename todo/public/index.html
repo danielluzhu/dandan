@@ -10,12 +10,11 @@
 <body>
   <div class="app">
     <aside class="sidebar" id="sidebar">
-      <div class="brand">
-        <span class="brand-mark" aria-hidden="true"></span>
-        <span>Todo</span>
-      </div>
+      <nav class="app-switch" aria-label="Switch app">
+        <a class="js-daily" href="http://localhost:3030"><span class="mark daily" aria-hidden="true"></span>Daily</a>
+        <a class="js-todo" href="http://localhost:1242" aria-current="page"><span class="mark todo" aria-hidden="true"></span>To-do</a>
+      </nav>
       <nav class="views" id="views"></nav>
-      <a class="nav-item diary-link" id="diary-link" href="http://localhost:3030" target="_blank" rel="noopener"><span class="nav-icon">📔</span><span class="name">Daily</span><span class="count">↗</span></a>
       <button class="nav-item" id="show-keys"><span class="nav-icon">⌨</span><span class="name">Shortcuts</span><span class="count">?</span></button>
       <div class="side-head" data-pdrop="root" title="Drop a project here to move it to the top level">
         <span>Projects</span>
@@ -32,6 +31,7 @@
           <p id="view-desc" class="view-desc"></p>
         </div>
         <div class="head-actions" id="head-actions"></div>
+        <a class="app-hop js-daily" href="http://localhost:3030"><span class="mark daily" aria-hidden="true"></span>Daily</a>
       </header>
 
       <form class="composer" id="composer" autocomplete="off">
@@ -100,6 +100,7 @@
         <dt><kbd>Esc</kbd></dt><dd>Close the task editor, or cancel a drag</dd>
         <dt><kbd>Enter</kbd></dt><dd>Add the task / save a title</dd>
         <dt><kbd>Ctrl</kbd> <kbd>Enter</kbd> <span class="or">or</span> <kbd>⌘</kbd> <kbd>Enter</kbd></dt><dd>Add everything in Free-form notes</dd>
+        <dt><kbd>D</kbd></dt><dd>Go to Daily</dd>
         <dt><kbd>?</kbd></dt><dd>Show this list</dd>
       </dl>
       <h3>In free-form notes</h3>

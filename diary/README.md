@@ -25,6 +25,8 @@ Remember to / have to / gotta / don't forget to …
   other fold into one — shown as what changed (added words green, removed red). Filter to one
   note, and restore any version. Deleting a note keeps it in history, so it can be restored.
 - Notes show when they were written and when they were last edited.
+- The Daily ⇄ To-do switch at the top of the sidebar (or Alt+D) goes to the to-do list in the
+  same tab.
 - Alt+← / Alt+→ move between days, Alt+T goes to today. ⌨ Shortcuts in the sidebar (or
   Alt+/, or `?` outside a note) lists every shortcut.
 

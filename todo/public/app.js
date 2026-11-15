@@ -1194,15 +1194,21 @@ document.addEventListener("keydown", (e) => {
   if (typing || e.metaKey || e.ctrlKey || e.altKey) return;
   if (e.key === "n") { e.preventDefault(); $("#new-title").focus(); }
   else if (e.key === "/") { e.preventDefault(); $("#search").focus(); }
+  else if (e.key === "d") { e.preventDefault(); location.href = siteUrl(3030); }
   else if (e.key === "?") { e.preventDefault(); $("#keys-dialog").showModal(); }
   else if (e.key === "Escape" && state.openId != null) closeEditor();
 });
 
-/* Daily, the diary (port 3030), adds to-dos here; the proxy exposes it as <host>-3030.another.ac. */
-{
-  const m = location.hostname.match(/^(.*)-(\d+)\.(.+)$/);
-  $("#diary-link").href = m ? `${location.protocol}//${m[1]}-3030.${m[3]}` : `${location.protocol}//${location.hostname}:3030`;
+/* Daily (port 3030) and the to-do list (port 1242) are one click apart. The proxy exposes
+   each port as <host>-<port>.another.ac; locally it's just the port. */
+function siteUrl(port) {
+  const { hostname, protocol } = location;
+  const m = hostname.match(/^(.*)-(\d+)\.(.+)$/);
+  if (m) return `${protocol}//${m[1]}-${port}.${m[3]}`;
+  return `${protocol}//${hostname}:${port}`;
 }
+for (const a of document.querySelectorAll(".js-daily")) a.href = siteUrl(3030);
+for (const a of document.querySelectorAll(".js-todo")) a.href = siteUrl(1242);
 
 /* ---------- boot ---------- */
 const initial = location.hash.slice(1);

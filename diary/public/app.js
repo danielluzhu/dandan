@@ -36,15 +36,17 @@ function toast(msg) {
   toastTimer = setTimeout(() => (t.hidden = true), 3500);
 }
 
-/* The to-do list runs on port 1242, which the proxy exposes as <host>-1242.another.ac. */
+/* Daily (port 3030) and the to-do list (port 1242) are one click apart. The proxy exposes
+   each port as <host>-<port>.another.ac; locally it's just the port. */
 function siteUrl(port) {
   const { hostname, protocol } = location;
   const m = hostname.match(/^(.*)-(\d+)\.(.+)$/);
   if (m) return `${protocol}//${m[1]}-${port}.${m[3]}`;
   return `${protocol}//${hostname}:${port}`;
 }
+for (const a of document.querySelectorAll(".js-daily")) a.href = siteUrl(3030);
+for (const a of document.querySelectorAll(".js-todo")) a.href = siteUrl(1242);
 const TODO_URL = siteUrl(1242);
-for (const a of document.querySelectorAll(".js-todo")) a.href = TODO_URL;
 
 /* ---------- dates & times ---------- */
 const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -467,6 +469,7 @@ document.addEventListener("keydown", (e) => {
   else if (e.key === "ArrowRight") { e.preventDefault(); openDay(shift(state.date, 1)); }
   else if (k === "KeyN") { e.preventDefault(); addNote(); }
   else if (k === "KeyH") { e.preventDefault(); $("#history").hidden ? openHistory() : closeHistory(); }
+  else if (k === "KeyD") { e.preventDefault(); location.href = TODO_URL; }
   else if (k === "KeyT") { e.preventDefault(); openDay(todayISO()); }
   else if (k === "Slash") { e.preventDefault(); $("#keys-dialog").showModal(); }
 });

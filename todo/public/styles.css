@@ -92,6 +92,19 @@ button { cursor: pointer; }
 }
 .icon-btn:hover { background: var(--hover); color: var(--text); }
 
+/* Daily ⇄ To-do: the two apps, one click apart */
+.app-switch { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; padding: 3px; margin: 0 4px 18px; border-radius: 11px; background: var(--hover); border: 1px solid var(--line); }
+.app-switch a { display: flex; align-items: center; justify-content: center; gap: 7px; padding: 7px 6px; border-radius: 8px; text-decoration: none; color: var(--muted); font-weight: 600; font-size: 14px; }
+.app-switch a:hover { color: var(--text); background: var(--hover); }
+.app-switch a[aria-current="page"] { background: var(--panel); color: var(--text); box-shadow: 0 1px 2px rgba(0,0,0,.08); cursor: default; }
+.mark { width: 16px; height: 16px; border-radius: 5px; flex: none; display: inline-block; }
+.mark.daily { background: #b4572e; }
+.mark.todo { background: #6c5ad8; }
+.app-hop { display: none; }
+@media (max-width: 760px) {
+  .app-hop { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); text-decoration: none; color: var(--text); font-size: 13px; font-weight: 600; white-space: nowrap; }
+}
+
 /* ---------- main ---------- */
 .main { padding: 36px clamp(16px, 5vw, 64px) 80px; max-width: 920px; width: 100%; min-width: 0; }
 .main-head { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 20px; }
