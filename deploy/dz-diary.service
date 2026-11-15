@@ -1,4 +1,4 @@
-# The diary, kept running by systemd.
+# Daily (the diary), kept running by systemd.
 #
 #   sudo cp deploy/dz-diary.service /etc/systemd/system/
 #   sudo systemctl daemon-reload
@@ -7,7 +7,7 @@
 # Logs: journalctl -u dz-diary -f
 
 [Unit]
-Description=dz-diary — diary (port 3030)
+Description=dz-diary — Daily, the diary (port 3030)
 After=network-online.target
 Wants=network-online.target dz-todo.service
 StartLimitIntervalSec=0

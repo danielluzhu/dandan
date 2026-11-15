@@ -1198,7 +1198,7 @@ document.addEventListener("keydown", (e) => {
   else if (e.key === "Escape" && state.openId != null) closeEditor();
 });
 
-/* The diary (port 3030) adds to-dos here; the proxy exposes it as <host>-3030.another.ac. */
+/* Daily, the diary (port 3030), adds to-dos here; the proxy exposes it as <host>-3030.another.ac. */
 {
   const m = location.hostname.match(/^(.*)-(\d+)\.(.+)$/);
   $("#diary-link").href = m ? `${location.protocol}//${m[1]}-3030.${m[3]}` : `${location.protocol}//${location.hostname}:3030`;

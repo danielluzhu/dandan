@@ -169,7 +169,7 @@ async function syncOnce(date, link) {
           db.query("UPDATE links SET key = ? WHERE id = ?").run(f.key, was.id);
           l = { ...was, key: f.key };
         } else {
-          const { items } = await todoApi("POST", "capture", { text: f.text, notes: `From my diary, ${prettyDate(date)}${link ? `\n${link}` : ""}` });
+          const { items } = await todoApi("POST", "capture", { text: f.text, notes: `From Daily, ${prettyDate(date)}${link ? `\n${link}` : ""}` });
           if (!items[0]?.todo) continue;
           created.push({ title: items[0].todo.title, project: items[0].project_name });
           l = db.query("INSERT INTO links (date, key, todo_id) VALUES (?, ?, ?) RETURNING *").get(date, f.key, items[0].todo.id);
@@ -375,4 +375,4 @@ const server = Bun.serve({
   },
 });
 
-console.log(`diary listening on http://localhost:${server.port}`);
+console.log(`daily listening on http://localhost:${server.port}`);

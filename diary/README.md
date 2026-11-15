@@ -1,6 +1,6 @@
-# diary
+# Daily
 
-A daily diary on port **3030** — one page per day: a **summary** of the day with any number
+**Daily** is the diary, on port **3030** (it lives in `diary/`) — one page per day: a **summary** of the day with any number
 of **notes** inside it, each stamped with the time it was written (“+ New note”, or Alt+N).
 It saves as you type, and anything written as a to-do lands on the to-do list (`../todo`,
 port 1242), sorted into the right project the same way the to-do list's free-form notes are.

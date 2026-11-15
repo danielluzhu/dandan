@@ -242,7 +242,7 @@ async function openDay(date) {
   $("#day-sub").textContent = (days === 0 ? "Today" : days === 1 ? "Yesterday" : days === -1 ? "Tomorrow"
     : days > 0 ? `${days} days ago` : `In ${-days} days`) + " · " + d.getFullYear();
   $("#pick").value = date;
-  document.title = `${d.toLocaleDateString(undefined, { month: "short", day: "numeric" })} · Diary`;
+  document.title = `${d.toLocaleDateString(undefined, { month: "short", day: "numeric" })} · Daily`;
   $("#sidebar").classList.remove("show");
   setSaved("");
   try {
