@@ -1,69 +1,72 @@
 /* Free-form capture: turn loosely written lines ("clean toilet", "pay rent by friday!")
-   into tasks — which project each belongs in, whether it's urgent, and when it's due.
+   into tasks — which theme each falls into, whether it's urgent, and when it's due.
    Pure functions; the server decides what to do with the result. */
 
-// Each category is filed into a project: the first existing project whose name is one of
-// `projects`, or a new one named after the first entry. Words match whole words, so "bin"
-// doesn't fire on "cabinet"; a trailing * matches any ending ("clean*" → cleaning, cleaned).
-export const CATEGORIES = [
+// Themes are the biggest projects: every task and Daily note falls into one by its words.
+// These are the starting four, each with starting keywords; both are editable in the app.
+// Keywords match whole words, so "bin" doesn't fire on "cabinet"; a trailing * matches any
+// ending ("clean*" → cleaning, cleaned); a phrase matches as written ("pick up").
+export const DEFAULT_THEMES = [
   {
-    key: "domestic", projects: ["domestic", "home", "household", "chores"],
-    words: ["clean*", "toilet*", "bathroom*", "kitchen", "laundry", "wash*", "dish*", "dishwasher", "vacuum*",
+    name: "Work", color: "#3b82f6", description: "",
+    aliases: ["work"],
+    keywords: ["work", "job", "office", "meeting*", "deck", "slides", "report", "deploy", "review", "pr", "bug*",
+      "standup", "1:1", "email*", "draft", "proposal", "deadline", "client*", "spec", "ticket", "interview*",
+      "pitch", "launch", "ship", "investor*", "startup", "project plan", "hire", "hiring", "manager", "boss", "coworker*"],
+  },
+  {
+    name: "Health", color: "#16a34a", description: "",
+    aliases: ["health", "fitness"],
+    keywords: ["doctor", "dentist", "gym", "workout", "work out", "run", "running", "yoga", "meds", "medicine",
+      "prescription", "appointment", "therapy", "therapist", "vitamins", "checkup", "physio", "stretch*",
+      "sleep*", "slept", "walk", "hike", "jetlag", "jet lag", "sick", "tired", "dizz*", "headache", "meditat*",
+      "diet", "protein", "water intake", "steps", "weight"],
+  },
+  {
+    name: "Social", color: "#ca8a04", description: "",
+    aliases: ["social", "friends", "people"],
+    keywords: ["friend*", "party", "parties", "call", "text", "birthday", "gift", "invite", "rsvp", "dinner with",
+      "lunch with", "coffee with", "drinks", "hangout", "hang out", "catch up", "thank", "card for", "visit",
+      "mahjong", "game night", "date", "wedding", "event", "highballs", "book", "flight*", "hotel*", "airbnb",
+      "pack", "packing", "trip", "travel*", "passport", "visa", "itinerary", "check in"],
+  },
+  {
+    name: "Domestic", color: "#ea580c", description: "Family and home",
+    aliases: ["domestic", "home", "household", "chores", "family"],
+    keywords: ["clean*", "toilet*", "bathroom*", "kitchen", "laundry", "wash*", "dish*", "dishwasher", "vacuum*",
       "mop*", "sweep*", "dust*", "tidy", "tidying", "declutter*", "trash", "garbage", "recycling", "compost",
       "bin", "bins", "litter", "sheets", "bedding", "bed", "towels", "fold*", "iron*", "fridge", "freezer",
       "oven", "stove", "sink", "shower", "tub", "floor*", "window*", "plants", "water the plants", "cook*",
       "meal prep", "closet", "lightbulb*", "light bulb*", "filter", "chore*", "scrub*", "wipe*", "laundromat",
-      "feeder", "fountain", "cat food", "kitty", "kittens", "couch", "sofa", "rug", "carpet", "mattress",
-      "hang", "lawn", "yard", "garden*", "weed*", "repair*", "fix the", "leak*", "plumber", "handyman"],
-  },
-  {
-    key: "errands", projects: ["errands", "shopping"],
-    words: ["errand*", "buy", "pick up", "pickup", "drop off", "groceries", "grocery", "pharmacy", "post office",
-      "mail", "ship", "return", "costco", "target", "trader joe*", "safeway", "store", "shop", "order",
-      "amazon", "dry clean*", "car wash", "oil change", "dmv", "refill", "renew"],
-  },
-  {
-    key: "health", projects: ["health", "fitness"],
-    words: ["doctor", "dentist", "gym", "workout", "work out", "run", "running", "yoga", "meds", "medicine",
-      "prescription", "appointment", "therapy", "therapist", "vitamins", "checkup", "physio", "stretch*",
-      "sleep", "walk", "hike"],
-  },
-  {
-    key: "finance", projects: ["finance", "money", "admin"],
-    words: ["pay", "bill*", "rent", "tax*", "invoice*", "bank", "budget", "venmo", "zelle", "insurance",
-      "reimburse*", "refund", "subscription*", "cancel", "401k", "ira", "credit card", "expense*"],
-  },
-  {
-    key: "social", projects: ["social", "friends", "people"],
-    words: ["call", "text", "birthday", "gift", "invite", "rsvp", "dinner with", "lunch with", "coffee with",
-      "catch up", "mom", "dad", "grandma", "grandpa", "thank", "card for", "visit"],
-  },
-  {
-    key: "travel", projects: ["travel", "trips"],
-    words: ["book", "flight*", "hotel*", "airbnb", "pack", "packing", "trip", "passport", "visa", "itinerary", "check in"],
-  },
-  {
-    key: "work", projects: ["work"],
-    words: ["meeting", "deck", "slides", "report", "deploy", "review", "pr", "bug", "standup", "1:1",
-      "email", "draft", "proposal", "deadline", "client", "spec", "ticket", "interview", "pitch"],
+      "feeder", "fountain", "cat food", "cat", "cats", "kitty", "kitten*", "couch", "sofa", "rug", "carpet", "mattress",
+      "lawn", "yard", "garden*", "weed*", "repair*", "fix the", "leak*", "plumber", "handyman",
+      "family", "mom", "dad", "parents", "grandma", "grandpa", "sister", "brother", "kids",
+      "errand*", "buy", "pick up", "drop off", "groceries", "grocery", "pharmacy", "post office", "mail",
+      "return", "costco", "target", "trader joe*", "safeway", "store", "order", "amazon", "dry clean*",
+      "car wash", "oil change", "dmv", "refill", "renew", "pay", "bill*", "rent", "tax*", "bank", "budget",
+      "insurance", "reimburse*", "refund", "subscription*", "credit card", "lamp", "furniture", "print"],
   },
 ];
+
+/* A theme's keywords as stored: one per line or comma-separated. */
+export const parseKeywords = (s) => String(s ?? "").split(/[,\n]/).map((w) => w.trim().toLowerCase()).filter(Boolean);
 
 const WEEKDAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
 
 const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const wordRe = (w) => new RegExp(`(^|[^a-z0-9])${esc(w.replace(/\*$/, "")).replace(/ /g, "\\s+")}${w.endsWith("*") ? "[a-z]*" : ""}(?=$|[^a-z0-9])`, "i");
-const CATEGORY_RES = CATEGORIES.map((c) => ({ ...c, res: c.words.map(wordRe) }));
+const reCache = new Map();
+const reFor = (w) => reCache.get(w) || (reCache.set(w, wordRe(w)), reCache.get(w));
 
-/* Which category a line falls into, or null. Most matching words wins; ties go to the
-   earlier category. */
-export function categorize(text) {
+/* Which of `themes` ({ id, keywords }) a piece of writing falls into, or null. The theme with
+   the most matching keywords wins; ties go to the earlier theme. */
+export function themeFor(text, themes) {
   let best = null, bestScore = 0;
-  for (const c of CATEGORY_RES) {
-    const score = c.res.filter((re) => re.test(text)).length;
-    if (score > bestScore) { best = c; bestScore = score; }
+  for (const t of themes) {
+    const score = parseKeywords(t.keywords).filter((w) => reFor(w).test(text)).length;
+    if (score > bestScore) { best = t; bestScore = score; }
   }
-  return best ? best.key : null;
+  return best;
 }
 
 const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -95,7 +98,7 @@ function takeDue(text, today) {
   return { due: null, text };
 }
 
-/* One free-form line → { title, label, due_date, category, project } where `project` is a
+/* One free-form line → { title, label, due_date, project } where `project` is a
    project name the line asked for with #tag, if any. Returns null for a blank line. */
 export function parseLine(raw, today = new Date()) {
   let text = String(raw)
@@ -118,7 +121,7 @@ export function parseLine(raw, today = new Date()) {
   const due = takeDue(text, today);
   const title = due.text.replace(/\s{2,}/g, " ").replace(/^[\s,;:-]+|[\s,;:-]+$/g, "").trim();
   if (!title) return null;
-  return { title, label, due_date: due.due, category: categorize(title), project };
+  return { title, label, due_date: due.due, project };
 }
 
 export const parseText = (text, today) => String(text ?? "").split(/\r?\n/).map((l) => parseLine(l, today)).filter(Boolean);

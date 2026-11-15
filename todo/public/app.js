@@ -212,22 +212,41 @@ function renderSidebar() {
     urgentNav,
   );
   const hidden = new Set();  // projects inside a folded parent
+  let inTheme = false;
+  const themes = [];
   const projects = projectTree().flatMap(({ p, depth }) => {
-    if (p.parent_id != null && (hidden.has(p.parent_id) || state.pCollapsed.has(p.parent_id))) { hidden.add(p.id); return []; }
-    const subs = subProjectsOf(p.id).filter((c) => !c.archived).length;
-    const fold = subs
-      ? h("span", { class: "p-fold" + (state.pCollapsed.has(p.id) ? " folded" : ""), title: state.pCollapsed.has(p.id) ? "Show sub-projects" : "Hide sub-projects",
-          onclick: (e) => { e.stopPropagation(); toggleProjectFold(p.id); } }, "▾")
-      : h("span", { class: "p-fold none" });
-    const el = navItem("p" + p.id, h("span", { class: "nav-icon p-icon" }, fold, h("span", { class: "dot", style: `background:${p.color}` })), p.name, p.open_count);
-    el.style.paddingLeft = 10 + depth * 16 + "px";
-    el.classList.add("nav-project");
-    el.dataset.drop = "project";
-    el.dataset.project = p.id;
+    if (depth === 0) inTheme = !!p.is_theme;
+    const out = projectNav(p, depth, hidden);
+    if (inTheme) { themes.push(...out); return []; }
+    return out;
+  });
+  $("#themes").replaceChildren(...(themes.length ? themes : [h("div", { class: "side-empty" }, "No themes — add one with +")]));
+  renderProjectsNav(projects);
+}
+
+/* One project in the sidebar, then its North Stars — or nothing while its parent is folded. */
+function projectNav(p, depth, hidden) {
+  if (p.parent_id != null && (hidden.has(p.parent_id) || state.pCollapsed.has(p.parent_id))) { hidden.add(p.id); return []; }
+  const subs = subProjectsOf(p.id).filter((c) => !c.archived).length;
+  const fold = subs
+    ? h("span", { class: "p-fold" + (state.pCollapsed.has(p.id) ? " folded" : ""), title: state.pCollapsed.has(p.id) ? "Show sub-projects" : "Hide sub-projects",
+        onclick: (e) => { e.stopPropagation(); toggleProjectFold(p.id); } }, "▾")
+    : h("span", { class: "p-fold none" });
+  const el = navItem("p" + p.id, h("span", { class: "nav-icon p-icon" }, fold, h("span", { class: "dot", style: `background:${p.color}` })), p.name, p.open_count);
+  el.style.paddingLeft = 10 + depth * 16 + "px";
+  el.classList.add("nav-project");
+  el.dataset.drop = "project";
+  el.dataset.project = p.id;
+  // Themes are drop targets but stay put: they're always top level.
+  if (p.is_theme) el.classList.add("nav-theme");
+  else {
     el.addEventListener("pointerdown", (e) => pressProject(e, p, el));
     el.append(h("span", { class: "grip p-grip", "aria-hidden": "true" }, "⠿"));
-    return [el, ...starNavs(p.id).map((s) => { s.style.paddingLeft = 30 + depth * 16 + "px"; return s; })];
-  });
+  }
+  return [el, ...starNavs(p.id).map((s) => { s.style.paddingLeft = 30 + depth * 16 + "px"; return s; })];
+}
+
+function renderProjectsNav(projects) {
   const archived = archivedRoots();
   if (archived.length) {
     projects.push(h("button", {
@@ -241,7 +260,7 @@ function renderSidebar() {
         projects.push(el);
       }
   }
-  $("#projects").replaceChildren(...(projects.length ? projects : [h("div", { class: "side-empty" }, "No projects yet — add one with +")]));
+  $("#projects").replaceChildren(...(projects.length ? projects : [h("div", { class: "side-empty" }, "Projects outside a theme go here — drag one onto a theme to put it inside")]));
 }
 
 function toggleProjectFold(id) {
@@ -285,12 +304,16 @@ function renderHeader() {
     north_star: "The tasks that matter most — the ones that move the needle.",
   };
   const up = p ? ancestorsOf(p) : [];
+  const themeOf = p && (p.is_theme ? p : up.find((a) => a.is_theme));
   const archivedBy = p?.archived && (p.archived_at ? p : [...up].reverse().find((a) => a.archived_at));
   $("#view-desc").replaceChildren(
     archivedBy ? h("span", { class: "archived-note" }, "🗄 ", archivedBy === p
       ? `Archived ${new Date(p.archived_at).toLocaleDateString(undefined, { dateStyle: "medium" })} — hidden from your lists, tasks kept.`
       : `Archived along with ${archivedBy.name}.`) : "",
-    up.length ? h("span", { class: "crumb p-crumb" }, "Inside ", up.map((a, i) => [i ? " › " : "", h("a", { href: "#p" + a.id }, a.name)])) : "",
+    up.length ? h("span", { class: "crumb p-crumb" }, themeOf ? "In the " : "Inside ", up.map((a, i) => [i ? " › " : "", h("a", { href: "#p" + a.id }, a.name)]), themeOf && !p.is_theme ? " theme" : "") : "",
+    p?.is_theme ? h("span", { class: "theme-note" }, h("b", {}, "Theme"), " · tasks and Daily notes with words like ",
+      h("i", {}, (p.keywords || "").split(",").slice(0, 6).map((w) => w.trim()).filter(Boolean).join(", ") || "(none yet)"),
+      " land here. ", h("button", { class: "link-btn", onclick: () => openProjectDialog(p) }, "Edit keywords")) : "",
     p ? p.description : descs[state.view] || "");
   $("#head-actions").replaceChildren(
     ...(p?.archived ? [
@@ -299,7 +322,7 @@ function renderHeader() {
     ].filter(Boolean) : p ? [
       h("button", { class: "btn small", onclick: () => openProjectDialog(null, p.id) }, "+ Sub-project"),
       h("button", { class: "btn small", onclick: startAddSection }, "+ Subsection"),
-      h("button", { class: "btn small", onclick: () => openProjectDialog(p) }, "Edit project"),
+      h("button", { class: "btn small", onclick: () => openProjectDialog(p) }, p.is_theme ? "Edit theme" : "Edit project"),
       h("button", { class: "btn small", title: "Hide this project and its tasks from your lists", onclick: () => setArchived(p, true) }, "Archive"),
     ] : []),
   );
@@ -930,17 +953,22 @@ function renderSwatches() {
   })));
 }
 
-function openProjectDialog(p, parentId = null) {
+function openProjectDialog(p, parentId = null, theme = false) {
   editing = p;
+  $("#pd-theme").checked = p ? !!p.is_theme : theme;
+  $("#pd-keywords").value = p ? p.keywords || "" : "";
+  // Only a top-level project can become a theme.
+  $("#pd-theme").closest("label").hidden = !!(p ? p.parent_id != null && !p.is_theme : parentId != null);
+  syncThemeFields();
   const sel = $("#pd-parent");
   sel.replaceChildren(h("option", { value: "" }, "Top level"), ...projectOptions(p?.id));
   sel.value = String((p ? p.parent_id : parentId) ?? "");
   deleteArmed = false;
   pickedColor = p ? p.color : COLORS[state.projects.length % COLORS.length];
-  $("#pd-title").textContent = p ? "Edit project" : "New project";
+  $("#pd-title").textContent = p ? (p.is_theme ? "Edit theme" : "Edit project") : theme ? "New theme" : "New project";
   $("#pd-name").value = p ? p.name : "";
   $("#pd-desc").value = p ? p.description : "";
-  $("#pd-save").textContent = p ? "Save" : "Create project";
+  $("#pd-save").textContent = p ? "Save" : theme ? "Create theme" : "Create project";
   const del = $("#pd-delete");
   del.hidden = !p;
   del.textContent = "Delete project";
@@ -952,10 +980,19 @@ function openProjectDialog(p, parentId = null) {
 }
 
 $("#pd-cancel").addEventListener("click", () => dlg.close());
+function syncThemeFields() {
+  const theme = $("#pd-theme").checked;
+  $("#pd-parent-row").hidden = theme;
+  $("#pd-keywords-row").hidden = !theme;
+}
+$("#pd-theme").addEventListener("change", syncThemeFields);
+$("#new-theme").addEventListener("click", () => openProjectDialog(null, null, true));
 
 $("#project-form").addEventListener("submit", async (e) => {
   e.preventDefault();
-  const body = { name: $("#pd-name").value, description: $("#pd-desc").value, color: pickedColor, parent_id: $("#pd-parent").value || null };
+  const theme = $("#pd-theme").checked;
+  const body = { name: $("#pd-name").value, description: $("#pd-desc").value, color: pickedColor, is_theme: theme, keywords: $("#pd-keywords").value };
+  if (!theme) body.parent_id = $("#pd-parent").value || null;
   try {
     const saved = editing
       ? await api("PATCH", `projects/${editing.id}`, body)

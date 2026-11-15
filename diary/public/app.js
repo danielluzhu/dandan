@@ -84,6 +84,8 @@ const state = {
   date: DATE_RE.test(location.hash.slice(1)) ? location.hash.slice(1) : todayISO(),
   day: null,          // { summary, summary_created_at, summary_updated_at, notes: [...] }
   entries: [],
+  themes: [],         // the to-do list's themes, which notes fall into
+  themeFilter: null,  // theme id the sidebar's entries are narrowed to
   historyFor: null,   // null = whole day, "summary", or a note id
 };
 
@@ -176,8 +178,21 @@ function noteEl(note) {
   el.value = note.body;
   const time = h("time", { class: "note-time" });
   const meta = h("span", { class: "note-meta" });
+  const pick = h("select", { class: "theme-pick", "aria-label": "Theme", title: "Which theme this note falls into",
+    onchange: (e) => setNoteTheme(t, e.target.value) });
   const t = bind({ kind: "note", note, el });
   t.stamp = () => {
+    // Theme: worked out from the words ("Auto") until you pick one.
+    const theme = themeById(note.theme_id);
+    pick.replaceChildren(
+      h("option", { value: "auto" }, note.theme_auto && theme ? `✨ ${theme.name}` : "✨ Auto"),
+      ...state.themes.map((th) => h("option", { value: th.id }, th.name)),
+      h("option", { value: "none" }, "No theme"));
+    pick.value = note.theme_auto ? "auto" : note.theme_id == null ? "none" : String(note.theme_id);
+    pick.disabled = note.id == null;
+    pick.title = note.theme_auto ? "Picked from the note's words — choose one to set it yourself" : "Chosen by you — ✨ Auto to let the words decide";
+    card.style.setProperty("--theme", theme?.color || "var(--faint)");
+    card.classList.toggle("themed", !!theme);
     time.textContent = note.created_at ? clock(note.created_at) : "Now";
     time.title = note.created_at ? new Date(note.created_at).toLocaleString() : "Not saved yet";
     meta.textContent = note.created_at && edited(note.created_at, note.updated_at) ? `edited ${when(note.updated_at)}` : "";
@@ -186,12 +201,27 @@ function noteEl(note) {
   const card = h("article", { class: "note" },
     h("div", { class: "note-rail" }, time),
     h("div", { class: "note-body" }, el,
-      h("div", { class: "note-foot" }, meta, h("span", { class: "spacer" }),
+      h("div", { class: "note-foot" }, h("span", { class: "theme-wrap" }, h("span", { class: "theme-dot" }), pick), meta, h("span", { class: "spacer" }),
         h("button", { class: "link-btn", onclick: () => { if (note.id != null) openHistory(note.id); } }, "History"),
         h("button", { class: "link-btn danger", onclick: () => deleteNote(t, card) }, "Delete"))));
   t.stamp();
   requestAnimationFrame(() => grow(el));
   return card;
+}
+
+const themeById = (id) => state.themes.find((t) => t.id === id) || null;
+
+async function setNoteTheme(t, value) {
+  try {
+    const { note } = await api("PATCH", `notes/${t.note.id}`, value === "auto" ? { auto: true } : { theme_id: value === "none" ? null : Number(value) });
+    Object.assign(t.note, note);
+    t.stamp();
+    loadEntries();
+  } catch (err) { toast(err.message); }
+}
+
+async function loadThemes() {
+  try { state.themes = await api("GET", "themes"); } catch { state.themes = []; }
 }
 
 function renderDay() {
@@ -267,7 +297,16 @@ async function loadEntries() {
 function renderEntries() {
   const nodes = [];
   let month = null;
+  // Narrow the list to one theme's days.
+  const used = new Set(state.entries.flatMap((e) => (e.themes || "").split(",").filter(Boolean).map(Number)));
+  const chips = state.themes.filter((t) => used.has(t.id));
+  if (chips.length) nodes.push(h("div", { class: "theme-filter" },
+    h("button", { class: "chip-btn" + (state.themeFilter == null ? " on" : ""), onclick: () => { state.themeFilter = null; renderEntries(); } }, "All"),
+    chips.map((t) => h("button", { class: "chip-btn" + (state.themeFilter === t.id ? " on" : ""), onclick: () => { state.themeFilter = state.themeFilter === t.id ? null : t.id; renderEntries(); } },
+      h("span", { class: "dot", style: `background:${t.color}` }), t.name))));
   for (const e of state.entries) {
+    const themes = (e.themes || "").split(",").filter(Boolean).map(Number);
+    if (state.themeFilter != null && !themes.includes(state.themeFilter)) continue;
     const d = parse(e.date);
     const m = d.toLocaleDateString(undefined, { month: "long", year: "numeric" });
     if (m !== month) { nodes.push(h("div", { class: "month" }, m)); month = m; }
@@ -275,7 +314,8 @@ function renderEntries() {
       class: "entry-link" + (e.date === state.date ? " active" : ""), href: "#" + e.date,
       onclick: (ev) => { ev.preventDefault(); openDay(e.date); },
     }, h("span", { class: "d" }, d.toLocaleDateString(undefined, { weekday: "short", day: "numeric" }),
-        e.note_count > 1 && h("span", { class: "n" }, `${e.note_count} notes`)),
+        e.note_count > 1 && h("span", { class: "n" }, `${e.note_count} notes`),
+        h("span", { class: "dots" }, themes.map((id) => themeById(id)).filter(Boolean).map((t) => h("span", { class: "dot", title: t.name, style: `background:${t.color}` })))),
       h("span", { class: "s" }, (e.snippet || "").replace(/\s+/g, " "))));
   }
   $("#entries").replaceChildren(...(nodes.length ? nodes : [h("div", { class: "side-empty" }, "Nothing written yet.")]));
@@ -481,5 +521,5 @@ window.addEventListener("resize", () => document.querySelectorAll("textarea").fo
 
 const start = state.date;
 state.date = null;
-openDay(start).then(() => { if (start === todayISO()) [...document.querySelectorAll("#notes textarea")].at(-1)?.focus(); });
+loadThemes().then(() => openDay(start)).then(() => { if (start === todayISO()) [...document.querySelectorAll("#notes textarea")].at(-1)?.focus(); });
 loadEntries();

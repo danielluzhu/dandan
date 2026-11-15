@@ -3,6 +3,12 @@
 A to-do list app on port **1242** — tasks, projects, and labels.
 
 - **Tasks**: create, edit (title, notes, label, project, due date), complete, delete (with undo).
+- **Themes** are the biggest projects — the areas of life everything falls into. They start as
+  **Work**, **Health**, **Social** and **Domestic** (family and home), sit at the top of the
+  sidebar, and are always top level; drag projects onto a theme to put them inside. Each theme
+  has **keywords** (edit them with *Edit theme*, or make any top-level project a theme with
+  the *Theme* box): free-form notes and Daily file each task into the theme whose keywords it
+  matches most. “+” beside *Themes* adds one; unticking *Theme* makes it a plain project again.
 - **Projects**: create, edit (name, description, color), delete — deleting a project deletes its tasks.
 - **Sub-projects**: projects nest, any depth. Drag project A onto project B in the sidebar (or onto
   a sub-project card) and A goes inside B; drop it on the *Projects* heading to bring it back to the
@@ -27,12 +33,12 @@ A to-do list app on port **1242** — tasks, projects, and labels.
   **Unarchive** it. Free-form notes and Daily never file into an archived project.
 - Tasks without a project live in the **Inbox**.
 - **Free-form notes**: write anything, one task per line, and each line is sorted for you before
-  it's added (the preview shows where each will land). `capture.js` reads the category from the
-  words — “clean toilet” is a **domestic** task, “pay rent” finance, “call mom” social, “book
-  flights” travel, and so on — and files it in that category's project (an existing *domestic* /
-  *home* / *chores* project, say), creating the project if there isn't one. `#print` picks a
+  it's added (the preview shows where each will land). `capture.js` reads the theme from the words
+  — “clean toilet” is **Domestic**, “gym tomorrow” Health, “call Jenny” Social, “fix the deploy
+  bug” Work — using each theme's keywords. `#print` picks a
   project by name; `!`, “urgent” or “asap” marks it Urgent; today / tomorrow / friday / this
-  weekend / next week / 11/20 set the due date. Cmd/Ctrl+Enter adds them.
+  weekend / next week / 11/20 set the due date. Cmd/Ctrl+Enter adds them. A line that matches
+  no theme goes to the Inbox.
 - **Daily ⇄ To-do**: the switch at the top of the sidebar (or `D`) goes to Daily, the diary on
   port 3030, in the same tab; Daily has the same switch back.
 - Keys: `N` new task, `/` filter, `Esc` close the editor, `?` (or ⌨ Shortcuts in the sidebar)
@@ -58,7 +64,9 @@ sudo systemctl daemon-reload && sudo systemctl enable --now dz-todo
 | GET, PATCH, DELETE | `/api/projects/:id` | PATCH also takes `{archived}`; projects carry `archived` (1 if it or a parent is archived) |
 | GET, POST | `/api/todos` | list / create `{title, notes?, label?, project_id?, section_id?, parent_id?, due_date?}` |
 | GET, PATCH, DELETE | `/api/todos/:id` | PATCH also takes `{done}` |
-| POST | `/api/capture` | free-form `{text, notes?, dry?}` → `{items}`; one task per line, `dry` only previews |
+| POST | `/api/capture` | free-form `{text, notes?, default_project_id?, dry?}` → `{items}`; one task per line, `dry` only previews |
+| GET | `/api/themes` | the active themes, with their keywords |
+| POST | `/api/classify` | `{text}` → `{theme}`: which theme some writing falls into |
 | GET, POST | `/api/sections` | list / create `{project_id, name}` |
 | PATCH, DELETE | `/api/sections/:id` | `{name}`, `{collapsed}`, or `{move: -1 \| 1}` |
 
