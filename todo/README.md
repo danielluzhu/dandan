@@ -31,7 +31,7 @@ A to-do list app on port **1242** — tasks, projects, and labels.
   **Unarchive** it. Free-form notes and Daily never file into an archived project.
 - Tasks without a project live in the **Inbox**.
 - **Free-form notes**: write anything, one task per line, and each line is sorted for you before
-  it's added (the preview shows where each will land). `capture.js` reads the theme from the words
+  it's added (the preview shows where each will land). `capture.js` reads the project from the words
   — “clean toilet” is **Domestic**, “gym tomorrow” Health, “call Jenny” Social, “fix the deploy
   bug” Work — using each project's keywords. `#print` picks a
   project by name; `!`, “urgent” or “asap” marks it Urgent; today / tomorrow / friday / this
