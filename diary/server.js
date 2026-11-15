@@ -182,7 +182,8 @@ async function api(req, url) {
     if (!DATE_RE.test(today || "")) throw new BadRequest("Pass ?today=YYYY-MM-DD");
     try {
       const state = await todoApi("GET", "state");
-      const todos = state.todos.filter((t) => !t.done && t.due_date && t.due_date <= today).sort((a, b) => a.due_date.localeCompare(b.due_date));
+      const archived = new Set(state.projects.filter((p) => p.archived).map((p) => p.id));
+      const todos = state.todos.filter((t) => !t.done && t.due_date && t.due_date <= today && !archived.has(t.project_id)).sort((a, b) => a.due_date.localeCompare(b.due_date));
       return json({ todos, projects: state.projects });
     } catch (err) { return json({ todos: [], projects: [], error: `Couldn't reach the to-do list: ${err.message}` }); }
   }

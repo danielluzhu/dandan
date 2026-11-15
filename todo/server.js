@@ -45,6 +45,9 @@ if (!db.query("SELECT 1 FROM pragma_table_info('todos') WHERE name = 'parent_id'
 // Projects nest: a project can live inside another, any depth deep.
 if (!db.query("SELECT 1 FROM pragma_table_info('projects') WHERE name = 'parent_id'").get())
   db.exec("ALTER TABLE projects ADD COLUMN parent_id INTEGER REFERENCES projects(id) ON DELETE SET NULL");
+// Archived projects (and everything inside them) drop out of the lists but keep their tasks.
+if (!db.query("SELECT 1 FROM pragma_table_info('projects') WHERE name = 'archived_at'").get())
+  db.exec("ALTER TABLE projects ADD COLUMN archived_at TEXT");
 
 const LABELS = new Set(["urgent", "north_star", null]);
 
@@ -115,6 +118,7 @@ function cleanProject(body, partial, id = null) {
     }
     out.parent_id = pid;
   }
+  if ("archived" in body) out.archived_at = body.archived ? new Date().toISOString() : null;
   return out;
 }
 
@@ -195,9 +199,14 @@ function update(table, id, fields) {
   return db.query(sql).get(...keys.map((k) => fields[k]), id);
 }
 
+// `archived` is 1 when the project or any project it sits inside is archived.
 const listProjects = () =>
   db.query(`
-    SELECT p.*,
+    WITH RECURSIVE arch(id) AS (
+      SELECT id FROM projects WHERE archived_at IS NOT NULL
+      UNION SELECT p.id FROM projects p JOIN arch a ON p.parent_id = a.id
+    )
+    SELECT p.*, p.id IN (SELECT id FROM arch) AS archived,
       (SELECT COUNT(*) FROM todos t WHERE t.project_id = p.id AND t.done = 0) AS open_count,
       (SELECT COUNT(*) FROM todos t WHERE t.project_id = p.id) AS total_count
     FROM projects p ORDER BY p.created_at, p.id`).all();
@@ -213,7 +222,8 @@ function capture(body) {
   const items = parseText(body.text);
   if (items.length > 100) throw new BadRequest("That's more than 100 lines — split it up");
   const notes = String(body.notes ?? "").slice(0, 10000);
-  const projects = db.query("SELECT id, name FROM projects").all();
+  // Never file into an archived project; an active one of the same name (or a new one) instead.
+  const projects = listProjects().filter((p) => !p.archived).map(({ id, name }) => ({ id, name }));
   const find = (names) => {
     for (const n of names) {
       const p = projects.find((x) => x.name.trim().toLowerCase() === n.toLowerCase());

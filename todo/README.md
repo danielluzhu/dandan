@@ -21,6 +21,10 @@ A to-do list app on port **1242** — tasks, projects, and labels.
 - Drag a task between the North Star, Urgent and Unlabeled sections (or onto North Star / Urgent in
   the sidebar) to relabel it. While dragging, each subsection header shows North Star / Urgent /
   Unlabeled targets, so one drop can move a task to another subsection and relabel it. Mouse drags from anywhere on the row; touch drags from the ⠿ grip.
+- **Archive** a project (button on its page) to put it away: it and its sub-projects leave the
+  sidebar, the project pickers and every task list and count, but nothing is deleted. Archived
+  projects sit under *Archived* at the bottom of the sidebar; open one to see its tasks or
+  **Unarchive** it. Free-form notes and the diary never file into an archived project.
 - Tasks without a project live in the **Inbox**.
 - **Free-form notes**: write anything, one task per line, and each line is sorted for you before
   it's added (the preview shows where each will land). `capture.js` reads the category from the
@@ -48,7 +52,7 @@ sudo systemctl daemon-reload && sudo systemctl enable --now dz-todo
 |---|---|---|
 | GET | `/api/state` | all projects (with open/total counts) and todos |
 | GET, POST | `/api/projects` | list / create `{name, description?, color?, parent_id?}` |
-| GET, PATCH, DELETE | `/api/projects/:id` | |
+| GET, PATCH, DELETE | `/api/projects/:id` | PATCH also takes `{archived}`; projects carry `archived` (1 if it or a parent is archived) |
 | GET, POST | `/api/todos` | list / create `{title, notes?, label?, project_id?, section_id?, parent_id?, due_date?}` |
 | GET, PATCH, DELETE | `/api/todos/:id` | PATCH also takes `{done}` |
 | POST | `/api/capture` | free-form `{text, notes?, dry?}` → `{items}`; one task per line, `dry` only previews |

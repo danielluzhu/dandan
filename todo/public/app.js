@@ -22,6 +22,7 @@ const state = {
   quickAdd: null,       // "s<id>" (subsection) or "n<id>" (North Star) with an inline add-task box open
   nsCollapsed: new Set(readCollapsed()),  // North Stars whose tasks are folded away
   pCollapsed: new Set(readCollapsed("todo.pCollapsed")),  // projects whose sub-projects are folded in the sidebar
+  showArchived: readCollapsed("todo.showArchived") === true,  // the sidebar's Archived list is open
 };
 
 function readCollapsed(key = "todo.nsCollapsed") {
@@ -31,6 +32,7 @@ function saveCollapsed() {
   try {
     localStorage.setItem("todo.nsCollapsed", JSON.stringify([...state.nsCollapsed]));
     localStorage.setItem("todo.pCollapsed", JSON.stringify([...state.pCollapsed]));
+    localStorage.setItem("todo.showArchived", JSON.stringify(state.showArchived));
   } catch {}
 }
 
@@ -78,12 +80,13 @@ const sectionById = (id) => state.sections.find((s) => s.id === id);
 const sectionsOf = (projectId) => state.sections.filter((s) => s.project_id === projectId);
 const currentProject = () => (state.view.startsWith("p") ? projectById(Number(state.view.slice(1))) : null);
 const subProjectsOf = (id) => state.projects.filter((p) => (p.parent_id ?? null) === id);
-// Every project in sidebar order — each one followed by its sub-projects — with its depth.
-// A project whose parent is missing is treated as top-level.
+// Every active project in sidebar order — each one followed by its sub-projects — with its
+// depth. A project whose parent is missing is treated as top-level. `archived` is 1 for an
+// archived project and everything inside one (the server works that out); they're left out.
 function projectTree(skip = null) {
   const out = [];
   const walk = (p, depth) => {
-    if (p.id === skip) return;
+    if (p.id === skip || p.archived) return;
     out.push({ p, depth });
     subProjectsOf(p.id).forEach((c) => walk(c, depth + 1));
   };
@@ -96,6 +99,10 @@ const ancestorsOf = (p) => {
   return out;
 };
 const projectOptions = (skip) => projectTree(skip).map(({ p, depth }) => h("option", { value: p.id }, "\u2003".repeat(depth) + p.name));
+// Tasks in archived projects stay out of every list but their project's own page.
+const isLive = (t) => t.project_id == null || !projectById(t.project_id)?.archived;
+// The archived projects to list in the sidebar: each one not already inside another archived one.
+const archivedRoots = () => state.projects.filter((p) => p.archived_at && !projectById(p.parent_id)?.archived);
 const todoById = (id) => state.todos.find((t) => t.id === id);
 const childrenOf = (id) => state.todos.filter((t) => t.parent_id === id);
 const isStar = (t) => t && t.label === "north_star" && t.parent_id == null;
@@ -148,7 +155,7 @@ function viewTodos() {
   const v = state.view;
   const q = state.query.trim().toLowerCase();
   const star = currentStar();
-  let list = state.todos;
+  let list = v.startsWith("p") ? state.todos : state.todos.filter(isLive);
   // Tasks inside a North Star render nested under it — except in the flat Urgent view, a
   // North Star's own page, and while filtering.
   if (star) list = list.filter((t) => t.parent_id === star.id);
@@ -192,7 +199,7 @@ function starNavs(projectId) {
 }
 
 function renderSidebar() {
-  const open = state.todos.filter((t) => !t.done);
+  const open = state.todos.filter((t) => !t.done && isLive(t));
   const starNav = navItem("north_star", h("span", { class: "nav-icon", style: "color:var(--star)" }, "★"), "North Star", open.filter((t) => t.label === "north_star").length);
   const urgentNav = navItem("urgent", h("span", { class: "nav-icon", style: "color:var(--urgent)" }, "⚡"), "Urgent", open.filter((t) => t.label === "urgent").length);
   starNav.dataset.drop = "north_star";
@@ -207,7 +214,7 @@ function renderSidebar() {
   const hidden = new Set();  // projects inside a folded parent
   const projects = projectTree().flatMap(({ p, depth }) => {
     if (p.parent_id != null && (hidden.has(p.parent_id) || state.pCollapsed.has(p.parent_id))) { hidden.add(p.id); return []; }
-    const subs = subProjectsOf(p.id).length;
+    const subs = subProjectsOf(p.id).filter((c) => !c.archived).length;
     const fold = subs
       ? h("span", { class: "p-fold" + (state.pCollapsed.has(p.id) ? " folded" : ""), title: state.pCollapsed.has(p.id) ? "Show sub-projects" : "Hide sub-projects",
           onclick: (e) => { e.stopPropagation(); toggleProjectFold(p.id); } }, "▾")
@@ -221,6 +228,19 @@ function renderSidebar() {
     el.append(h("span", { class: "grip p-grip", "aria-hidden": "true" }, "⠿"));
     return [el, ...starNavs(p.id).map((s) => { s.style.paddingLeft = 30 + depth * 16 + "px"; return s; })];
   });
+  const archived = archivedRoots();
+  if (archived.length) {
+    projects.push(h("button", {
+      class: "archived-toggle" + (state.showArchived ? "" : " collapsed"),
+      onclick: () => { state.showArchived = !state.showArchived; saveCollapsed(); renderSidebar(); },
+    }, h("span", { class: "chev" }, "▾"), "Archived", h("span", { class: "count" }, archived.length)));
+    if (state.showArchived || archived.some((p) => state.view === "p" + p.id))
+      for (const p of archived) {
+        const el = navItem("p" + p.id, h("span", { class: "nav-icon" }, h("span", { class: "dot", style: `background:${p.color}` })), p.name, "");
+        el.classList.add("nav-archived");
+        projects.push(el);
+      }
+  }
   $("#projects").replaceChildren(...(projects.length ? projects : [h("div", { class: "side-empty" }, "No projects yet — add one with +")]));
 }
 
@@ -265,14 +285,22 @@ function renderHeader() {
     north_star: "The tasks that matter most — the ones that move the needle.",
   };
   const up = p ? ancestorsOf(p) : [];
+  const archivedBy = p?.archived && (p.archived_at ? p : [...up].reverse().find((a) => a.archived_at));
   $("#view-desc").replaceChildren(
+    archivedBy ? h("span", { class: "archived-note" }, "🗄 ", archivedBy === p
+      ? `Archived ${new Date(p.archived_at).toLocaleDateString(undefined, { dateStyle: "medium" })} — hidden from your lists, tasks kept.`
+      : `Archived along with ${archivedBy.name}.`) : "",
     up.length ? h("span", { class: "crumb p-crumb" }, "Inside ", up.map((a, i) => [i ? " › " : "", h("a", { href: "#p" + a.id }, a.name)])) : "",
     p ? p.description : descs[state.view] || "");
   $("#head-actions").replaceChildren(
-    ...(p ? [
+    ...(p?.archived ? [
+      p.archived_at && h("button", { class: "btn small primary", onclick: () => setArchived(p, false) }, "Unarchive"),
+      h("button", { class: "btn small", onclick: () => openProjectDialog(p) }, "Edit project"),
+    ].filter(Boolean) : p ? [
       h("button", { class: "btn small", onclick: () => openProjectDialog(null, p.id) }, "+ Sub-project"),
       h("button", { class: "btn small", onclick: startAddSection }, "+ Subsection"),
       h("button", { class: "btn small", onclick: () => openProjectDialog(p) }, "Edit project"),
+      h("button", { class: "btn small", title: "Hide this project and its tasks from your lists", onclick: () => setArchived(p, true) }, "Archive"),
     ] : []),
   );
   document.title = `${p ? p.name : titles[state.view]} · Todo`;
@@ -377,7 +405,7 @@ function renderList() {
 /* A project's sub-projects, as cards above its tasks. Each is a drop target for tasks. */
 function subProjectsEl() {
   const p = currentProject();
-  const subs = p && !state.query ? subProjectsOf(p.id) : [];
+  const subs = p && !state.query ? subProjectsOf(p.id).filter((c) => p.archived || !c.archived) : [];
   if (!subs.length) return null;
   const openIn = (id) => {  // open tasks in a project and everything inside it
     let n = projectById(id)?.open_count || 0;
@@ -636,7 +664,8 @@ function editorEl(t) {
 
   const proj = h("select", { "aria-label": "Project", onchange: (e) => save({ project_id: e.target.value || null }) },
     h("option", { value: "" }, "No project (Inbox)"),
-    projectOptions());
+    projectOptions(),
+    projectById(t.project_id)?.archived && h("option", { value: t.project_id }, `${projectById(t.project_id).name} (archived)`));
   proj.value = t.project_id == null ? "" : String(t.project_id);
 
   const tSecs = t.project_id != null ? sectionsOf(t.project_id) : [];
@@ -699,6 +728,15 @@ function closeEditor() {
 
 function replaceTodo(updated) {
   state.todos = state.todos.map((t) => (t.id === updated.id ? updated : t));
+}
+
+async function setArchived(p, archived) {
+  try {
+    await api("PATCH", `projects/${p.id}`, { archived });
+    await refreshProjects();
+    render();
+    toast(archived ? `Archived “${p.name}”` : `Unarchived “${p.name}”`, { label: "Undo", run: () => setArchived(p, !archived) });
+  } catch (err) { fail(err); }
 }
 
 async function refreshProjects() {

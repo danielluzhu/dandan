@@ -322,6 +322,16 @@ select, input[type="date"] {
 .nav-project.drop-over { outline: 2px solid var(--accent); background: var(--accent-soft); }
 .is-dragging-project .side-head[data-pdrop] { outline: 2px dashed var(--line); outline-offset: 2px; border-radius: 6px; }
 .side-head.drop-over { outline-color: var(--accent) !important; background: var(--accent-soft); color: var(--accent); }
+.archived-toggle {
+  display: flex; align-items: center; gap: 8px; width: 100%; margin-top: 14px; padding: 6px 10px; border: 0; background: none;
+  font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); border-radius: 8px;
+}
+.archived-toggle:hover { background: var(--hover); }
+.archived-toggle .count { margin-left: auto; font-weight: 500; letter-spacing: 0; color: var(--faint); }
+.nav-archived { color: var(--muted); font-size: 14px; }
+.nav-archived .nav-icon { display: inline-flex; justify-content: center; }
+.nav-archived .dot { opacity: .55; }
+.archived-note { display: block; margin-bottom: 6px; padding: 6px 10px; border-radius: 8px; background: var(--hover); font-size: 13px; color: var(--muted); }
 .p-crumb { display: block; font-size: 13px; margin-bottom: 4px; }
 .subprojects { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; margin: 4px 0 10px; }
 .subproject {
