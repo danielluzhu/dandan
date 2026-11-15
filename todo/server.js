@@ -1,5 +1,5 @@
 import { Database } from "bun:sqlite";
-import { DEFAULT_THEMES, parseText, themeFor } from "./capture.js";
+import { STARTER_PROJECTS, parseText, projectFor } from "./capture.js";
 
 const PORT = Number(process.env.TODO_PORT || 1242);
 const PUBLIC_DIR = new URL("./public/", import.meta.url);
@@ -48,25 +48,27 @@ if (!db.query("SELECT 1 FROM pragma_table_info('projects') WHERE name = 'parent_
 // Archived projects (and everything inside them) drop out of the lists but keep their tasks.
 if (!db.query("SELECT 1 FROM pragma_table_info('projects') WHERE name = 'archived_at'").get())
   db.exec("ALTER TABLE projects ADD COLUMN archived_at TEXT");
-// Themes are the biggest projects — always top level — that tasks and Daily notes fall into
-// by their keywords.
-if (!db.query("SELECT 1 FROM pragma_table_info('projects') WHERE name = 'is_theme'").get())
-  db.exec("ALTER TABLE projects ADD COLUMN is_theme INTEGER NOT NULL DEFAULT 0; ALTER TABLE projects ADD COLUMN keywords TEXT NOT NULL DEFAULT ''");
+// Any project can have keywords: tasks and Daily notes fall into the one they match most.
+if (!db.query("SELECT 1 FROM pragma_table_info('projects') WHERE name = 'keywords'").get())
+  db.exec("ALTER TABLE projects ADD COLUMN keywords TEXT NOT NULL DEFAULT ''");
+// Projects and "themes" were briefly separate lists; they're all just projects now.
+if (db.query("SELECT 1 FROM pragma_table_info('projects') WHERE name = 'is_theme'").get())
+  db.exec("ALTER TABLE projects DROP COLUMN is_theme");
 db.exec("CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)");
 
-/* The first time themes exist, start with Work, Health, Social and Domestic. A top-level
-   project already called one of those (or e.g. "home" for Domestic) becomes that theme,
-   keeping everything inside it. Runs once, so deleted or renamed themes stay that way. */
+/* Start with Work, Health, Social and Domestic, each with keywords. A top-level project
+   already called one of those (or e.g. "home" for Domestic) takes them on instead, keeping
+   everything inside it. Runs once, so deleted or renamed ones stay that way. */
 if (!db.query("SELECT 1 FROM settings WHERE key = 'themes_seeded'").get()) {
   db.transaction(() => {
-    for (const t of DEFAULT_THEMES) {
-      const existing = db.query("SELECT * FROM projects WHERE parent_id IS NULL AND is_theme = 0").all()
+    for (const t of STARTER_PROJECTS) {
+      const existing = db.query("SELECT * FROM projects WHERE parent_id IS NULL AND keywords = ''").all()
         .find((p) => t.aliases.includes(p.name.trim().toLowerCase()));
       if (existing)
-        db.query("UPDATE projects SET is_theme = 1, name = ?, keywords = ?, description = CASE WHEN description = '' THEN ? ELSE description END WHERE id = ?")
+        db.query("UPDATE projects SET name = ?, keywords = ?, description = CASE WHEN description = '' THEN ? ELSE description END WHERE id = ?")
           .run(t.name, t.keywords.join(", "), t.description, existing.id);
       else
-        db.query("INSERT INTO projects (name, description, color, is_theme, keywords) VALUES (?, ?, ?, 1, ?)")
+        db.query("INSERT INTO projects (name, description, color, keywords) VALUES (?, ?, ?, ?)")
           .run(t.name, t.description, t.color, t.keywords.join(", "));
     }
     db.query("INSERT INTO settings (key, value) VALUES ('themes_seeded', ?)").run(new Date().toISOString());
@@ -144,13 +146,6 @@ function cleanProject(body, partial, id = null) {
   }
   if ("archived" in body) out.archived_at = body.archived ? new Date().toISOString() : null;
   if ("keywords" in body) out.keywords = String(body.keywords ?? "").slice(0, 10000);
-  if ("is_theme" in body) out.is_theme = body.is_theme ? 1 : 0;
-  // Themes stay at the top level.
-  const theme = "is_theme" in out ? out.is_theme : id != null && db.query("SELECT is_theme FROM projects WHERE id = ?").get(id)?.is_theme;
-  if (theme) {
-    if (out.parent_id != null) throw new BadRequest("A theme can't go inside another project — it's always top level");
-    if (out.is_theme) out.parent_id = null;
-  }
   return out;
 }
 
@@ -247,11 +242,12 @@ const listSections = () => db.query("SELECT * FROM sections ORDER BY project_id,
 
 const listTodos = () => db.query("SELECT * FROM todos ORDER BY done, created_at DESC, id DESC").all();
 
-const listThemes = () => listProjects().filter((p) => p.is_theme && !p.archived);
+// The projects writing can be sorted into: active ones with keywords.
+const listKeyworded = () => listProjects().filter((p) => !p.archived && p.keywords.trim());
 
 /* Free-form capture: each line of `text` becomes a task, filed into the project its
-   #tag names (created if missing), else the theme its words fall into, else
-   `default_project_id` (Daily passes a note's theme), else the Inbox. With `dry`,
+   #tag names (created if missing), else the project its words match the keywords of, else
+   `default_project_id` (Daily passes a note's project), else the Inbox. With `dry`,
    nothing is written — the parse comes back so the page can preview it. */
 function capture(body) {
   const items = parseText(body.text);
@@ -266,16 +262,15 @@ function capture(body) {
     }
     return null;
   };
-  const themes = listThemes();
+  const keyworded = listKeyworded();
   const fallback = body.default_project_id != null ? projects.find((p) => p.id === Number(body.default_project_id)) ?? null : null;
   const resolve = (it) => {
     if (it.project) return find([it.project]) || { id: null, name: it.project };
-    return themeFor(it.title, themes) || fallback;
+    return projectFor(it.title, keyworded) || fallback;
   };
   return db.transaction(() => items.map((it) => {
     let p = resolve(it);
     const out = { ...it, project_id: p?.id ?? null, project_name: p?.name ?? null, new_project: !!p && p.id == null };
-    if (p?.is_theme) out.theme = true;
     if (body.dry) return out;
     if (p && p.id == null) {
       p = insert("projects", { name: p.name });
@@ -303,11 +298,10 @@ async function api(req, url) {
 
   if (resource === "state" && req.method === "GET") return json({ projects: listProjects(), sections: listSections(), todos: listTodos() });
 
-  if (resource === "themes" && req.method === "GET") return json(listThemes());
-  // Which theme a piece of writing falls into (Daily asks this for each note).
+  // Which project a piece of writing falls into, by keywords (Daily asks this for each note).
   if (resource === "classify" && req.method === "POST") {
-    const t = themeFor(String(body.text ?? "").slice(0, 200000), listThemes());
-    return json({ theme: t ? { id: t.id, name: t.name, color: t.color } : null });
+    const p = projectFor(String(body.text ?? "").slice(0, 200000), listKeyworded());
+    return json({ project: p ? { id: p.id, name: p.name, color: p.color } : null });
   }
   if (resource === "capture" && req.method === "POST") return json({ items: capture(body) }, body.dry ? 200 : 201);
 

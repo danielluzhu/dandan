@@ -87,30 +87,33 @@ db.transaction(() => {
   }
 })();
 
-// Each note falls into a theme — one of the to-do list's biggest projects. It's worked out
-// from the note's words (theme_auto) until you pick one yourself.
-if (!db.query("SELECT 1 FROM pragma_table_info('notes') WHERE name = 'theme_id'").get())
-  db.exec("ALTER TABLE notes ADD COLUMN theme_id INTEGER; ALTER TABLE notes ADD COLUMN theme_auto INTEGER NOT NULL DEFAULT 1");
+// Each note falls into one of the to-do list's projects. It's worked out from the note's words
+// and the projects' keywords (project_auto) until you pick one yourself. (These columns were
+// briefly theme_id / theme_auto.)
+if (db.query("SELECT 1 FROM pragma_table_info('notes') WHERE name = 'theme_id'").get())
+  db.exec("ALTER TABLE notes RENAME COLUMN theme_id TO project_id; ALTER TABLE notes RENAME COLUMN theme_auto TO project_auto");
+if (!db.query("SELECT 1 FROM pragma_table_info('notes') WHERE name = 'project_id'").get())
+  db.exec("ALTER TABLE notes ADD COLUMN project_id INTEGER; ALTER TABLE notes ADD COLUMN project_auto INTEGER NOT NULL DEFAULT 1");
 
 const liveNotes = (date) => db.query("SELECT * FROM notes WHERE date = ? AND deleted_at IS NULL ORDER BY created_at, id").all(date);
 // Everything written on a day, for finding to-dos.
 const dayText = (date) => [...liveNotes(date).map((n) => n.body), getDay(date).summary].join("\n");
-// The day's to-do lines, each with the theme of the note it's in: a to-do whose own words
-// don't place it lands in its note's theme.
+// The day's to-do lines, each with the project of the note it's in: a to-do whose own words
+// don't place it lands in its note's project.
 function dayTodos(date) {
   const seen = new Set();
-  const notes = [...liveNotes(date), { body: db.query("SELECT summary FROM entries WHERE date = ?").get(date)?.summary ?? "", theme_id: null }];
-  return notes.flatMap((n) => findTodos(n.body).map((f) => ({ ...f, theme_id: n.theme_id })))
+  const notes = [...liveNotes(date), { body: db.query("SELECT summary FROM entries WHERE date = ?").get(date)?.summary ?? "", project_id: null }];
+  return notes.flatMap((n) => findTodos(n.body).map((f) => ({ ...f, project_id: n.project_id })))
     .filter((f) => !seen.has(f.key) && seen.add(f.key));
 }
 
-/* Work out an automatically-themed note's theme from its words. Leaves it be if the to-do
+/* Work out an automatically-placed note's project from its words. Leaves it be if the to-do
    list can't be reached. */
-async function autoTheme(note) {
-  if (!note?.theme_auto) return note;
+async function autoProject(note) {
+  if (!note?.project_auto) return note;
   try {
-    const { theme } = note.body.trim() ? await todoApi("POST", "classify", { text: note.body }) : { theme: null };
-    return db.query("UPDATE notes SET theme_id = ? WHERE id = ? RETURNING *").get(theme?.id ?? null, note.id);
+    const { project } = note.body.trim() ? await todoApi("POST", "classify", { text: note.body }) : { project: null };
+    return db.query("UPDATE notes SET project_id = ? WHERE id = ? RETURNING *").get(project?.id ?? null, note.id);
   } catch { return note; }
 }
 
@@ -192,7 +195,7 @@ async function syncOnce(date, link) {
           db.query("UPDATE links SET key = ? WHERE id = ?").run(f.key, was.id);
           l = { ...was, key: f.key };
         } else {
-          const { items } = await todoApi("POST", "capture", { text: f.text, default_project_id: f.theme_id, notes: `From Daily, ${prettyDate(date)}${link ? `\n${link}` : ""}` });
+          const { items } = await todoApi("POST", "capture", { text: f.text, default_project_id: f.project_id, notes: `From Daily, ${prettyDate(date)}${link ? `\n${link}` : ""}` });
           if (!items[0]?.todo) continue;
           created.push({ title: items[0].todo.title, project: items[0].project_name });
           l = db.query("INSERT INTO links (date, key, todo_id) VALUES (?, ?, ?) RETURNING *").get(date, f.key, items[0].todo.id);
@@ -279,7 +282,7 @@ async function api(req, url) {
       SELECT e.date, substr(CASE WHEN trim(e.summary) != '' THEN e.summary
           ELSE (SELECT n.body FROM notes n WHERE n.date = e.date AND n.deleted_at IS NULL AND trim(n.body) != '' ORDER BY n.created_at LIMIT 1) END, 1, 140) AS snippet,
         (SELECT COUNT(*) FROM notes n WHERE n.date = e.date AND n.deleted_at IS NULL AND trim(n.body) != '') AS note_count,
-        (SELECT group_concat(DISTINCT n.theme_id) FROM notes n WHERE n.date = e.date AND n.deleted_at IS NULL AND n.theme_id IS NOT NULL) AS themes
+        (SELECT group_concat(DISTINCT n.project_id) FROM notes n WHERE n.date = e.date AND n.deleted_at IS NULL AND n.project_id IS NOT NULL) AS projects
       FROM entries e
       WHERE trim(e.summary) != '' OR EXISTS (SELECT 1 FROM notes n WHERE n.date = e.date AND n.deleted_at IS NULL AND trim(n.body) != '')
       ORDER BY e.date DESC`).all());
@@ -288,8 +291,8 @@ async function api(req, url) {
   if (resource === "entries" && arg) {
     if (!DATE_RE.test(arg)) throw new BadRequest("Dates look like 2026-11-15");
     if (req.method === "GET" && !sub) {
-      // Notes written before themes existed get theirs on first view.
-      for (const n of liveNotes(arg)) if (n.theme_auto && n.theme_id == null && n.body.trim()) await autoTheme(n);
+      // Notes not yet placed in a project get one on view.
+      for (const n of liveNotes(arg)) if (n.project_auto && n.project_id == null && n.body.trim()) await autoProject(n);
       return json(getDay(arg));
     }
     // The day's summary. POST too, so a save can go out with the page as it closes.
@@ -323,7 +326,7 @@ async function api(req, url) {
         record(arg, n.id, text, "created", at);
         return n;
       })();
-      return afterSave(arg, body, { note: await autoTheme(note) });
+      return afterSave(arg, body, { note: await autoProject(note) });
     }
     if (req.method === "GET" && sub === "todos") {
       try { return json(await linkedTodos(arg)); }
@@ -343,14 +346,14 @@ async function api(req, url) {
         record(note.date, note.id, text, null, at);
         return n;
       })();
-      // The theme follows the words once a line is finished, like to-dos do.
-      return afterSave(note.date, body, { note: body.extract ? await autoTheme(saved) : saved });
+      // The project follows the words once a line is finished, like to-dos do.
+      return afterSave(note.date, body, { note: body.extract ? await autoProject(saved) : saved });
     }
-    // Pick the note's theme yourself ({theme_id}, null for none), or hand it back to {auto: true}.
+    // Pick the note's project yourself ({project_id}, null for none), or hand it back to {auto: true}.
     if (req.method === "PATCH") {
-      if (body.auto) return json({ note: await autoTheme(db.query("UPDATE notes SET theme_auto = 1 WHERE id = ? RETURNING *").get(note.id)) });
-      const tid = body.theme_id == null || body.theme_id === "" ? null : Number(body.theme_id);
-      return json({ note: db.query("UPDATE notes SET theme_id = ?, theme_auto = 0 WHERE id = ? RETURNING *").get(tid, note.id) });
+      if (body.auto) return json({ note: await autoProject(db.query("UPDATE notes SET project_auto = 1 WHERE id = ? RETURNING *").get(note.id)) });
+      const pid = body.project_id == null || body.project_id === "" ? null : Number(body.project_id);
+      return json({ note: db.query("UPDATE notes SET project_id = ?, project_auto = 0 WHERE id = ? RETURNING *").get(pid, note.id) });
     }
     if (req.method === "DELETE") {
       db.transaction(() => {
@@ -368,9 +371,12 @@ async function api(req, url) {
     return json({ day: getDay(date) });
   }
 
-  // The themes notes can fall into: the to-do list's.
-  if (resource === "themes" && req.method === "GET") {
-    try { return json(await todoApi("GET", "themes")); } catch (err) { return json([]); }
+  // The projects notes can fall into: the to-do list's, minus archived ones.
+  if (resource === "projects" && req.method === "GET") {
+    try {
+      const projects = await todoApi("GET", "projects");
+      return json(projects.filter((p) => !p.archived).map(({ id, name, color, parent_id }) => ({ id, name, color, parent_id })));
+    } catch { return json([]); }
   }
 
   // Tick a linked to-do from the diary.

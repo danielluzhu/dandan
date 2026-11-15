@@ -84,8 +84,8 @@ const state = {
   date: DATE_RE.test(location.hash.slice(1)) ? location.hash.slice(1) : todayISO(),
   day: null,          // { summary, summary_created_at, summary_updated_at, notes: [...] }
   entries: [],
-  themes: [],         // the to-do list's themes, which notes fall into
-  themeFilter: null,  // theme id the sidebar's entries are narrowed to
+  projects: [],         // the to-do list's active projects, which notes fall into
+  projectFilter: null,  // project id the sidebar's entries are narrowed to
   historyFor: null,   // null = whole day, "summary", or a note id
 };
 
@@ -178,21 +178,21 @@ function noteEl(note) {
   el.value = note.body;
   const time = h("time", { class: "note-time" });
   const meta = h("span", { class: "note-meta" });
-  const pick = h("select", { class: "theme-pick", "aria-label": "Theme", title: "Which theme this note falls into",
-    onchange: (e) => setNoteTheme(t, e.target.value) });
+  const pick = h("select", { class: "proj-pick", "aria-label": "Project", title: "Which project this note falls into",
+    onchange: (e) => setNoteProject(t, e.target.value) });
   const t = bind({ kind: "note", note, el });
   t.stamp = () => {
-    // Theme: worked out from the words ("Auto") until you pick one.
-    const theme = themeById(note.theme_id);
+    // Project: worked out from the words and projects' keywords ("Auto") until you pick one.
+    const project = projectById(note.project_id);
     pick.replaceChildren(
-      h("option", { value: "auto" }, note.theme_auto && theme ? `✨ ${theme.name}` : "✨ Auto"),
-      ...state.themes.map((th) => h("option", { value: th.id }, th.name)),
-      h("option", { value: "none" }, "No theme"));
-    pick.value = note.theme_auto ? "auto" : note.theme_id == null ? "none" : String(note.theme_id);
+      h("option", { value: "auto" }, note.project_auto && project ? `✨ ${project.name}` : "✨ Auto"),
+      ...projectTree().map(({ p, depth }) => h("option", { value: p.id }, "\u2003".repeat(depth) + p.name)),
+      h("option", { value: "none" }, "No project"));
+    pick.value = note.project_auto ? "auto" : note.project_id == null ? "none" : String(note.project_id);
     pick.disabled = note.id == null;
-    pick.title = note.theme_auto ? "Picked from the note's words — choose one to set it yourself" : "Chosen by you — ✨ Auto to let the words decide";
-    card.style.setProperty("--theme", theme?.color || "var(--faint)");
-    card.classList.toggle("themed", !!theme);
+    pick.title = note.project_auto ? "Picked from the note's words — choose one to set it yourself" : "Chosen by you — ✨ Auto to let the words decide";
+    card.style.setProperty("--proj", project?.color || "var(--faint)");
+    card.classList.toggle("has-project", !!project);
     time.textContent = note.created_at ? clock(note.created_at) : "Now";
     time.title = note.created_at ? new Date(note.created_at).toLocaleString() : "Not saved yet";
     meta.textContent = note.created_at && edited(note.created_at, note.updated_at) ? `edited ${when(note.updated_at)}` : "";
@@ -201,7 +201,7 @@ function noteEl(note) {
   const card = h("article", { class: "note" },
     h("div", { class: "note-rail" }, time),
     h("div", { class: "note-body" }, el,
-      h("div", { class: "note-foot" }, h("span", { class: "theme-wrap" }, h("span", { class: "theme-dot" }), pick), meta, h("span", { class: "spacer" }),
+      h("div", { class: "note-foot" }, h("span", { class: "proj-wrap" }, h("span", { class: "proj-dot" }), pick), meta, h("span", { class: "spacer" }),
         h("button", { class: "link-btn", onclick: () => { if (note.id != null) openHistory(note.id); } }, "History"),
         h("button", { class: "link-btn danger", onclick: () => deleteNote(t, card) }, "Delete"))));
   t.stamp();
@@ -209,19 +209,26 @@ function noteEl(note) {
   return card;
 }
 
-const themeById = (id) => state.themes.find((t) => t.id === id) || null;
+const projectById = (id) => state.projects.find((t) => t.id === id) || null;
+// Every project in the to-do list's order — each followed by its sub-projects — with its depth.
+function projectTree() {
+  const out = [];
+  const walk = (p, depth) => { out.push({ p, depth }); state.projects.filter((c) => c.parent_id === p.id).forEach((c) => walk(c, depth + 1)); };
+  state.projects.filter((p) => p.parent_id == null || !projectById(p.parent_id)).forEach((p) => walk(p, 0));
+  return out;
+}
 
-async function setNoteTheme(t, value) {
+async function setNoteProject(t, value) {
   try {
-    const { note } = await api("PATCH", `notes/${t.note.id}`, value === "auto" ? { auto: true } : { theme_id: value === "none" ? null : Number(value) });
+    const { note } = await api("PATCH", `notes/${t.note.id}`, value === "auto" ? { auto: true } : { project_id: value === "none" ? null : Number(value) });
     Object.assign(t.note, note);
     t.stamp();
     loadEntries();
   } catch (err) { toast(err.message); }
 }
 
-async function loadThemes() {
-  try { state.themes = await api("GET", "themes"); } catch { state.themes = []; }
+async function loadProjects() {
+  try { state.projects = await api("GET", "projects"); } catch { state.projects = []; }
 }
 
 function renderDay() {
@@ -297,16 +304,16 @@ async function loadEntries() {
 function renderEntries() {
   const nodes = [];
   let month = null;
-  // Narrow the list to one theme's days.
-  const used = new Set(state.entries.flatMap((e) => (e.themes || "").split(",").filter(Boolean).map(Number)));
-  const chips = state.themes.filter((t) => used.has(t.id));
-  if (chips.length) nodes.push(h("div", { class: "theme-filter" },
-    h("button", { class: "chip-btn" + (state.themeFilter == null ? " on" : ""), onclick: () => { state.themeFilter = null; renderEntries(); } }, "All"),
-    chips.map((t) => h("button", { class: "chip-btn" + (state.themeFilter === t.id ? " on" : ""), onclick: () => { state.themeFilter = state.themeFilter === t.id ? null : t.id; renderEntries(); } },
+  // Narrow the list to one project's days.
+  const used = new Set(state.entries.flatMap((e) => (e.projects || "").split(",").filter(Boolean).map(Number)));
+  const chips = state.projects.filter((t) => used.has(t.id));
+  if (chips.length) nodes.push(h("div", { class: "proj-filter" },
+    h("button", { class: "chip-btn" + (state.projectFilter == null ? " on" : ""), onclick: () => { state.projectFilter = null; renderEntries(); } }, "All"),
+    chips.map((t) => h("button", { class: "chip-btn" + (state.projectFilter === t.id ? " on" : ""), onclick: () => { state.projectFilter = state.projectFilter === t.id ? null : t.id; renderEntries(); } },
       h("span", { class: "dot", style: `background:${t.color}` }), t.name))));
   for (const e of state.entries) {
-    const themes = (e.themes || "").split(",").filter(Boolean).map(Number);
-    if (state.themeFilter != null && !themes.includes(state.themeFilter)) continue;
+    const inDay = (e.projects || "").split(",").filter(Boolean).map(Number);
+    if (state.projectFilter != null && !inDay.includes(state.projectFilter)) continue;
     const d = parse(e.date);
     const m = d.toLocaleDateString(undefined, { month: "long", year: "numeric" });
     if (m !== month) { nodes.push(h("div", { class: "month" }, m)); month = m; }
@@ -315,7 +322,7 @@ function renderEntries() {
       onclick: (ev) => { ev.preventDefault(); openDay(e.date); },
     }, h("span", { class: "d" }, d.toLocaleDateString(undefined, { weekday: "short", day: "numeric" }),
         e.note_count > 1 && h("span", { class: "n" }, `${e.note_count} notes`),
-        h("span", { class: "dots" }, themes.map((id) => themeById(id)).filter(Boolean).map((t) => h("span", { class: "dot", title: t.name, style: `background:${t.color}` })))),
+        h("span", { class: "dots" }, inDay.map((id) => projectById(id)).filter(Boolean).map((t) => h("span", { class: "dot", title: t.name, style: `background:${t.color}` })))),
       h("span", { class: "s" }, (e.snippet || "").replace(/\s+/g, " "))));
   }
   $("#entries").replaceChildren(...(nodes.length ? nodes : [h("div", { class: "side-empty" }, "Nothing written yet.")]));
@@ -521,5 +528,5 @@ window.addEventListener("resize", () => document.querySelectorAll("textarea").fo
 
 const start = state.date;
 state.date = null;
-loadThemes().then(() => openDay(start)).then(() => { if (start === todayISO()) [...document.querySelectorAll("#notes textarea")].at(-1)?.focus(); });
+loadProjects().then(() => openDay(start)).then(() => { if (start === todayISO()) [...document.querySelectorAll("#notes textarea")].at(-1)?.focus(); });
 loadEntries();

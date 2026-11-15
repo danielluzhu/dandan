@@ -141,18 +141,18 @@ textarea::placeholder { color: var(--faint); }
 #open-history { margin-left: 8px; }
 .saved { margin-left: auto; }
 
-/* themes */
-.note { --theme: var(--faint); }
-.note.themed .note-time { color: var(--theme); }
-.note.themed .note-time::after { background: var(--theme); }
-.theme-wrap { display: inline-flex; align-items: center; gap: 5px; }
-.theme-dot { width: 8px; height: 8px; border-radius: 3px; background: var(--theme); flex: none; }
-.theme-pick { border: 0; background: none; color: var(--muted); font-size: 12.5px; font-weight: 600; padding: 2px 0; cursor: pointer; max-width: 150px; }
-.theme-pick:hover { color: var(--text); }
-.theme-pick:disabled { cursor: default; opacity: .6; }
-.note.draft .theme-wrap { visibility: hidden; }
-.theme-filter { display: flex; flex-wrap: wrap; gap: 5px; padding: 4px 6px 6px; }
-.theme-filter .chip-btn { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; padding: 2px 9px; }
+/* a note's project */
+.note { --proj: var(--faint); }
+.note.has-project .note-time { color: var(--proj); }
+.note.has-project .note-time::after { background: var(--proj); }
+.proj-wrap { display: inline-flex; align-items: center; gap: 5px; }
+.proj-dot { width: 8px; height: 8px; border-radius: 3px; background: var(--proj); flex: none; }
+.proj-pick { border: 0; background: none; color: var(--muted); font-size: 12.5px; font-weight: 600; padding: 2px 0; cursor: pointer; max-width: 150px; }
+.proj-pick:hover { color: var(--text); }
+.proj-pick:disabled { cursor: default; opacity: .6; }
+.note.draft .proj-wrap { visibility: hidden; }
+.proj-filter { display: flex; flex-wrap: wrap; gap: 5px; padding: 4px 6px 6px; }
+.proj-filter .chip-btn { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; padding: 2px 9px; }
 .entry-link .dots { display: inline-flex; gap: 3px; margin-left: auto; }
 .entry-link .dot { width: 7px; height: 7px; border-radius: 2px; }
 

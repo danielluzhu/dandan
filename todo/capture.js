@@ -1,12 +1,12 @@
 /* Free-form capture: turn loosely written lines ("clean toilet", "pay rent by friday!")
-   into tasks — which theme each falls into, whether it's urgent, and when it's due.
+   into tasks — which project each falls into, whether it's urgent, and when it's due.
    Pure functions; the server decides what to do with the result. */
 
-// Themes are the biggest projects: every task and Daily note falls into one by its words.
-// These are the starting four, each with starting keywords; both are editable in the app.
+// Any project can have keywords; a task or Daily note falls into the project whose keywords
+// it matches most. These four start with some; all are editable in the app.
 // Keywords match whole words, so "bin" doesn't fire on "cabinet"; a trailing * matches any
 // ending ("clean*" → cleaning, cleaned); a phrase matches as written ("pick up").
-export const DEFAULT_THEMES = [
+export const STARTER_PROJECTS = [
   {
     name: "Work", color: "#3b82f6", description: "",
     aliases: ["work"],
@@ -48,7 +48,7 @@ export const DEFAULT_THEMES = [
   },
 ];
 
-/* A theme's keywords as stored: one per line or comma-separated. */
+/* A project's keywords as stored: one per line or comma-separated. */
 export const parseKeywords = (s) => String(s ?? "").split(/[,\n]/).map((w) => w.trim().toLowerCase()).filter(Boolean);
 
 const WEEKDAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
@@ -58,11 +58,11 @@ const wordRe = (w) => new RegExp(`(^|[^a-z0-9])${esc(w.replace(/\*$/, "")).repla
 const reCache = new Map();
 const reFor = (w) => reCache.get(w) || (reCache.set(w, wordRe(w)), reCache.get(w));
 
-/* Which of `themes` ({ id, keywords }) a piece of writing falls into, or null. The theme with
-   the most matching keywords wins; ties go to the earlier theme. */
-export function themeFor(text, themes) {
+/* Which of `projects` ({ id, keywords }) a piece of writing falls into, or null. The project
+   with the most matching keywords wins; ties go to the earlier one. */
+export function projectFor(text, projects) {
   let best = null, bestScore = 0;
-  for (const t of themes) {
+  for (const t of projects) {
     const score = parseKeywords(t.keywords).filter((w) => reFor(w).test(text)).length;
     if (score > bestScore) { best = t; bestScore = score; }
   }

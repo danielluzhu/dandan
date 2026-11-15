@@ -320,15 +320,10 @@ select, input[type="date"] {
 .star-self { margin-bottom: 8px; border: 1px solid var(--star-soft); border-radius: 12px; background: var(--panel); }
 .star-self .todo-row { cursor: pointer; }
 
-/* themes */
-.nav-theme { font-weight: 600; }
-.nav-theme .dot { width: 12px; height: 12px; border-radius: 4px; }
-.theme-note { display: block; font-size: 13px; margin-bottom: 6px; }
-.theme-note b { color: var(--accent); }
+/* project keywords */
+.keywords-note { display: block; font-size: 13px; margin-bottom: 6px; }
 .link-btn { border: 0; background: none; padding: 0; color: var(--accent); font: inherit; font-weight: 600; }
 .link-btn:hover { text-decoration: underline; }
-.check-row { display: flex !important; grid-template-columns: none; gap: 10px; align-items: flex-start; font-weight: 400 !important; color: var(--text) !important; font-size: 13.5px !important; }
-.check-row input { margin-top: 3px; width: 16px; height: 16px; accent-color: var(--accent); flex: none; }
 .field-hint { font-weight: 400; font-size: 12.5px; color: var(--faint); }
 .field-hint code { font-size: 12px; }
 

@@ -16,11 +16,6 @@
       </nav>
       <nav class="views" id="views"></nav>
       <button class="nav-item" id="show-keys"><span class="nav-icon">⌨</span><span class="name">Shortcuts</span><span class="count">?</span></button>
-      <div class="side-head">
-        <span>Themes</span>
-        <button class="icon-btn" id="new-theme" title="New theme" aria-label="New theme">+</button>
-      </div>
-      <nav class="projects" id="themes"></nav>
       <div class="side-head" data-pdrop="root" title="Drop a project here to move it to the top level">
         <span>Projects</span>
         <button class="icon-btn" id="new-project" title="New project" aria-label="New project">+</button>
@@ -80,10 +75,9 @@
     <form method="dialog" id="project-form" autocomplete="off">
       <h2 id="pd-title">New project</h2>
       <label>Name<input id="pd-name" maxlength="200" required></label>
-      <label class="check-row"><input type="checkbox" id="pd-theme"> <span><b>Theme</b> — one of the biggest areas of life. Always top level; tasks and Daily notes fall into it by its keywords.</span></label>
-      <label id="pd-parent-row">Inside<select id="pd-parent"></select></label>
-      <label id="pd-keywords-row">Keywords<textarea id="pd-keywords" rows="4" maxlength="10000" placeholder="clean*, laundry, groceries, mom, pick up"></textarea>
-        <span class="field-hint">Comma-separated. Writing with these words falls into this theme — whichever theme matches most words wins. <code>clean*</code> also matches cleaning, cleaned.</span></label>
+      <label>Inside<select id="pd-parent"></select></label>
+      <label>Keywords<textarea id="pd-keywords" rows="3" maxlength="10000" placeholder="clean*, laundry, groceries, mom, pick up"></textarea>
+        <span class="field-hint">Optional, comma-separated. New tasks and Daily notes with these words land in this project — whichever project matches most words wins. <code>clean*</code> also matches cleaning, cleaned.</span></label>
       <label>Description<textarea id="pd-desc" rows="3" maxlength="5000" placeholder="What is this project for?"></textarea></label>
       <div class="field">
         <span class="field-label">Color</span>
