@@ -76,6 +76,7 @@ button { cursor: pointer; }
 .nav-item .count { margin-left: auto; font-size: 12px; color: var(--faint); font-variant-numeric: tabular-nums; }
 .nav-item.active .count { color: var(--accent); }
 .nav-item .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.diary-link { text-decoration: none; margin-top: 4px; }
 .nav-icon { width: 18px; text-align: center; flex: none; }
 .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; margin: 0 4px; }
 .side-head {

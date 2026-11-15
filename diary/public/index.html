@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Diary</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23b4572e'/><path d='M10 9h10a2 2 0 0 1 2 2v12H12a2 2 0 0 1-2-2z' fill='none' stroke='white' stroke-width='2.4' stroke-linejoin='round'/><path d='M14 14h5M14 18h4' stroke='white' stroke-width='2' stroke-linecap='round'/></svg>">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span>Diary</span>
+      </div>
+      <button class="nav-item today-btn" id="go-today">✎ Today</button>
+      <a class="nav-item todo-link js-todo" href="http://localhost:1242" target="_blank" rel="noopener">☑ To-do list <span class="ext">↗</span></a>
+      <div class="side-head">Entries</div>
+      <nav class="entries" id="entries"></nav>
+    </aside>
+
+    <main class="main">
+      <header class="day-head">
+        <button class="icon-btn menu-btn" id="menu" aria-label="Show entries">☰</button>
+        <button class="icon-btn" id="prev" title="Previous day (Alt+←)" aria-label="Previous day">‹</button>
+        <div class="day-title">
+          <h1 id="day-name"></h1>
+          <p id="day-sub" class="day-sub"></p>
+        </div>
+        <button class="icon-btn" id="next" title="Next day (Alt+→)" aria-label="Next day">›</button>
+        <input type="date" id="pick" aria-label="Go to date">
+        <span class="saved" id="saved" aria-live="polite"></span>
+      </header>
+
+      <div class="page">
+        <section class="writing">
+          <label class="field-label" for="notes">Notes</label>
+          <textarea id="notes" class="notes" spellcheck="true" placeholder="What happened today?
+
+To-dos are picked up as you write and added to your to-do list:
+- [ ] call the vet
+todo: print the poster #print
+…or just “need to clean the toilet tomorrow”."></textarea>
+
+          <label class="field-label" for="summary">Summary</label>
+          <textarea id="summary" class="summary" rows="3" spellcheck="true" placeholder="The day in a sentence or two."></textarea>
+        </section>
+
+        <aside class="panels">
+          <section class="panel">
+            <div class="panel-head">
+              <h2>To-dos from this day</h2>
+              <a class="js-todo small-link" href="http://localhost:1242" target="_blank" rel="noopener">Open list ↗</a>
+            </div>
+            <div id="found" class="todo-list"></div>
+          </section>
+          <section class="panel">
+            <div class="panel-head"><h2>Due on the to-do list</h2></div>
+            <div id="due" class="todo-list"></div>
+          </section>
+        </aside>
+      </div>
+    </main>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+  <script src="app.js"></script>
+</body>
+</html>
