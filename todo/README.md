@@ -22,6 +22,13 @@ A to-do list app on port **1242** — tasks, projects, and labels.
   the sidebar) to relabel it. While dragging, each subsection header shows North Star / Urgent /
   Unlabeled targets, so one drop can move a task to another subsection and relabel it. Mouse drags from anywhere on the row; touch drags from the ⠿ grip.
 - Tasks without a project live in the **Inbox**.
+- **Free-form notes**: write anything, one task per line, and each line is sorted for you before
+  it's added (the preview shows where each will land). `capture.js` reads the category from the
+  words — “clean toilet” is a **domestic** task, “pay rent” finance, “call mom” social, “book
+  flights” travel, and so on — and files it in that category's project (an existing *domestic* /
+  *home* / *chores* project, say), creating the project if there isn't one. `#print` picks a
+  project by name; `!`, “urgent” or “asap” marks it Urgent; today / tomorrow / friday / this
+  weekend / next week / 11/20 set the due date. Cmd/Ctrl+Enter adds them.
 - Keys: `N` new task, `/` filter, `Esc` close the editor.
 
 ```bash
@@ -44,6 +51,7 @@ sudo systemctl daemon-reload && sudo systemctl enable --now dz-todo
 | GET, PATCH, DELETE | `/api/projects/:id` | |
 | GET, POST | `/api/todos` | list / create `{title, notes?, label?, project_id?, section_id?, parent_id?, due_date?}` |
 | GET, PATCH, DELETE | `/api/todos/:id` | PATCH also takes `{done}` |
+| POST | `/api/capture` | free-form `{text, notes?, dry?}` → `{items}`; one task per line, `dry` only previews |
 | GET, POST | `/api/sections` | list / create `{project_id, name}` |
 | PATCH, DELETE | `/api/sections/:id` | `{name}`, `{collapsed}`, or `{move: -1 \| 1}` |
 

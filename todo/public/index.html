@@ -46,6 +46,21 @@
         </div>
       </form>
 
+      <section class="dump" id="dump">
+        <button type="button" class="dump-toggle" id="dump-toggle" aria-expanded="false">
+          <span class="chev">▾</span> ✎ Free-form notes <span class="dump-sub">write anything — one task per line, sorted for you</span>
+        </button>
+        <div class="dump-body" id="dump-body" hidden>
+          <textarea id="dump-text" rows="4" aria-label="Free-form notes" placeholder="clean toilet&#10;pay rent by friday!&#10;call mom this weekend&#10;print poster #print"></textarea>
+          <div class="dump-preview" id="dump-preview"></div>
+          <div class="dump-actions">
+            <span class="dump-hint">#project picks one · <b>!</b> or “urgent” · today, tomorrow, friday, 11/20</span>
+            <span class="spacer"></span>
+            <button type="button" class="btn primary" id="dump-add" disabled>Add tasks</button>
+          </div>
+        </div>
+      </section>
+
       <div class="toolbar">
         <input id="search" type="search" placeholder="Filter tasks…  (/)" aria-label="Filter tasks">
       </div>

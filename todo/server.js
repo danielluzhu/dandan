@@ -1,4 +1,5 @@
 import { Database } from "bun:sqlite";
+import { CATEGORIES, parseText } from "./capture.js";
 
 const PORT = Number(process.env.TODO_PORT || 1242);
 const PUBLIC_DIR = new URL("./public/", import.meta.url);
@@ -205,6 +206,41 @@ const listSections = () => db.query("SELECT * FROM sections ORDER BY project_id,
 
 const listTodos = () => db.query("SELECT * FROM todos ORDER BY done, created_at DESC, id DESC").all();
 
+/* Free-form capture: each line of `text` becomes a task, filed into the project its
+   #tag names or its category's project (created if missing), else the Inbox. With `dry`,
+   nothing is written — the parse comes back so the page can preview it. */
+function capture(body) {
+  const items = parseText(body.text);
+  if (items.length > 100) throw new BadRequest("That's more than 100 lines — split it up");
+  const notes = String(body.notes ?? "").slice(0, 10000);
+  const projects = db.query("SELECT id, name FROM projects").all();
+  const find = (names) => {
+    for (const n of names) {
+      const p = projects.find((x) => x.name.trim().toLowerCase() === n.toLowerCase());
+      if (p) return p;
+    }
+    return null;
+  };
+  const resolve = (it) => {
+    if (it.project) return find([it.project]) || { id: null, name: it.project };
+    const cat = CATEGORIES.find((c) => c.key === it.category);
+    if (!cat) return null;
+    return find(cat.projects) || { id: null, name: cat.projects[0][0].toUpperCase() + cat.projects[0].slice(1) };
+  };
+  return db.transaction(() => items.map((it) => {
+    let p = resolve(it);
+    const out = { ...it, project_id: p?.id ?? null, project_name: p?.name ?? null, new_project: !!p && p.id == null };
+    if (body.dry) return out;
+    if (p && p.id == null) {
+      p = insert("projects", { name: p.name });
+      projects.push(p);
+    }
+    out.todo = insert("todos", { title: it.title, label: it.label, due_date: it.due_date, project_id: p?.id ?? null, notes });
+    out.project_id = p?.id ?? null;
+    return out;
+  }))();
+}
+
 const json = (body, status = 200) =>
   new Response(JSON.stringify(body), {
     status,
@@ -220,6 +256,8 @@ async function api(req, url) {
   const body = ["POST", "PATCH"].includes(req.method) ? await req.json().catch(() => ({})) : null;
 
   if (resource === "state" && req.method === "GET") return json({ projects: listProjects(), sections: listSections(), todos: listTodos() });
+
+  if (resource === "capture" && req.method === "POST") return json({ items: capture(body) }, body.dry ? 200 : 201);
 
   if (resource === "projects") {
     if (id === null) {

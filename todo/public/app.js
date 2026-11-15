@@ -811,6 +811,68 @@ $("#composer").addEventListener("submit", async (e) => {
   } catch (err) { fail(err); }
 });
 
+/* ---------- free-form notes ----------
+   Each line becomes a task; the server works out its project (by category, e.g.
+   “clean toilet” → domestic), label and due date. The preview is the server's own
+   parse, so what you see is what gets added. */
+let dumpTimer, dumpSeq = 0;
+const dumpOpen = (open) => {
+  $("#dump-body").hidden = !open;
+  $("#dump-toggle").setAttribute("aria-expanded", String(open));
+  $("#dump").classList.toggle("collapsed", !open);
+  try { localStorage.setItem("todo.dumpOpen", open ? "1" : ""); } catch {}
+};
+$("#dump-toggle").addEventListener("click", () => {
+  const open = $("#dump-body").hidden;
+  dumpOpen(open);
+  if (open) $("#dump-text").focus();
+});
+try { dumpOpen(!!localStorage.getItem("todo.dumpOpen")); } catch { dumpOpen(false); }
+
+function dumpItemEl(it) {
+  const p = it.project_id != null ? projectById(it.project_id) : null;
+  const due = dueInfo(it.due_date);
+  return h("div", { class: "dump-item" },
+    h("span", { class: "dump-title" }, it.title),
+    it.label && h("span", { class: "pill urgent" }, "⚡Urgent"),
+    due && h("span", { class: `due ${due.cls}` }, "📅 " + due.text),
+    it.project_name
+      ? h("span", { class: "chip cat" }, h("span", { class: "dot", style: `background:${p ? p.color : "var(--faint)"}` }),
+          it.project_name, it.new_project && h("span", { class: "new" }, "new"))
+      : h("span", { class: "chip cat inbox" }, "📥 Inbox"));
+}
+
+async function previewDump() {
+  const text = $("#dump-text").value;
+  const seq = ++dumpSeq;
+  if (!text.trim()) { $("#dump-preview").replaceChildren(); $("#dump-add").disabled = true; $("#dump-add").textContent = "Add tasks"; return; }
+  try {
+    const { items } = await api("POST", "capture", { text, dry: true });
+    if (seq !== dumpSeq) return;
+    $("#dump-preview").replaceChildren(...items.map(dumpItemEl));
+    $("#dump-add").disabled = !items.length;
+    $("#dump-add").textContent = items.length === 1 ? "Add 1 task" : `Add ${items.length} tasks`;
+  } catch (err) { fail(err); }
+}
+
+async function submitDump() {
+  const text = $("#dump-text").value;
+  if (!text.trim()) return;
+  try {
+    const { items } = await api("POST", "capture", { text });
+    $("#dump-text").value = "";
+    await previewDump();
+    await load();
+    const where = {};
+    for (const it of items) where[it.project_name || "Inbox"] = (where[it.project_name || "Inbox"] || 0) + 1;
+    toast(`Added ${items.length} task${items.length === 1 ? "" : "s"} → ` + Object.entries(where).map(([k, n]) => `${k} (${n})`).join(", "));
+  } catch (err) { fail(err); }
+}
+
+$("#dump-text").addEventListener("input", () => { clearTimeout(dumpTimer); dumpTimer = setTimeout(previewDump, 200); });
+$("#dump-text").addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); submitDump(); } });
+$("#dump-add").addEventListener("click", submitDump);
+
 $("#search").addEventListener("input", (e) => { state.query = e.target.value; renderList(); });
 $("#menu").addEventListener("click", () => $("#sidebar").classList.toggle("show"));
 $("#new-project").addEventListener("click", () => openProjectDialog(null));
