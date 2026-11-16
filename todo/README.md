@@ -11,7 +11,8 @@ A to-do list app on port **1242** — tasks, projects, and labels.
 - **Sub-projects**: projects nest, any depth. Drag project A onto project B in the sidebar (or onto
   a sub-project card) and A goes inside B; drop it on the *Projects* heading to bring it back to the
   top level. “+ Sub-project” on a project page, or *Inside* in the project editor, does the same.
-  A project's page shows its sub-projects as cards; the sidebar folds them with ▾. Deleting a
+  A project's page shows its sub-projects as cards, and below its own tasks, the open tasks of
+  every sub-project (grouped, deepest ones too); the sidebar folds them with ▾. Deleting a
   project moves its sub-projects up a level. Tasks can be dragged onto any project to move them there.
 - **Subsections**: split a project into named parts (e.g. Design, Build) — rename, reorder, collapse,
   delete (its tasks move to *No subsection*). Each has its own quick “+ Add task”.

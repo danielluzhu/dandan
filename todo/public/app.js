@@ -370,7 +370,8 @@ function renderList() {
 
   if (!todos.length) {
     const p = currentProject();
-    list.replaceChildren(h("div", { class: "empty" },
+    const below = subTasksEl();
+    list.replaceChildren(below ? h("div", { class: "section-hint" }, "No tasks directly in this project — add one above.") : h("div", { class: "empty" },
       h("div", { class: "big" }, state.query ? "🔍" : "✨"),
       state.query ? "No tasks match that filter."
         : p ? "This project has no tasks yet. Add the first one above."
@@ -378,6 +379,7 @@ function renderList() {
     if (!state.query && p && !sectionsOf(p.id).length) list.append(addSectionEl());
     if (!state.query && p && sectionsOf(p.id).length) { list.replaceChildren(...sectionsOf(p.id).map((s) => blockEl(s, [])), addSectionEl()); }
     if (subs) list.prepend(subs);
+    if (below) list.append(below);
     list.querySelector("[data-autofocus]")?.focus();
     return;
   }
@@ -403,6 +405,8 @@ function renderList() {
     parts.push(section("", "Unlabeled", rest, { drop: "none", hint: "Nothing else on the list." }));
   }
   if (p) parts.push(addSectionEl());
+  const below = subTasksEl();
+  if (below) parts.push(below);
   if (done.length) parts.push(section("", "Completed", done, { collapsible: true }));
   list.replaceChildren(...(subs ? [subs] : []), ...parts);
   list.querySelector("[data-autofocus]")?.focus();
@@ -428,6 +432,35 @@ function subProjectsEl() {
       h("span", { class: "sp-name" }, c.name),
       h("span", { class: "sp-meta" }, `${n} open` + (inner ? ` · ${inner} sub-project${inner === 1 ? "" : "s"}` : "")));
   }));
+}
+
+/* Below a project's own tasks: the open tasks of every project inside it, one group per
+   sub-project (deepest ones too, named by their path). Each group is a drop target that
+   moves a task into that sub-project. */
+function subTasksEl() {
+  const p = currentProject();
+  if (!p) return null;
+  const q = state.query.trim().toLowerCase();
+  const groups = [];
+  const walk = (c, path) => {
+    if (c.archived && !p.archived) return;
+    const name = path ? `${path} › ${c.name}` : c.name;
+    const mine = state.todos
+      .filter((t) => t.project_id === c.id && !t.done && (q ? (t.title + " " + t.notes).toLowerCase().includes(q) : t.parent_id == null))
+      .sort(byOpenOrder);
+    if (mine.length) {
+      groups.push(h("div", { class: "section sub-tasks", "data-drop": "project", "data-project": c.id },
+        h("div", { class: "section-head" },
+          h("a", { class: "sub-tasks-link", href: "#p" + c.id },
+            h("span", { class: "dot", style: `background:${c.color}` }), name, " ›"),
+          h("span", { class: "n" }, mine.length)),
+        ...mine.map(itemEl)));
+    }
+    subProjectsOf(c.id).forEach((k) => walk(k, name));
+  };
+  subProjectsOf(p.id).forEach((c) => walk(c, ""));
+  if (!groups.length) return null;
+  return h("div", { class: "sub-tasks-all" }, h("div", { class: "sub-tasks-title" }, "In sub-projects"), ...groups);
 }
 
 /* A North Star's own page: the North Star itself as a card, then its tasks by label. */
