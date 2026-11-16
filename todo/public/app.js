@@ -719,6 +719,7 @@ function go(view) {
   window.scrollTo(0, 0);
   $("#sidebar").classList.remove("show");
   render();
+  if ($("#dump-text").value.trim()) previewDump(); // free-form lines default to the page's project
 }
 
 function toggleOpen(id) {
@@ -903,6 +904,7 @@ function dumpItemEl(it) {
   const p = pid != null ? projectById(pid) : null;
   const due = dueInfo(it.due_date);
   const autoName = it.project_name ? it.project_name + (it.new_project ? " (new)" : "") : "Inbox";
+  const autoInbox = it.project_id == null && !it.new_project;
   const projSel = h("select", {
       class: "dump-pick", "aria-label": `Project for “${it.title}”`,
       onchange: (e) => {
@@ -910,9 +912,10 @@ function dumpItemEl(it) {
         setDumpChoice(it, { project: v === "auto" || v === "inbox" ? v : Number(v), section: null });
       } },
     h("option", { value: "auto" }, "✨ " + autoName),
-    h("option", { value: "inbox" }, "📥 Inbox"),
+    !autoInbox && h("option", { value: "inbox" }, "📥 Inbox"),
     ...projectTree().map(({ p: x, depth }) => h("option", { value: x.id }, "\u00a0\u00a0".repeat(depth) + x.name)));
-  projSel.value = String(choice.project);
+  // When the guess is the Inbox anyway, picking Inbox is the same as the guess.
+  projSel.value = autoInbox && choice.project === "inbox" ? "auto" : String(choice.project);
   const secs = pid != null ? sectionsOf(pid) : [];
   let secSel = null;
   if (secs.length) {
@@ -943,7 +946,7 @@ async function previewDump() {
   const seq = ++dumpSeq;
   if (!text.trim()) { dumpItems = []; dumpChoices.clear(); renderDumpPreview(); return; }
   try {
-    const { items } = await api("POST", "capture", { text, dry: true });
+    const { items } = await api("POST", "capture", { text, dry: true, project_id: currentProject()?.id });
     if (seq !== dumpSeq) return;
     dumpItems = items;
     renderDumpPreview();
@@ -955,13 +958,14 @@ async function submitDump() {
   if (!text.trim()) return;
   try {
     // Line up the picks with the lines as the server parses them right now.
-    const { items: parsed } = await api("POST", "capture", { text, dry: true });
+    const here = currentProject()?.id;
+    const { items: parsed } = await api("POST", "capture", { text, dry: true, project_id: here });
     const choices = parsed.map((it) => {
       const { choice, pid, section } = dumpTarget(it);
       if (choice.project === "auto") return section != null ? { section_id: section } : {};
       return { project_id: pid, section_id: section };
     });
-    const { items } = await api("POST", "capture", { text, choices });
+    const { items } = await api("POST", "capture", { text, choices, project_id: here });
     $("#dump-text").value = "";
     dumpChoices.clear();
     await previewDump();

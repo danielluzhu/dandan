@@ -247,7 +247,8 @@ const listKeyworded = () => listProjects().filter((p) => !p.archived && p.keywor
 
 /* Free-form capture: each line of `text` becomes a task, filed into the project its
    #tag names (created if missing), else the project its words match the keywords of, else
-   `default_project_id` (Daily passes a note's project), else the Inbox. `choices`, lined
+   `default_project_id` (Daily passes a note's project), else the Inbox. On a project page
+   the page passes `project_id`, and lines without a #tag go there instead. `choices`, lined
    up with the parsed lines, overrides that per line: `{project_id}` (null = Inbox) and/or
    `{section_id}`. With `dry`, nothing is written — the parse comes back so the page can
    preview it. */
@@ -266,9 +267,11 @@ function capture(body) {
   };
   const keyworded = listKeyworded();
   const fallback = body.default_project_id != null ? projects.find((p) => p.id === Number(body.default_project_id)) ?? null : null;
+  // `project_id` (the project page you're on) takes every line without a #tag, ahead of keywords.
+  const here = body.project_id != null ? projects.find((p) => p.id === Number(body.project_id)) ?? null : null;
   const resolve = (it) => {
     if (it.project) return find([it.project]) || { id: null, name: it.project };
-    return projectFor(it.title, keyworded) || fallback;
+    return here || projectFor(it.title, keyworded) || fallback;
   };
   const choices = Array.isArray(body.choices) ? body.choices : [];
   const sectionIn = (sid, pid) => {
