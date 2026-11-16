@@ -247,8 +247,10 @@ const listKeyworded = () => listProjects().filter((p) => !p.archived && p.keywor
 
 /* Free-form capture: each line of `text` becomes a task, filed into the project its
    #tag names (created if missing), else the project its words match the keywords of, else
-   `default_project_id` (Daily passes a note's project), else the Inbox. With `dry`,
-   nothing is written — the parse comes back so the page can preview it. */
+   `default_project_id` (Daily passes a note's project), else the Inbox. `choices`, lined
+   up with the parsed lines, overrides that per line: `{project_id}` (null = Inbox) and/or
+   `{section_id}`. With `dry`, nothing is written — the parse comes back so the page can
+   preview it. */
 function capture(body) {
   const items = parseText(body.text);
   if (items.length > 100) throw new BadRequest("That's more than 100 lines — split it up");
@@ -268,15 +270,28 @@ function capture(body) {
     if (it.project) return find([it.project]) || { id: null, name: it.project };
     return projectFor(it.title, keyworded) || fallback;
   };
-  return db.transaction(() => items.map((it) => {
-    let p = resolve(it);
-    const out = { ...it, project_id: p?.id ?? null, project_name: p?.name ?? null, new_project: !!p && p.id == null };
+  const choices = Array.isArray(body.choices) ? body.choices : [];
+  const sectionIn = (sid, pid) => {
+    if (sid == null || sid === "" || pid == null) return null;
+    const sec = db.query("SELECT id, project_id FROM sections WHERE id = ?").get(Number(sid));
+    if (!sec || sec.project_id !== pid) throw new BadRequest("That subsection isn't in the chosen project");
+    return sec.id;
+  };
+  return db.transaction(() => items.map((it, i) => {
+    const choice = choices[i] && typeof choices[i] === "object" ? choices[i] : {};
+    let p;
+    if ("project_id" in choice) {
+      p = choice.project_id == null || choice.project_id === "" ? null : projects.find((x) => x.id === Number(choice.project_id));
+      if (p === undefined) throw new BadRequest("That project doesn't exist or is archived");
+    } else p = resolve(it);
+    const section_id = sectionIn(choice.section_id, p?.id ?? null);
+    const out = { ...it, project_id: p?.id ?? null, project_name: p?.name ?? null, new_project: !!p && p.id == null, section_id };
     if (body.dry) return out;
     if (p && p.id == null) {
       p = insert("projects", { name: p.name });
       projects.push(p);
     }
-    out.todo = insert("todos", { title: it.title, label: it.label, due_date: it.due_date, project_id: p?.id ?? null, notes });
+    out.todo = insert("todos", { title: it.title, label: it.label, due_date: it.due_date, project_id: p?.id ?? null, section_id, notes });
     out.project_id = p?.id ?? null;
     return out;
   }))();

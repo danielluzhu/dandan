@@ -861,8 +861,13 @@ $("#composer").addEventListener("submit", async (e) => {
 /* ---------- free-form notes ----------
    Each line becomes a task; the server works out its project (by category, e.g.
    “clean toilet” → domestic), label and due date. The preview is the server's own
-   parse, so what you see is what gets added. */
-let dumpTimer, dumpSeq = 0;
+   parse, so what you see is what gets added — and each line's project and subsection
+   can be changed there before adding. */
+let dumpTimer, dumpSeq = 0, dumpItems = [];
+// Per-line picks, keyed by the line's task title so they survive further typing:
+// { project: "auto" | "inbox" | id, section: id | null }.
+const dumpChoices = new Map();
+const dumpKey = (it) => it.title.toLowerCase();
 const dumpOpen = (open) => {
   $("#dump-body").hidden = !open;
   $("#dump-toggle").setAttribute("aria-expanded", String(open));
@@ -876,29 +881,72 @@ $("#dump-toggle").addEventListener("click", () => {
 });
 try { dumpOpen(!!localStorage.getItem("todo.dumpOpen")); } catch { dumpOpen(false); }
 
+// Where a previewed line will go: the pick if there is one, else the server's guess.
+function dumpTarget(it) {
+  const c = dumpChoices.get(dumpKey(it)) || { project: "auto", section: null };
+  let pid = c.project === "auto" ? it.project_id : c.project === "inbox" ? null : c.project;
+  if (pid != null && (!projectById(pid) || projectById(pid).archived)) { c.project = "auto"; pid = it.project_id; }
+  const section = pid != null && c.section != null && sectionsOf(pid).some((x) => x.id === c.section) ? c.section : null;
+  return { choice: c, pid, section };
+}
+
+function setDumpChoice(it, patch) {
+  const { choice } = dumpTarget(it);
+  const next = { ...choice, ...patch };
+  if (next.project === "auto" && next.section == null) dumpChoices.delete(dumpKey(it));
+  else dumpChoices.set(dumpKey(it), next);
+  renderDumpPreview();
+}
+
 function dumpItemEl(it) {
-  const p = it.project_id != null ? projectById(it.project_id) : null;
+  const { choice, pid, section } = dumpTarget(it);
+  const p = pid != null ? projectById(pid) : null;
   const due = dueInfo(it.due_date);
+  const autoName = it.project_name ? it.project_name + (it.new_project ? " (new)" : "") : "Inbox";
+  const projSel = h("select", {
+      class: "dump-pick", "aria-label": `Project for “${it.title}”`,
+      onchange: (e) => {
+        const v = e.target.value;
+        setDumpChoice(it, { project: v === "auto" || v === "inbox" ? v : Number(v), section: null });
+      } },
+    h("option", { value: "auto" }, "✨ " + autoName),
+    h("option", { value: "inbox" }, "📥 Inbox"),
+    ...projectTree().map(({ p: x, depth }) => h("option", { value: x.id }, "\u00a0\u00a0".repeat(depth) + x.name)));
+  projSel.value = String(choice.project);
+  const secs = pid != null ? sectionsOf(pid) : [];
+  let secSel = null;
+  if (secs.length) {
+    secSel = h("select", {
+        class: "dump-pick", "aria-label": `Subsection for “${it.title}”`,
+        onchange: (e) => setDumpChoice(it, { section: e.target.value ? Number(e.target.value) : null }) },
+      h("option", { value: "" }, "No subsection"),
+      ...secs.map((x) => h("option", { value: x.id }, x.name)));
+    secSel.value = section == null ? "" : String(section);
+  }
   return h("div", { class: "dump-item" },
     h("span", { class: "dump-title" }, it.title),
     it.label && h("span", { class: "pill urgent" }, "⚡Urgent"),
     due && h("span", { class: `due ${due.cls}` }, "📅 " + due.text),
-    it.project_name
-      ? h("span", { class: "chip cat" }, h("span", { class: "dot", style: `background:${p ? p.color : "var(--faint)"}` }),
-          it.project_name, it.new_project && h("span", { class: "new" }, "new"))
-      : h("span", { class: "chip cat inbox" }, "📥 Inbox"));
+    h("span", { class: "dump-where" },
+      h("span", { class: "dot", style: `background:${p ? p.color : "var(--faint)"}` }),
+      projSel, secSel));
+}
+
+function renderDumpPreview() {
+  $("#dump-preview").replaceChildren(...dumpItems.map(dumpItemEl));
+  $("#dump-add").disabled = !dumpItems.length;
+  $("#dump-add").textContent = !dumpItems.length ? "Add tasks" : dumpItems.length === 1 ? "Add 1 task" : `Add ${dumpItems.length} tasks`;
 }
 
 async function previewDump() {
   const text = $("#dump-text").value;
   const seq = ++dumpSeq;
-  if (!text.trim()) { $("#dump-preview").replaceChildren(); $("#dump-add").disabled = true; $("#dump-add").textContent = "Add tasks"; return; }
+  if (!text.trim()) { dumpItems = []; dumpChoices.clear(); renderDumpPreview(); return; }
   try {
     const { items } = await api("POST", "capture", { text, dry: true });
     if (seq !== dumpSeq) return;
-    $("#dump-preview").replaceChildren(...items.map(dumpItemEl));
-    $("#dump-add").disabled = !items.length;
-    $("#dump-add").textContent = items.length === 1 ? "Add 1 task" : `Add ${items.length} tasks`;
+    dumpItems = items;
+    renderDumpPreview();
   } catch (err) { fail(err); }
 }
 
@@ -906,12 +954,24 @@ async function submitDump() {
   const text = $("#dump-text").value;
   if (!text.trim()) return;
   try {
-    const { items } = await api("POST", "capture", { text });
+    // Line up the picks with the lines as the server parses them right now.
+    const { items: parsed } = await api("POST", "capture", { text, dry: true });
+    const choices = parsed.map((it) => {
+      const { choice, pid, section } = dumpTarget(it);
+      if (choice.project === "auto") return section != null ? { section_id: section } : {};
+      return { project_id: pid, section_id: section };
+    });
+    const { items } = await api("POST", "capture", { text, choices });
     $("#dump-text").value = "";
+    dumpChoices.clear();
     await previewDump();
     await load();
     const where = {};
-    for (const it of items) where[it.project_name || "Inbox"] = (where[it.project_name || "Inbox"] || 0) + 1;
+    for (const it of items) {
+      const sec = it.section_id != null ? sectionById(it.section_id) : null;
+      const k = (it.project_name || "Inbox") + (sec ? ` › ${sec.name}` : "");
+      where[k] = (where[k] || 0) + 1;
+    }
     toast(`Added ${items.length} task${items.length === 1 ? "" : "s"} → ` + Object.entries(where).map(([k, n]) => `${k} (${n})`).join(", "));
   } catch (err) { fail(err); }
 }

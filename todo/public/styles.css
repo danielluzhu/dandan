@@ -169,6 +169,9 @@ select, input[type="date"] {
 .dump-title { flex: 1 1 160px; min-width: 0; }
 .chip.cat { font-size: 12.5px; color: var(--muted); font-weight: 600; }
 .chip.cat .new { font-size: 11px; font-weight: 600; color: var(--accent); background: var(--accent-soft); padding: 0 6px; border-radius: 99px; }
+.dump-where { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.dump-pick { font-size: 12.5px; padding: 2px 6px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel); color: var(--text); max-width: 190px; }
+.dump-pick:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
 .dump-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .dump-hint { font-size: 12.5px; color: var(--faint); }
 #dump-add:disabled { opacity: .5; cursor: default; }
