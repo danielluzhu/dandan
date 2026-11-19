@@ -15,6 +15,7 @@
         <a class="js-todo" href="http://localhost:1242"><span class="mark todo" aria-hidden="true"></span>To-do</a>
       </nav>
       <button class="nav-item today-btn" id="go-today">✎ Today</button>
+      <button class="nav-item" id="go-journal">📖 Journal <span class="ext">Alt J</span></button>
       <button class="nav-item" id="show-keys">⌨ Shortcuts <span class="ext">Alt /</span></button>
       <div class="side-head">Entries</div>
       <nav class="entries" id="entries"></nav>
@@ -34,6 +35,8 @@
         <button class="btn" id="open-history" title="Version history (Alt+H)">🕘 History</button>
         <a class="app-hop js-todo" href="http://localhost:1242"><span class="mark todo" aria-hidden="true"></span>To-do</a>
       </header>
+
+      <div class="journal" id="journal" hidden></div>
 
       <div class="page">
         <section class="day">
@@ -90,6 +93,7 @@
         <dt><kbd>Alt</kbd> <kbd>H</kbd></dt><dd>Open or close version history</dd>
         <dt><kbd>Alt</kbd> <kbd>←</kbd> <kbd>→</kbd></dt><dd>Previous / next day</dd>
         <dt><kbd>Alt</kbd> <kbd>T</kbd></dt><dd>Go to today</dd>
+        <dt><kbd>Alt</kbd> <kbd>J</kbd></dt><dd>Journal — every day on one page (again to go back)</dd>
         <dt><kbd>Alt</kbd> <kbd>D</kbd></dt><dd>Go to the to-do list</dd>
         <dt><kbd>Esc</kbd></dt><dd>Close version history</dd>
         <dt><kbd>Enter</kbd></dt><dd>Finishes a line — any to-do on it goes to the to-do list</dd>

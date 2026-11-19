@@ -288,6 +288,19 @@ async function api(req, url) {
       ORDER BY e.date DESC`).all());
   }
 
+  /* The journal: every day with something written, oldest first, as one running page —
+     `days` of them at a time, ending before `before` (for loading further back). */
+  if (resource === "journal" && req.method === "GET") {
+    const before = DATE_RE.test(url.searchParams.get("before") || "") ? url.searchParams.get("before") : "9999-12-31";
+    const days = Math.min(Math.max(Number(url.searchParams.get("days")) || 30, 1), 200);
+    const dates = db.query(`
+      SELECT e.date FROM entries e
+      WHERE e.date < ? AND (trim(e.summary) != '' OR EXISTS (SELECT 1 FROM notes n WHERE n.date = e.date AND n.deleted_at IS NULL AND trim(n.body) != ''))
+      ORDER BY e.date DESC LIMIT ?`).all(before, days + 1).map((r) => r.date);
+    const more = dates.length > days;
+    return json({ days: dates.slice(0, days).reverse().map(getDay), more });
+  }
+
   if (resource === "entries" && arg) {
     if (!DATE_RE.test(arg)) throw new BadRequest("Dates look like 2026-11-15");
     if (req.method === "GET" && !sub) {

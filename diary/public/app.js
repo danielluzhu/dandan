@@ -81,12 +81,16 @@ function dueInfo(due) {
 
 /* ---------- state ---------- */
 const state = {
+  mode: location.hash === "#journal" ? "journal" : "day",  // one day, or the running journal
   date: DATE_RE.test(location.hash.slice(1)) ? location.hash.slice(1) : todayISO(),
   day: null,          // { summary, summary_created_at, summary_updated_at, notes: [...] }
   entries: [],
   projects: [],         // the to-do list's active projects, which notes fall into
   projectFilter: null,  // project id the sidebar's entries are narrowed to
   historyFor: null,   // null = whole day, "summary", or a note id
+  historyDate: null,  // the day the history drawer shows (a journal note's day)
+  journal: [],        // days loaded into the journal, oldest first
+  journalMore: false, // there are earlier days still to load
 };
 
 /* ---------- saving ----------
@@ -94,7 +98,7 @@ const state = {
    pulled out once a line is finished (Enter, leaving the box, or leaving the day), so a
    half-typed “need to cl…” never lands on the to-do list.
    A target is { kind: "summary" } or { kind: "note", note }, where note.id is null until
-   the note's first save creates it. */
+   the note's first save creates it. A journal note also carries its `date`. */
 let queue = Promise.resolve();
 
 function saveTarget(t, { extract = false, keepalive = false } = {}) {
@@ -102,7 +106,7 @@ function saveTarget(t, { extract = false, keepalive = false } = {}) {
   if (body === t.saved && (!extract || body === t.extracted)) return queue;
   clearTimeout(t.timer);
   if (t.kind === "note" && t.note.id == null && !body.trim()) return queue;  // an untouched new note
-  const date = state.date;
+  const date = t.date || state.date;
   setSaved("Saving…");
   queue = queue.then(async () => {
     const payload = { extract, link: `${location.origin}/#${date}` };
@@ -114,15 +118,15 @@ function saveTarget(t, { extract = false, keepalive = false } = {}) {
       t.saved = body;
       if (extract) t.extracted = body;
       if (res.note) { Object.assign(t.note, res.note); t.stamp?.(); }
-      if (res.day) { Object.assign(state.day, { summary_created_at: res.day.summary_created_at, summary_updated_at: res.day.summary_updated_at }); stampSummary(); }
-      if (date !== state.date) return;
+      if (res.day && state.day?.date === date) { Object.assign(state.day, { summary_created_at: res.day.summary_created_at, summary_updated_at: res.day.summary_updated_at }); stampSummary(); }
+      if (state.mode === "day" ? date !== state.date : !t.date) return;
       setSaved("Saved");
       if (res.created.length) {
         const where = res.created.map((c) => c.project || "Inbox");
         toast(`Added ${res.created.length} to-do${res.created.length === 1 ? "" : "s"} → ${[...new Set(where)].join(", ")}`);
       }
       if (res.errors.length) toast(`Couldn't add some to-dos: ${res.errors[0]}`);
-      if (extract) loadFound();
+      if (extract && state.mode === "day") loadFound();
       loadEntries();
       if (!$("#history").hidden) loadHistory();
     } catch (err) {
@@ -172,7 +176,7 @@ function stampSummary() {
     : `Written ${when(d.summary_created_at)}`;
 }
 
-function noteEl(note) {
+function noteEl(note, date = null) {
   const el = h("textarea", { class: "note-text", spellcheck: "true", "aria-label": "Note",
     placeholder: note.id == null ? "What's on your mind?\n\nTo-dos are picked up as you write: - [ ] call the vet · todo: print the poster · “need to clean the toilet tomorrow”" : "" });
   el.value = note.body;
@@ -180,7 +184,7 @@ function noteEl(note) {
   const meta = h("span", { class: "note-meta" });
   const pick = h("select", { class: "proj-pick", "aria-label": "Project", title: "Which project this note falls into",
     onchange: (e) => setNoteProject(t, e.target.value) });
-  const t = bind({ kind: "note", note, el });
+  const t = bind({ kind: "note", note, el, date });
   t.stamp = () => {
     // Project: worked out from the words and projects' keywords ("Auto") until you pick one.
     const project = projectById(note.project_id);
@@ -202,7 +206,7 @@ function noteEl(note) {
     h("div", { class: "note-rail" }, time),
     h("div", { class: "note-body" }, el,
       h("div", { class: "note-foot" }, h("span", { class: "proj-wrap" }, h("span", { class: "proj-dot" }), pick), meta, h("span", { class: "spacer" }),
-        h("button", { class: "link-btn", onclick: () => { if (note.id != null) openHistory(note.id); } }, "History"),
+        h("button", { class: "link-btn", onclick: () => { if (note.id != null) openHistory(note.id, date); } }, "History"),
         h("button", { class: "link-btn danger", onclick: () => deleteNote(t, card) }, "Delete"))));
   t.stamp();
   requestAnimationFrame(() => grow(el));
@@ -245,6 +249,7 @@ function renderDay() {
 }
 
 function addNote() {
+  if (state.mode === "journal") return journalWrite();
   // Reuse an empty note at the end rather than stacking blanks.
   const last = targets.filter((t) => t.kind === "note").at(-1);
   if (last && !last.el.value.trim()) return last.el.focus();
@@ -257,22 +262,24 @@ function addNote() {
 async function deleteNote(t, card) {
   clearTimeout(t.timer);
   targets = targets.filter((x) => x !== t);
+  const box = card.parentElement;
   card.remove();
-  if (!$("#notes").children.length) $("#notes").append(noteEl({ id: null, body: "", created_at: null, updated_at: null }));
+  if (!box.children.length) box.append(noteEl({ id: null, body: "", created_at: null, updated_at: null }, t.date));
   if (t.note.id == null) return;
   await queue;
   try {
     await api("DELETE", `notes/${t.note.id}`);
-    state.day.notes = state.day.notes.filter((n) => n.id !== t.note.id);
+    if (state.day) state.day.notes = state.day.notes.filter((n) => n.id !== t.note.id);
     if (t.el.value.trim()) toast("Note deleted — bring it back from History");
     loadEntries();
-    loadFound();
+    if (state.mode === "day") loadFound();
     if (!$("#history").hidden) loadHistory();
   } catch (err) { toast(err.message); }
 }
 
 async function openDay(date) {
-  if (state.date && state.day && state.date !== date) await saveAll({ extract: true });
+  if (state.mode === "journal") { await saveAll({ extract: true }); setMode("day"); }
+  else if (state.date && state.day && state.date !== date) await saveAll({ extract: true });
   state.date = date;
   history.replaceState(null, "", date === todayISO() ? location.pathname : "#" + date);
   const d = parse(date);
@@ -293,7 +300,107 @@ async function openDay(date) {
   renderEntries();
   loadFound();
   loadDue();
-  if (!$("#history").hidden) { state.historyFor = null; loadHistory(); }
+  if (!$("#history").hidden) { state.historyFor = null; state.historyDate = null; loadHistory(); }
+}
+
+/* ---------- the journal ----------
+   Every day on one running page, oldest at the top and today at the bottom, like one long
+   file. Notes are edited right there (same autosave, to-dos, projects and history as the
+   day view); each day's heading opens that day. Earlier days load as you ask for them. */
+const JOURNAL_DAYS = 30;
+const blankNote = () => ({ id: null, body: "", created_at: null, updated_at: null });
+
+function setMode(mode) {
+  state.mode = mode;
+  document.body.classList.toggle("journal-mode", mode === "journal");
+  $("#journal").hidden = mode !== "journal";
+  $(".page").hidden = mode === "journal";
+  $("#go-journal").classList.toggle("active", mode === "journal");
+  $("#go-today").classList.toggle("active", mode === "day" && state.date === todayISO());
+}
+
+async function openJournal() {
+  if (state.mode === "day" && state.day) await saveAll({ extract: true });
+  setMode("journal");
+  history.replaceState(null, "", "#journal");
+  $("#day-name").textContent = "Journal";
+  $("#day-sub").textContent = "Every day, one running page";
+  document.title = "Journal · Daily";
+  $("#sidebar").classList.remove("show");
+  closeHistory();
+  setSaved("");
+  state.day = null;
+  try {
+    const { days, more } = await api("GET", `journal?days=${JOURNAL_DAYS}`);
+    if (state.mode !== "journal") return;
+    state.journal = days;
+    state.journalMore = more;
+    renderJournal();
+    window.scrollTo(0, document.body.scrollHeight);
+  } catch (err) { toast(err.message); }
+  renderEntries();
+}
+
+async function loadEarlier() {
+  const first = state.journal[0]?.date;
+  try {
+    const { days, more } = await api("GET", `journal?days=${JOURNAL_DAYS}&before=${first}`);
+    const h0 = document.body.scrollHeight;
+    state.journal = [...days, ...state.journal];
+    state.journalMore = more;
+    renderJournal();
+    window.scrollBy(0, document.body.scrollHeight - h0);  // stay where you were reading
+  } catch (err) { toast(err.message); }
+}
+
+function journalDayEl(day) {
+  const d = parse(day.date);
+  const today = day.date === todayISO();
+  const filter = state.projectFilter;
+  const notes = day.notes.filter((n) => n.body.trim() || today).filter((n) => filter == null || n.project_id === filter);
+  if (filter != null && !notes.length && !today) return null;
+  const list = h("div", { class: "notes" }, notes.map((n) => noteEl(n, day.date)));
+  if (today && filter == null) list.append(noteEl(blankNote(), day.date));
+  return h("section", { class: "j-day" + (today ? " today" : ""), id: "j-" + day.date },
+    h("header", { class: "j-head" },
+      h("a", { class: "j-date", href: "#" + day.date, title: "Open this day",
+          onclick: (e) => { e.preventDefault(); openDay(day.date); } },
+        today ? "Today" : d.toLocaleDateString(undefined, { weekday: "long" }),
+        h("span", { class: "j-full" }, d.toLocaleDateString(undefined, { month: "long", day: "numeric", year: d.getFullYear() === new Date().getFullYear() ? undefined : "numeric" }))),
+      h("span", { class: "j-open" }, "Open day ›")),
+    day.summary.trim() && filter == null && h("p", { class: "j-summary" }, h("span", { class: "field-label" }, "The day"), day.summary),
+    list,
+    today && filter == null && h("button", { class: "add-note", title: "New note (Alt+N)", onclick: journalWrite }, "+ New note"));
+}
+
+function renderJournal() {
+  targets = [];
+  const days = [...state.journal];
+  if (days.at(-1)?.date !== todayISO()) days.push({ date: todayISO(), summary: "", notes: [] });
+  let month = null;
+  const parts = [];
+  if (state.journalMore) parts.push(h("button", { class: "btn j-more", onclick: loadEarlier }, "Load earlier days"));
+  else if (state.journal.length) parts.push(h("p", { class: "j-start" }, "The beginning"));
+  for (const day of days) {
+    const el = journalDayEl(day);
+    if (!el) continue;
+    const m = parse(day.date).toLocaleDateString(undefined, { month: "long", year: "numeric" });
+    if (m !== month) { parts.push(h("div", { class: "j-month" }, m)); month = m; }
+    parts.push(el);
+  }
+  $("#journal").replaceChildren(...parts);
+}
+
+// Alt+N in the journal: write in today's empty note at the bottom.
+function journalWrite() {
+  const today = $("#j-" + todayISO());
+  const blank = [...(today?.querySelectorAll("textarea") || [])].find((x) => !x.value.trim());
+  if (blank) { blank.focus(); blank.scrollIntoView({ block: "center", behavior: "smooth" }); return; }
+  if (!today) return;
+  const card = noteEl(blankNote(), todayISO());
+  today.querySelector(".notes").append(card);
+  card.querySelector("textarea").focus();
+  card.scrollIntoView({ block: "center", behavior: "smooth" });
 }
 
 /* ---------- sidebar ---------- */
@@ -308,8 +415,8 @@ function renderEntries() {
   const used = new Set(state.entries.flatMap((e) => (e.projects || "").split(",").filter(Boolean).map(Number)));
   const chips = state.projects.filter((t) => used.has(t.id));
   if (chips.length) nodes.push(h("div", { class: "proj-filter" },
-    h("button", { class: "chip-btn" + (state.projectFilter == null ? " on" : ""), onclick: () => { state.projectFilter = null; renderEntries(); } }, "All"),
-    chips.map((t) => h("button", { class: "chip-btn" + (state.projectFilter === t.id ? " on" : ""), onclick: () => { state.projectFilter = state.projectFilter === t.id ? null : t.id; renderEntries(); } },
+    h("button", { class: "chip-btn" + (state.projectFilter == null ? " on" : ""), onclick: () => { state.projectFilter = null; renderEntries(); if (state.mode === "journal") renderJournal(); } }, "All"),
+    chips.map((t) => h("button", { class: "chip-btn" + (state.projectFilter === t.id ? " on" : ""), onclick: () => { state.projectFilter = state.projectFilter === t.id ? null : t.id; renderEntries(); if (state.mode === "journal") renderJournal(); } },
       h("span", { class: "dot", style: `background:${t.color}` }), t.name))));
   for (const e of state.entries) {
     const inDay = (e.projects || "").split(",").filter(Boolean).map(Number);
@@ -318,15 +425,20 @@ function renderEntries() {
     const m = d.toLocaleDateString(undefined, { month: "long", year: "numeric" });
     if (m !== month) { nodes.push(h("div", { class: "month" }, m)); month = m; }
     nodes.push(h("a", {
-      class: "entry-link" + (e.date === state.date ? " active" : ""), href: "#" + e.date,
-      onclick: (ev) => { ev.preventDefault(); openDay(e.date); },
+      class: "entry-link" + (state.mode === "day" && e.date === state.date ? " active" : ""), href: "#" + e.date,
+      onclick: (ev) => {
+        ev.preventDefault();
+        const inJournal = state.mode === "journal" && $("#j-" + e.date);
+        if (inJournal) { inJournal.scrollIntoView({ block: "start", behavior: "smooth" }); $("#sidebar").classList.remove("show"); }
+        else openDay(e.date);
+      },
     }, h("span", { class: "d" }, d.toLocaleDateString(undefined, { weekday: "short", day: "numeric" }),
         e.note_count > 1 && h("span", { class: "n" }, `${e.note_count} notes`),
         h("span", { class: "dots" }, inDay.map((id) => projectById(id)).filter(Boolean).map((t) => h("span", { class: "dot", title: t.name, style: `background:${t.color}` })))),
       h("span", { class: "s" }, (e.snippet || "").replace(/\s+/g, " "))));
   }
   $("#entries").replaceChildren(...(nodes.length ? nodes : [h("div", { class: "side-empty" }, "Nothing written yet.")]));
-  $("#go-today").classList.toggle("active", state.date === todayISO());
+  $("#go-today").classList.toggle("active", state.mode === "day" && state.date === todayISO());
 }
 
 /* ---------- version history ----------
@@ -371,8 +483,9 @@ function diffEl(before, after) {
   }));
 }
 
-async function openHistory(target = null) {
+async function openHistory(target = null, date = null) {
   state.historyFor = target;
+  state.historyDate = date;
   $("#history").hidden = false;
   document.body.classList.add("history-open");
   await saveAll();
@@ -385,10 +498,10 @@ function closeHistory() {
 }
 
 async function loadHistory() {
-  const date = state.date;
+  const date = state.historyDate || state.date;
   let data;
   try { data = await api("GET", `entries/${date}/history`); } catch (err) { return toast(err.message); }
-  if (date !== state.date) return;
+  if (date !== (state.historyDate || state.date)) return;
   const notes = new Map(data.notes.map((n) => [n.id, n]));
   const label = (r) => r.note_id == null ? "The day's summary" : `Note from ${notes.get(r.note_id) ? clock(notes.get(r.note_id).created_at) : "earlier"}`;
   // The newest version of something still there is what's on the page: nothing to restore.
@@ -435,13 +548,19 @@ async function restoreVersion(r) {
   await saveAll();
   try {
     const { day } = await api("POST", `revisions/${r.id}/restore`);
-    if (day.date !== state.date) return;
-    state.day = day;
-    renderDay();
+    if (state.mode === "journal") {
+      const i = state.journal.findIndex((x) => x.date === day.date);
+      if (i >= 0) state.journal[i] = day; else state.journal = [...state.journal, day].sort((a, b) => a.date.localeCompare(b.date));
+      renderJournal();
+    } else {
+      if (day.date !== state.date) return;
+      state.day = day;
+      renderDay();
+    }
     toast("Restored");
     loadHistory();
     loadEntries();
-    loadFound();
+    if (state.mode === "day") loadFound();
   } catch (err) { toast(err.message); }
 }
 
@@ -497,6 +616,7 @@ async function loadDue() {
 }
 
 /* ---------- navigation ---------- */
+$("#go-journal").addEventListener("click", openJournal);
 $("#prev").addEventListener("click", () => openDay(shift(state.date, -1)));
 $("#next").addEventListener("click", () => openDay(shift(state.date, 1)));
 $("#go-today").addEventListener("click", () => openDay(todayISO()));
@@ -512,8 +632,9 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "?" && !e.target.closest("textarea, input")) { e.preventDefault(); return $("#keys-dialog").showModal(); }
   if (!e.altKey) return;
   const k = e.code;
-  if (e.key === "ArrowLeft") { e.preventDefault(); openDay(shift(state.date, -1)); }
-  else if (e.key === "ArrowRight") { e.preventDefault(); openDay(shift(state.date, 1)); }
+  if (e.key === "ArrowLeft" && state.mode === "day") { e.preventDefault(); openDay(shift(state.date, -1)); }
+  else if (e.key === "ArrowRight" && state.mode === "day") { e.preventDefault(); openDay(shift(state.date, 1)); }
+  else if (k === "KeyJ") { e.preventDefault(); state.mode === "journal" ? openDay(state.date) : openJournal(); }
   else if (k === "KeyN") { e.preventDefault(); addNote(); }
   else if (k === "KeyH") { e.preventDefault(); $("#history").hidden ? openHistory() : closeHistory(); }
   else if (k === "KeyD") { e.preventDefault(); location.href = TODO_URL; }
@@ -521,12 +642,14 @@ document.addEventListener("keydown", (e) => {
   else if (k === "Slash") { e.preventDefault(); $("#keys-dialog").showModal(); }
 });
 window.addEventListener("hashchange", () => {
+  if (location.hash === "#journal") { if (state.mode !== "journal") openJournal(); return; }
   const d = location.hash.slice(1) || todayISO();
-  if (DATE_RE.test(d) && d !== state.date) openDay(d);
+  if (DATE_RE.test(d) && (d !== state.date || state.mode === "journal")) openDay(d);
 });
 window.addEventListener("resize", () => document.querySelectorAll("textarea").forEach(grow));
 
 const start = state.date;
 state.date = null;
-loadProjects().then(() => openDay(start)).then(() => { if (start === todayISO()) [...document.querySelectorAll("#notes textarea")].at(-1)?.focus(); });
+if (state.mode === "journal") { state.date = start; loadProjects().then(openJournal); }
+else loadProjects().then(() => openDay(start)).then(() => { if (start === todayISO()) [...document.querySelectorAll("#notes textarea")].at(-1)?.focus(); });
 loadEntries();

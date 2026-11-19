@@ -259,3 +259,21 @@ kbd { display: inline-block; min-width: 24px; text-align: center; padding: 1px 7
   .add-note { margin-left: 66px; }
   textarea { font-size: 17px; }
 }
+
+/* ---------- the journal: every day on one running page ---------- */
+.journal-mode #prev, .journal-mode #next, .journal-mode #pick, .journal-mode #open-history { display: none; }
+.journal { max-width: 760px; display: grid; gap: 14px; padding-bottom: 40vh; }
+.j-month { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--faint); margin: 18px 4px 0; }
+.j-day { border: 1px solid var(--line); border-radius: 16px; background: var(--panel); box-shadow: var(--shadow); padding: 14px 22px 10px; scroll-margin-top: 16px; }
+.j-day.today { border-color: var(--accent); }
+.j-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 4px; }
+.j-date { font-family: var(--serif); font-size: 20px; font-weight: 600; color: var(--text); text-decoration: none; display: inline-flex; align-items: baseline; gap: 10px; }
+.j-date:hover { color: var(--accent); }
+.j-full { font-family: inherit; font-size: 14px; font-weight: 400; color: var(--muted); }
+.j-open { margin-left: auto; font-size: 12.5px; color: var(--faint); }
+.j-head:hover .j-open { color: var(--accent); }
+.j-summary { font-family: var(--serif); font-size: 17px; line-height: 1.6; margin: 4px 0 10px; padding-left: 12px; border-left: 3px solid var(--accent-soft); white-space: pre-wrap; }
+.j-summary .field-label { display: block; font-family: ui-sans-serif, -apple-system, sans-serif; margin-bottom: 2px; }
+.j-more { justify-self: center; }
+.j-start { text-align: center; color: var(--faint); font-size: 13px; margin: 0; }
+@media (max-width: 760px) { .j-day { padding: 12px 14px 8px; } }
