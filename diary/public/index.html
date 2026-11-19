@@ -15,8 +15,9 @@
         <a class="js-todo" href="http://localhost:1242"><span class="mark todo" aria-hidden="true"></span>To-do</a>
       </nav>
       <button class="nav-item today-btn" id="go-today">✎ Today</button>
-      <button class="nav-item" id="go-journal">📖 Journal <span class="ext">Alt J</span></button>
       <button class="nav-item" id="show-keys">⌨ Shortcuts <span class="ext">Alt /</span></button>
+      <div class="side-head side-head-row">Journals <button class="side-add" id="new-journal" title="New journal" aria-label="New journal">+</button></div>
+      <nav class="journals-nav" id="journals-nav"></nav>
       <div class="side-head">Entries</div>
       <nav class="entries" id="entries"></nav>
     </aside>
@@ -93,7 +94,7 @@
         <dt><kbd>Alt</kbd> <kbd>H</kbd></dt><dd>Open or close version history</dd>
         <dt><kbd>Alt</kbd> <kbd>←</kbd> <kbd>→</kbd></dt><dd>Previous / next day</dd>
         <dt><kbd>Alt</kbd> <kbd>T</kbd></dt><dd>Go to today</dd>
-        <dt><kbd>Alt</kbd> <kbd>J</kbd></dt><dd>Journal — every day on one page (again to go back)</dd>
+        <dt><kbd>Alt</kbd> <kbd>J</kbd></dt><dd>Daily journal — every day on one page (again to go back)</dd>
         <dt><kbd>Alt</kbd> <kbd>D</kbd></dt><dd>Go to the to-do list</dd>
         <dt><kbd>Esc</kbd></dt><dd>Close version history</dd>
         <dt><kbd>Enter</kbd></dt><dd>Finishes a line — any to-do on it goes to the to-do list</dd>
@@ -109,6 +110,20 @@
         <dt><code>#print</code> · <code>!</code> · <code>friday</code></dt><dd>Project, urgent, due date</dd>
       </dl>
       <div class="keys-actions"><button class="btn primary">Done</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="journal-dialog" class="keys">
+    <form method="dialog" id="journal-form">
+      <h2 id="jd-title">New journal</h2>
+      <label class="jd-field">Name
+        <input id="jd-name" maxlength="80" required placeholder="Dreams, Gratitude, Taiwan trip…" autocomplete="off">
+      </label>
+      <div class="jd-field">Colour <div class="swatches" id="jd-colors"></div></div>
+      <div class="keys-actions">
+        <button class="btn" value="cancel" formnovalidate>Cancel</button>
+        <button class="btn primary" value="ok" id="jd-save">Create</button>
+      </div>
     </form>
   </dialog>
 

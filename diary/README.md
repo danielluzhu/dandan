@@ -31,12 +31,17 @@ Remember to / have to / gotta / don't forget to …
   project; keywords are edited on the to-do list (*Edit project*).
 - The Daily ⇄ To-do switch at the top of the sidebar (or Alt+D) goes to the to-do list in the
   same tab.
-- **📖 Journal** (sidebar, or Alt+J): every day on one running page, like a single long file —
-  oldest at the top, today at the bottom with a blank note ready to write in. Notes are edited
-  right there (autosave, to-dos, projects, History and Delete all work); each day's summary
-  shows above its notes and its heading opens the day. The sidebar's entries jump to that day,
-  the project chips narrow the page to one project, and “Load earlier days” goes back further
-  than the last 30 days.
+- **Journals**: every note is in one. Day-to-day notes go in the **📖 Daily journal** (sidebar, or
+  Alt+J): every day on one running page, like a single long file — oldest at the top, today at
+  the bottom with a blank note ready to write in. Notes are edited right there (autosave,
+  to-dos, projects, History and Delete all work); each day's summary shows above its notes and
+  its heading opens the day. The sidebar's entries jump to that day, the project chips narrow
+  the page to one project, and “Load earlier days” goes back further than the last 30 days.
+- **Special journals** (＋ next to *Journals*): your own running pages — Dreams, Gratitude, a
+  trip — each with a name and colour. Writing on a journal's page puts the note in that journal;
+  any note can be moved with the 📖/📓 picker on it (shown once you have a special journal).
+  The day view still shows every note written that day, whichever journal it's in. Rename or
+  delete a journal under its title; deleting moves its notes back to the Daily journal.
 - Alt+← / Alt+→ move between days, Alt+T goes to today. ⌨ Shortcuts in the sidebar (or
   Alt+/, or `?` outside a note) lists every shortcut.
 
@@ -57,10 +62,13 @@ sudo systemctl daemon-reload && sudo systemctl enable --now dz-diary
 | Method | Path | |
 |---|---|---|
 | GET | `/api/entries` | days with writing, newest first, with a snippet |
-| GET | `/api/journal?days=30&before=YYYY-MM-DD` | `{days, more}`: days with writing, oldest first, each like `/api/entries/:date` |
+| GET | `/api/journal?days=30&before=YYYY-MM-DD&journal=ID` | `{days, more}`: a journal's days, oldest first, each like `/api/entries/:date` (no `journal` = the Daily journal) |
+| GET, POST | `/api/journals` | special journals (with `note_count`) / create `{name, color?}` |
+| PATCH, DELETE | `/api/journals/:id` | `{name?, color?}`; DELETE moves its notes to the Daily journal |
 | GET, PUT | `/api/entries/:date` | the day: `{summary, notes: [...]}`; PUT `{summary, extract?, link?}` saves the summary; `extract` turns finished to-do lines into to-dos |
-| POST | `/api/entries/:date/notes` | new note `{body, extract?, link?}`, stamped now |
+| POST | `/api/entries/:date/notes` | new note `{body, journal_id?, extract?, link?}`, stamped now (no `journal_id` = the Daily journal) |
 | PUT, DELETE | `/api/notes/:id` | save `{body, extract?, link?}`; DELETE keeps it in history |
+| PATCH | `/api/notes/:id` | `{project_id}` or `{auto: true}` sets its project; `{journal_id}` moves it to a journal (null = Daily journal) |
 | GET | `/api/entries/:date/history` | versions, newest first, each with the text `before` it |
 | POST | `/api/revisions/:id/restore` | put a note or the summary back as that version had it |
 | GET | `/api/entries/:date/todos` | the day's to-dos, live from the to-do list |

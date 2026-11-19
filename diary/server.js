@@ -52,6 +52,19 @@ db.exec(`
   );
 `);
 
+/* Journals: every note is in one. Day-to-day notes are in the Daily journal (journal_id NULL);
+   special journals (dreams, a trip, gratitude…) are their own running pages. */
+db.exec(`
+  CREATE TABLE IF NOT EXISTS journals (
+    id         INTEGER PRIMARY KEY,
+    name       TEXT NOT NULL,
+    color      TEXT NOT NULL DEFAULT '#b4572e',
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+`);
+if (!db.query("SELECT 1 FROM pragma_table_info('notes') WHERE name = 'journal_id'").get())
+  db.exec("ALTER TABLE notes ADD COLUMN journal_id INTEGER REFERENCES journals(id) ON DELETE SET NULL");
+
 class BadRequest extends Error {}
 
 const now = () => new Date().toISOString();
@@ -118,6 +131,13 @@ async function autoProject(note) {
 }
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+// A journal id from a request: null for the Daily journal; an unknown one is an error.
+function journalId(v) {
+  if (v == null || v === "") return null;
+  const j = db.query("SELECT id FROM journals WHERE id = ?").get(Number(v));
+  if (!j) throw new BadRequest("No such journal");
+  return j.id;
+}
 
 /* ---------- finding to-dos in diary text ----------
    A line is a to-do when it's written as one:
@@ -288,17 +308,61 @@ async function api(req, url) {
       ORDER BY e.date DESC`).all());
   }
 
-  /* The journal: every day with something written, oldest first, as one running page —
-     `days` of them at a time, ending before `before` (for loading further back). */
+  /* A journal as one running page: its days, oldest first — `days` of them at a time, ending
+     before `before` (for loading further back). `journal` is a journal's id; without it, the
+     Daily journal, whose days also carry the day's summary. */
   if (resource === "journal" && req.method === "GET") {
     const before = DATE_RE.test(url.searchParams.get("before") || "") ? url.searchParams.get("before") : "9999-12-31";
     const days = Math.min(Math.max(Number(url.searchParams.get("days")) || 30, 1), 200);
+    const jid = url.searchParams.get("journal") ? Number(url.searchParams.get("journal")) : null;
+    if (jid != null && !db.query("SELECT 1 FROM journals WHERE id = ?").get(jid)) return json({ error: "No such journal" }, 404);
+    const inJournal = "n.journal_id IS ?";
     const dates = db.query(`
       SELECT e.date FROM entries e
-      WHERE e.date < ? AND (trim(e.summary) != '' OR EXISTS (SELECT 1 FROM notes n WHERE n.date = e.date AND n.deleted_at IS NULL AND trim(n.body) != ''))
-      ORDER BY e.date DESC LIMIT ?`).all(before, days + 1).map((r) => r.date);
+      WHERE e.date < ? AND (${jid == null ? "trim(e.summary) != '' OR " : ""}EXISTS (SELECT 1 FROM notes n WHERE n.date = e.date AND n.deleted_at IS NULL AND trim(n.body) != '' AND ${inJournal}))
+      ORDER BY e.date DESC LIMIT ?`).all(before, jid, days + 1).map((r) => r.date);
     const more = dates.length > days;
-    return json({ days: dates.slice(0, days).reverse().map(getDay), more });
+    const out = dates.slice(0, days).reverse().map(getDay).map((d) => {
+      const notes = d.notes.filter((n) => (n.journal_id ?? null) === jid);
+      return jid == null ? { ...d, notes } : { date: d.date, summary: "", notes };
+    });
+    return json({ days: out, more });
+  }
+
+  // Special journals: list (with how many notes each has), create, rename/recolour, delete.
+  // Deleting one moves its notes into the Daily journal — nothing written is lost.
+  if (resource === "journals") {
+    const cleanJ = (b, partial) => {
+      const out = {};
+      if (!partial || "name" in b) {
+        const name = String(b.name ?? "").trim().slice(0, 80);
+        if (!name) throw new BadRequest("A journal needs a name");
+        out.name = name;
+      }
+      if ("color" in b && /^#[0-9a-f]{6}$/i.test(String(b.color))) out.color = b.color;
+      return out;
+    };
+    const listJ = () => db.query(`SELECT j.*, (SELECT COUNT(*) FROM notes n WHERE n.journal_id = j.id AND n.deleted_at IS NULL AND trim(n.body) != '') AS note_count
+      FROM journals j ORDER BY lower(j.name)`).all();
+    if (!arg && req.method === "GET") return json(listJ());
+    if (!arg && req.method === "POST") {
+      const f = cleanJ(body, false);
+      return json(db.query(`INSERT INTO journals (${Object.keys(f)}) VALUES (${Object.keys(f).map(() => "?")}) RETURNING *`).get(...Object.values(f)), 201);
+    }
+    const j = arg && db.query("SELECT * FROM journals WHERE id = ?").get(Number(arg));
+    if (!j) return json({ error: "Not found" }, 404);
+    if (req.method === "PATCH") {
+      const f = cleanJ(body, true);
+      if (!Object.keys(f).length) return json(j);
+      return json(db.query(`UPDATE journals SET ${Object.keys(f).map((k) => k + " = ?")} WHERE id = ? RETURNING *`).get(...Object.values(f), j.id));
+    }
+    if (req.method === "DELETE") {
+      db.transaction(() => {
+        db.query("UPDATE notes SET journal_id = NULL WHERE journal_id = ?").run(j.id);
+        db.query("DELETE FROM journals WHERE id = ?").run(j.id);
+      })();
+      return json({ ok: true });
+    }
   }
 
   if (resource === "entries" && arg) {
@@ -329,13 +393,14 @@ async function api(req, url) {
       })();
       return afterSave(arg, body, { day: getDay(arg) });
     }
-    // A new note, stamped now.
+    // A new note, stamped now — in the Daily journal unless `journal_id` names another.
     if (req.method === "POST" && sub === "notes") {
       const at = now();
       const text = String(body.body ?? "").slice(0, 200000);
+      const jid = journalId(body.journal_id);
       const note = db.transaction(() => {
         ensureDay(arg);
-        const n = db.query("INSERT INTO notes (date, body, created_at, updated_at) VALUES (?, ?, ?, ?) RETURNING *").get(arg, text, at, at);
+        const n = db.query("INSERT INTO notes (date, body, created_at, updated_at, journal_id) VALUES (?, ?, ?, ?, ?) RETURNING *").get(arg, text, at, at, jid);
         record(arg, n.id, text, "created", at);
         return n;
       })();
@@ -363,7 +428,10 @@ async function api(req, url) {
       return afterSave(note.date, body, { note: body.extract ? await autoProject(saved) : saved });
     }
     // Pick the note's project yourself ({project_id}, null for none), or hand it back to {auto: true}.
+    // {journal_id} moves it to another journal (null = the Daily journal).
     if (req.method === "PATCH") {
+      if ("journal_id" in body)
+        return json({ note: db.query("UPDATE notes SET journal_id = ? WHERE id = ? RETURNING *").get(journalId(body.journal_id), note.id) });
       if (body.auto) return json({ note: await autoProject(db.query("UPDATE notes SET project_auto = 1 WHERE id = ? RETURNING *").get(note.id)) });
       const pid = body.project_id == null || body.project_id === "" ? null : Number(body.project_id);
       return json({ note: db.query("UPDATE notes SET project_id = ?, project_auto = 0 WHERE id = ? RETURNING *").get(pid, note.id) });

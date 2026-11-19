@@ -81,8 +81,11 @@ function dueInfo(due) {
 }
 
 /* ---------- state ---------- */
+const JOURNAL_RE = /^#journal(?:-(\d+))?$/;
 const state = {
-  mode: location.hash === "#journal" ? "journal" : "day",  // one day, or the running journal
+  mode: JOURNAL_RE.test(location.hash) ? "journal" : "day",  // one day, or a journal's running page
+  journalId: Number(location.hash.match(JOURNAL_RE)?.[1]) || null,  // the journal open (null = Daily journal)
+  journals: [],       // special journals; the Daily journal is every note without one
   date: DATE_RE.test(location.hash.slice(1)) ? location.hash.slice(1) : todayISO(),
   day: null,          // { summary, summary_created_at, summary_updated_at, notes: [...] }
   entries: [],
@@ -114,7 +117,7 @@ function saveTarget(t, { extract = false, keepalive = false } = {}) {
     try {
       let res;
       if (t.kind === "summary") res = await api("PUT", `entries/${date}`, { ...payload, summary: body }, { keepalive });
-      else if (t.note.id == null) res = await api("POST", `entries/${date}/notes`, { ...payload, body }, { keepalive });
+      else if (t.note.id == null) res = await api("POST", `entries/${date}/notes`, { ...payload, body, journal_id: t.note.journal_id ?? null }, { keepalive });
       else res = await api("PUT", `notes/${t.note.id}`, { ...payload, body }, { keepalive });
       t.saved = body;
       if (extract) t.extracted = body;
@@ -185,6 +188,8 @@ function noteEl(note, date = null) {
   const meta = h("span", { class: "note-meta" });
   const pick = h("select", { class: "proj-pick", "aria-label": "Project", title: "Which project this note falls into",
     onchange: (e) => setNoteProject(t, e.target.value) });
+  const jpick = h("select", { class: "proj-pick j-pick", "aria-label": "Journal", title: "Which journal this note is in",
+    onchange: (e) => setNoteJournal(t, card, e.target.value) });
   const t = bind({ kind: "note", note, el, date });
   t.stamp = () => {
     // Project: worked out from the words and projects' keywords ("Auto") until you pick one.
@@ -202,11 +207,18 @@ function noteEl(note, date = null) {
     time.title = note.created_at ? new Date(note.created_at).toLocaleString() : "Not saved yet";
     meta.textContent = note.created_at && edited(note.created_at, note.updated_at) ? `edited ${when(note.updated_at)}` : "";
     card.classList.toggle("draft", note.id == null);
+    // Journal: only worth showing once there are special journals.
+    const j = journalById(note.journal_id);
+    jpick.hidden = !state.journals.length;
+    jpick.replaceChildren(h("option", { value: "" }, "📖 Daily journal"),
+      ...state.journals.map((x) => h("option", { value: x.id }, "📓 " + x.name)));
+    jpick.value = j ? String(j.id) : "";
+    jpick.disabled = note.id == null;
   };
   const card = h("article", { class: "note" },
     h("div", { class: "note-rail" }, time),
     h("div", { class: "note-body" }, el,
-      h("div", { class: "note-foot" }, h("span", { class: "proj-wrap" }, h("span", { class: "proj-dot" }), pick), meta, h("span", { class: "spacer" }),
+      h("div", { class: "note-foot" }, h("span", { class: "proj-wrap" }, h("span", { class: "proj-dot" }), pick), jpick, meta, h("span", { class: "spacer" }),
         h("button", { class: "link-btn", onclick: () => { if (note.id != null) openHistory(note.id, date); } }, "History"),
         h("button", { class: "link-btn danger", onclick: () => deleteNote(t, card) }, "Delete"))));
   t.stamp();
@@ -229,6 +241,80 @@ async function setNoteProject(t, value) {
     Object.assign(t.note, note);
     t.stamp();
     loadEntries();
+  } catch (err) { toast(err.message); }
+}
+
+const journalById = (id) => (id == null ? null : state.journals.find((j) => j.id === id) || null);
+
+async function setNoteJournal(t, card, value) {
+  try {
+    const { note } = await api("PATCH", `notes/${t.note.id}`, { journal_id: value ? Number(value) : null });
+    Object.assign(t.note, note);
+    const j = journalById(note.journal_id);
+    // On a journal's page, a note moved to another journal leaves it.
+    if (state.mode === "journal" && (note.journal_id ?? null) !== state.journalId) {
+      targets = targets.filter((x) => x !== t);
+      card.remove();
+      for (const d of state.journal) d.notes = d.notes.filter((n) => n.id !== note.id);
+    } else t.stamp();
+    toast(`Moved to ${j ? j.name : "the Daily journal"}`);
+    loadJournals();
+  } catch (err) { toast(err.message); }
+}
+
+async function loadJournals() {
+  try { state.journals = await api("GET", "journals"); } catch { state.journals = []; }
+  renderJournalsNav();
+  for (const t of targets) t.stamp?.();  // notes' journal pickers
+}
+
+function renderJournalsNav() {
+  const on = (id) => state.mode === "journal" && state.journalId === id;
+  $("#journals-nav").replaceChildren(
+    h("button", { class: "nav-item" + (on(null) ? " active" : ""), onclick: () => openJournal(null) },
+      "📖 Daily journal", h("span", { class: "ext" }, "Alt J")),
+    ...state.journals.map((j) => h("button", { class: "nav-item" + (on(j.id) ? " active" : ""), onclick: () => openJournal(j.id) },
+      h("span", { class: "dot", style: `background:${j.color}` }), h("span", { class: "j-nav-name" }, j.name),
+      h("span", { class: "ext" }, j.note_count || ""))));
+}
+
+/* New / rename a special journal. */
+const JOURNAL_COLORS = ["#b4572e", "#c2410c", "#ca8a04", "#16a34a", "#0d9488", "#2563eb", "#7c3aed", "#db2777", "#6b7280"];
+let editingJournal = null, journalColor = JOURNAL_COLORS[0];
+function journalDialog(j = null) {
+  editingJournal = j;
+  journalColor = j?.color || JOURNAL_COLORS[(state.journals.length + 3) % JOURNAL_COLORS.length];
+  $("#jd-title").textContent = j ? "Rename journal" : "New journal";
+  $("#jd-save").textContent = j ? "Save" : "Create";
+  $("#jd-name").value = j?.name || "";
+  const paint = () => $("#jd-colors").replaceChildren(...JOURNAL_COLORS.map((c) => h("button", {
+    type: "button", class: "swatch" + (c === journalColor ? " on" : ""), style: `background:${c}`, "aria-label": c,
+    onclick: () => { journalColor = c; paint(); } })));
+  paint();
+  $("#journal-dialog").showModal();
+  $("#jd-name").focus();
+}
+$("#journal-dialog").addEventListener("close", async () => {
+  if ($("#journal-dialog").returnValue !== "ok") return;
+  const name = $("#jd-name").value.trim();
+  if (!name) return;
+  try {
+    const j = editingJournal
+      ? await api("PATCH", `journals/${editingJournal.id}`, { name, color: journalColor })
+      : await api("POST", "journals", { name, color: journalColor });
+    await loadJournals();
+    openJournal(j.id);
+  } catch (err) { toast(err.message); }
+});
+
+async function deleteJournal(j) {
+  if (!confirm(`Delete the journal “${j.name}”? Its ${j.note_count || 0} note${j.note_count === 1 ? "" : "s"} move to the Daily journal — nothing is lost.`)) return;
+  await saveAll({ extract: true });
+  try {
+    await api("DELETE", `journals/${j.id}`);
+    await loadJournals();
+    toast(`Deleted “${j.name}” — its notes are in the Daily journal`);
+    openJournal(null);
   } catch (err) { toast(err.message); }
 }
 
@@ -309,31 +395,39 @@ async function openDay(date) {
    file. Notes are edited right there (same autosave, to-dos, projects and history as the
    day view); each day's heading opens that day. Earlier days load as you ask for them. */
 const JOURNAL_DAYS = 30;
-const blankNote = () => ({ id: null, body: "", created_at: null, updated_at: null });
+const blankNote = (journal_id = null) => ({ id: null, body: "", created_at: null, updated_at: null, journal_id });
 
 function setMode(mode) {
   state.mode = mode;
   document.body.classList.toggle("journal-mode", mode === "journal");
   $("#journal").hidden = mode !== "journal";
   $(".page").hidden = mode === "journal";
-  $("#go-journal").classList.toggle("active", mode === "journal");
   $("#go-today").classList.toggle("active", mode === "day" && state.date === todayISO());
+  renderJournalsNav();
 }
 
-async function openJournal() {
-  if (state.mode === "day" && state.day) await saveAll({ extract: true });
+async function openJournal(jid = null) {
+  await saveAll({ extract: true });
+  const j = journalById(jid);
+  jid = j ? j.id : null;
+  state.journalId = jid;
+  state.journal = [];
   setMode("journal");
-  history.replaceState(null, "", "#journal");
-  $("#day-name").textContent = "Journal";
-  $("#day-sub").textContent = "Every day, one running page";
-  document.title = "Journal · Daily";
+  history.replaceState(null, "", jid ? `#journal-${jid}` : "#journal");
+  $("#day-name").textContent = j ? j.name : "Daily journal";
+  $("#day-sub").replaceChildren(...(j
+    ? ["A journal of its own · ",
+       h("button", { class: "link-btn", onclick: () => journalDialog(j) }, "Rename"), " · ",
+       h("button", { class: "link-btn danger", onclick: () => deleteJournal(j) }, "Delete")]
+    : ["Every day, one running page"]));
+  document.title = `${j ? j.name : "Daily journal"} · Daily`;
   $("#sidebar").classList.remove("show");
   closeHistory();
   setSaved("");
   state.day = null;
   try {
-    const { days, more } = await api("GET", `journal?days=${JOURNAL_DAYS}`);
-    if (state.mode !== "journal") return;
+    const { days, more } = await api("GET", `journal?days=${JOURNAL_DAYS}` + (jid ? `&journal=${jid}` : ""));
+    if (state.mode !== "journal" || state.journalId !== jid) return;
     state.journal = days;
     state.journalMore = more;
     renderJournal();
@@ -345,7 +439,7 @@ async function openJournal() {
 async function loadEarlier() {
   const first = state.journal[0]?.date;
   try {
-    const { days, more } = await api("GET", `journal?days=${JOURNAL_DAYS}&before=${first}`);
+    const { days, more } = await api("GET", `journal?days=${JOURNAL_DAYS}&before=${first}` + (state.journalId ? `&journal=${state.journalId}` : ""));
     const h0 = document.body.scrollHeight;
     state.journal = [...days, ...state.journal];
     state.journalMore = more;
@@ -361,7 +455,7 @@ function journalDayEl(day) {
   const notes = day.notes.filter((n) => n.body.trim() || today).filter((n) => filter == null || n.project_id === filter);
   if (filter != null && !notes.length && !today) return null;
   const list = h("div", { class: "notes" }, notes.map((n) => noteEl(n, day.date)));
-  if (today && filter == null) list.append(noteEl(blankNote(), day.date));
+  if (today && filter == null) list.append(noteEl(blankNote(state.journalId), day.date));
   return h("section", { class: "j-day" + (today ? " today" : ""), id: "j-" + day.date },
     h("header", { class: "j-head" },
       h("a", { class: "j-date", href: "#" + day.date, title: "Open this day",
@@ -382,6 +476,7 @@ function renderJournal() {
   const parts = [];
   if (state.journalMore) parts.push(h("button", { class: "btn j-more", onclick: loadEarlier }, "Load earlier days"));
   else if (state.journal.length) parts.push(h("p", { class: "j-start" }, "The beginning"));
+  else if (state.journalId) parts.push(h("p", { class: "j-start" }, "Nothing here yet — write today's first note below. Notes elsewhere can be moved in with their journal picker."));
   for (const day of days) {
     const el = journalDayEl(day);
     if (!el) continue;
@@ -398,7 +493,7 @@ function journalWrite() {
   const blank = [...(today?.querySelectorAll("textarea") || [])].find((x) => !x.value.trim());
   if (blank) { blank.focus(); blank.scrollIntoView({ block: "center", behavior: "smooth" }); return; }
   if (!today) return;
-  const card = noteEl(blankNote(), todayISO());
+  const card = noteEl(blankNote(state.journalId), todayISO());
   today.querySelector(".notes").append(card);
   card.querySelector("textarea").focus();
   card.scrollIntoView({ block: "center", behavior: "smooth" });
@@ -617,7 +712,7 @@ async function loadDue() {
 }
 
 /* ---------- navigation ---------- */
-$("#go-journal").addEventListener("click", openJournal);
+$("#new-journal").addEventListener("click", () => journalDialog());
 $("#prev").addEventListener("click", () => openDay(shift(state.date, -1)));
 $("#next").addEventListener("click", () => openDay(shift(state.date, 1)));
 $("#go-today").addEventListener("click", () => openDay(todayISO()));
@@ -635,7 +730,7 @@ document.addEventListener("keydown", (e) => {
   const k = e.code;
   if (e.key === "ArrowLeft" && state.mode === "day") { e.preventDefault(); openDay(shift(state.date, -1)); }
   else if (e.key === "ArrowRight" && state.mode === "day") { e.preventDefault(); openDay(shift(state.date, 1)); }
-  else if (k === "KeyJ") { e.preventDefault(); state.mode === "journal" ? openDay(state.date) : openJournal(); }
+  else if (k === "KeyJ") { e.preventDefault(); state.mode === "journal" && state.journalId == null ? openDay(state.date) : openJournal(null); }
   else if (k === "KeyN") { e.preventDefault(); addNote(); }
   else if (k === "KeyH") { e.preventDefault(); $("#history").hidden ? openHistory() : closeHistory(); }
   else if (k === "KeyD") { e.preventDefault(); location.href = TODO_URL; }
@@ -643,7 +738,8 @@ document.addEventListener("keydown", (e) => {
   else if (k === "Slash") { e.preventDefault(); $("#keys-dialog").showModal(); }
 });
 window.addEventListener("hashchange", () => {
-  if (location.hash === "#journal") { if (state.mode !== "journal") openJournal(); return; }
+  const jm = location.hash.match(JOURNAL_RE);
+  if (jm) { const jid = Number(jm[1]) || null; if (state.mode !== "journal" || state.journalId !== jid) openJournal(jid); return; }
   const d = location.hash.slice(1) || todayISO();
   if (DATE_RE.test(d) && (d !== state.date || state.mode === "journal")) openDay(d);
 });
@@ -651,6 +747,9 @@ window.addEventListener("resize", () => document.querySelectorAll("textarea").fo
 
 const start = state.date;
 state.date = null;
-if (state.mode === "journal") { state.date = start; loadProjects().then(openJournal); }
-else loadProjects().then(() => openDay(start)).then(() => { if (start === todayISO()) [...document.querySelectorAll("#notes textarea")].at(-1)?.focus(); });
+if (state.mode === "journal") { state.date = start; Promise.all([loadProjects(), loadJournals()]).then(() => openJournal(state.journalId)); }
+else {
+  loadJournals();
+  loadProjects().then(() => openDay(start)).then(() => { if (start === todayISO()) [...document.querySelectorAll("#notes textarea")].at(-1)?.focus(); });
+}
 loadEntries();
