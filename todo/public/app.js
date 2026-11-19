@@ -23,6 +23,7 @@ const state = {
   nsCollapsed: new Set(readCollapsed()),  // North Stars whose tasks are folded away
   pCollapsed: new Set(readCollapsed("todo.pCollapsed")),  // projects whose sub-projects are folded in the sidebar
   showArchived: readCollapsed("todo.showArchived") === true,  // the sidebar's Archived list is open
+  inboxAll: readCollapsed("todo.inboxAll") === true,  // the Inbox shows every task, not just unsorted ones
 };
 
 function readCollapsed(key = "todo.nsCollapsed") {
@@ -33,6 +34,7 @@ function saveCollapsed() {
     localStorage.setItem("todo.nsCollapsed", JSON.stringify([...state.nsCollapsed]));
     localStorage.setItem("todo.pCollapsed", JSON.stringify([...state.pCollapsed]));
     localStorage.setItem("todo.showArchived", JSON.stringify(state.showArchived));
+    localStorage.setItem("todo.inboxAll", JSON.stringify(state.inboxAll));
   } catch {}
 }
 
@@ -161,7 +163,7 @@ function viewTodos() {
   if (star) list = list.filter((t) => t.parent_id === star.id);
   else if (v !== "urgent" && !q) list = list.filter((t) => t.parent_id == null);
   if (star) {}
-  else if (v === "inbox") list = list.filter((t) => t.project_id == null);
+  else if (v === "inbox" && !state.inboxAll) list = list.filter((t) => t.project_id == null);
   else if (v === "urgent" || v === "north_star") list = list.filter((t) => t.label === v);
   else if (v.startsWith("p")) list = list.filter((t) => t.project_id === Number(v.slice(1)));
   if (q) list = list.filter((t) => (t.title + " " + t.notes).toLowerCase().includes(q));
@@ -286,7 +288,7 @@ function renderHeader() {
   if (p) title.replaceChildren(h("span", { class: "dot", style: `background:${p.color}` }), p.name);
   else title.replaceChildren(titles[state.view]);
   const descs = {
-    inbox: "Tasks that don't belong to a project yet.",
+    inbox: state.inboxAll ? "Every task, whatever project it's in." : "Tasks that don't belong to a project yet.",
     urgent: "Everything marked urgent, across every project.",
     north_star: "The tasks that matter most — the ones that move the needle.",
   };
@@ -310,6 +312,11 @@ function renderHeader() {
       h("button", { class: "btn small", onclick: startAddSection }, "+ Subsection"),
       h("button", { class: "btn small", onclick: () => openProjectDialog(p) }, "Edit project"),
       h("button", { class: "btn small", title: "Hide this project and its tasks from your lists", onclick: () => setArchived(p, true) }, "Archive"),
+    ] : state.view === "inbox" ? [
+      h("div", { class: "seg", role: "radiogroup", "aria-label": "Inbox shows" },
+        [[false, "Unsorted"], [true, "All tasks"]].map(([v, text]) => h("button", {
+          role: "radio", "aria-checked": String(state.inboxAll === v),
+          onclick: () => { state.inboxAll = v; saveCollapsed(); render(); } }, text))),
     ] : []),
   );
   document.title = `${p ? p.name : titles[state.view]} · Todo`;
