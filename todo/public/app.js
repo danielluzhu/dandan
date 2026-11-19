@@ -1310,7 +1310,8 @@ document.addEventListener("keydown", (e) => {
    each port as <host>-<port>.another.ac; locally it's just the port. */
 function siteUrl(port) {
   const { hostname, protocol } = location;
-  const m = hostname.match(/^(.*)-(\d+)\.(.+)$/);
+  // <machine>-<port>.another.ac, or a named address like <machine>-daily.another.ac.
+  const m = hostname.match(/^(.*)-([^.-]+)\.(.*another\.ac)$/);
   if (m) return `${protocol}//${m[1]}-${port}.${m[3]}`;
   return `${protocol}//${hostname}:${port}`;
 }
