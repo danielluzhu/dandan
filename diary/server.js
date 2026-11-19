@@ -191,13 +191,14 @@ const prettyDate = (d) =>
    when a line was edited rather than added (its old text is gone and one contains the other),
    rename its to-do instead of making a second one. Never deletes a to-do. */
 const syncing = new Map();  // date → the sync in flight, so two saves can't both create a to-do
-function syncTodos(date, link) {
-  const run = (syncing.get(date) || Promise.resolve()).then(() => syncOnce(date, link));
+function syncTodos(date, link, today) {
+  const run = (syncing.get(date) || Promise.resolve()).then(() => syncOnce(date, link, today));
   syncing.set(date, run.catch(() => {}));
   return run;
 }
 
-async function syncOnce(date, link) {
+// New to-dos are due `today` (the page's, in your time zone) unless the line says otherwise.
+async function syncOnce(date, link, today) {
   const found = dayTodos(date);
   const links = db.query("SELECT * FROM links WHERE date = ?").all(date);
   const byKey = new Map(links.map((l) => [l.key, l]));
@@ -215,7 +216,7 @@ async function syncOnce(date, link) {
           db.query("UPDATE links SET key = ? WHERE id = ?").run(f.key, was.id);
           l = { ...was, key: f.key };
         } else {
-          const { items } = await todoApi("POST", "capture", { text: f.text, default_project_id: f.project_id, notes: `From Daily, ${prettyDate(date)}${link ? `\n${link}` : ""}` });
+          const { items } = await todoApi("POST", "capture", { text: f.text, default_project_id: f.project_id, default_due: DATE_RE.test(today || "") ? today : undefined, notes: `From Daily, ${prettyDate(date)}${link ? `\n${link}` : ""}` });
           if (!items[0]?.todo) continue;
           created.push({ title: items[0].todo.title, project: items[0].project_name });
           l = db.query("INSERT INTO links (date, key, todo_id) VALUES (?, ?, ?) RETURNING *").get(date, f.key, items[0].todo.id);
@@ -257,7 +258,7 @@ function getDay(date) {
 // Saves while typing keep the text; to-dos are made once a line is finished (`extract`).
 const linkOf = (body) => (typeof body.link === "string" ? body.link.slice(0, 500) : "");
 async function afterSave(date, body, payload) {
-  const sync = body.extract ? await syncTodos(date, linkOf(body)) : {};
+  const sync = body.extract ? await syncTodos(date, linkOf(body), body.today) : {};
   return json({ ...payload, errors: sync.errors || [], created: sync.created || [] });
 }
 

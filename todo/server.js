@@ -250,7 +250,8 @@ const listKeyworded = () => listProjects().filter((p) => !p.archived && p.keywor
    `default_project_id` (Daily passes a note's project), else the Inbox. On a project page
    the page passes `project_id`, and lines without a #tag go there instead. `choices`, lined
    up with the parsed lines, overrides that per line: `{project_id}` (null = Inbox) and/or
-   `{section_id}`. With `dry`, nothing is written — the parse comes back so the page can
+   `{section_id}`. A line with no due date of its own gets `default_due` (the page's today).
+   With `dry`, nothing is written — the parse comes back so the page can
    preview it. */
 function capture(body) {
   const items = parseText(body.text);
@@ -274,13 +275,15 @@ function capture(body) {
     return here || projectFor(it.title, keyworded) || fallback;
   };
   const choices = Array.isArray(body.choices) ? body.choices : [];
+  const defaultDue = /^\d{4}-\d{2}-\d{2}$/.test(body.default_due || "") ? body.default_due : null;
   const sectionIn = (sid, pid) => {
     if (sid == null || sid === "" || pid == null) return null;
     const sec = db.query("SELECT id, project_id FROM sections WHERE id = ?").get(Number(sid));
     if (!sec || sec.project_id !== pid) throw new BadRequest("That subsection isn't in the chosen project");
     return sec.id;
   };
-  return db.transaction(() => items.map((it, i) => {
+  return db.transaction(() => items.map((it0, i) => {
+    const it = { ...it0, due_date: it0.due_date ?? defaultDue };
     const choice = choices[i] && typeof choices[i] === "object" ? choices[i] : {};
     let p;
     if ("project_id" in choice) {

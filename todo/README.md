@@ -3,6 +3,10 @@
 A to-do list app on port **1242** — tasks, projects, and labels.
 
 - **Tasks**: create, edit (title, notes, label, project, due date), complete, delete (with undo).
+- **Due today by default**: every new task — typed, free-form, or from Daily — is due today unless
+  you give it a date (or clear the composer's date). Each open task has **+1d / +3d / +7d** buttons
+  (on hover; always on touch screens) that push its due date back — from its due date, or from
+  today if it's overdue or has none. Each task also shows when it was made (“Made Nov 12”).
 - **Projects**: create, edit (name, description, color, keywords), delete — deleting a project deletes its tasks.
 - **Keywords**: any project can have them (*Edit project*). New tasks from free-form notes and
   Daily land in the project whose keywords they match most. It starts with **Work**, **Health**,
@@ -65,7 +69,7 @@ sudo systemctl daemon-reload && sudo systemctl enable --now dz-todo
 | GET, PATCH, DELETE | `/api/projects/:id` | PATCH also takes `{archived}`; projects carry `archived` (1 if it or a parent is archived) |
 | GET, POST | `/api/todos` | list / create `{title, notes?, label?, project_id?, section_id?, parent_id?, due_date?}` |
 | GET, PATCH, DELETE | `/api/todos/:id` | PATCH also takes `{done}` |
-| POST | `/api/capture` | free-form `{text, notes?, project_id?, default_project_id?, choices?, dry?}` → `{items}`; one task per line, `project_id` takes untagged lines, `choices[i]` (`{project_id?, section_id?}`) overrides line i, `dry` only previews |
+| POST | `/api/capture` | free-form `{text, notes?, project_id?, default_project_id?, default_due?, choices?, dry?}` → `{items}`; one task per line, `project_id` takes untagged lines, `choices[i]` (`{project_id?, section_id?}`) overrides line i, `dry` only previews |
 | POST | `/api/classify` | `{text}` → `{project}`: which project some writing falls into, by keywords |
 | GET, POST | `/api/sections` | list / create `{project_id, name}` |
 | PATCH, DELETE | `/api/sections/:id` | `{name}`, `{collapsed}`, or `{move: -1 \| 1}` |

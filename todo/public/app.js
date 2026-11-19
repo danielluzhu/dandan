@@ -116,9 +116,27 @@ const currentStar = () => {
 };
 const VIEW_RE = /^(all|inbox|urgent|north_star|p\d+|n\d+)$/;
 
-function todayISO() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const isoOf = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const todayISO = () => isoOf(new Date());
+const addDays = (iso, n) => { const d = new Date(iso + "T12:00"); d.setDate(d.getDate() + n); return isoOf(d); };
+
+/* Push a task's due date back by n days — from its due date, or from today if it's overdue or
+   has none, so a push always lands in the future. */
+const PUSHES = [1, 3, 7];
+function pushDue(t, n) {
+  const today = todayISO();
+  const due = addDays(t.due_date && t.due_date > today ? t.due_date : today, n);
+  patchTodo(t.id, { due_date: due });
+  toast(`Pushed to ${new Date(due + "T12:00").toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}`);
+}
+// When a task was made: "today", "yesterday", or "Nov 12".
+function madeText(t) {
+  const made = isoOf(new Date(t.created_at.replace(" ", "T") + "Z"));
+  const today = todayISO();
+  if (made === today) return "today";
+  if (made === addDays(today, -1)) return "yesterday";
+  const d = new Date(made + "T12:00");
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: d.getFullYear() === new Date().getFullYear() ? undefined : "numeric" });
 }
 
 function dueInfo(due) {
@@ -592,7 +610,7 @@ function quickAddEl(key, name, fields) {
       const title = input.value.trim();
       if (!title) return;
       try {
-        state.todos.unshift(await api("POST", "todos", { title, ...fields }));
+        state.todos.unshift(await api("POST", "todos", { title, due_date: todayISO(), ...fields }));
         await refreshProjects();
         render();
       } catch (err) { fail(err); }
@@ -662,7 +680,10 @@ function todoEl(t, opts = {}) {
     showProject && h("span", { class: "chip" }, h("span", { class: "dot", style: `background:${p.color}` }), p.name,
       t.section_id != null && sectionById(t.section_id) && ` › ${sectionById(t.section_id).name}`),
     due && !t.done && h("span", { class: `due ${due.cls}` }, "📅 " + due.text),
+    !t.done && !opts.self && h("span", { class: "push" }, PUSHES.map((n) =>
+      h("button", { class: "meta-btn push-btn", title: `Push the due date ${n} day${n === 1 ? "" : "s"}`, onclick: () => pushDue(t, n) }, `+${n}d`))),
     t.notes && !isOpen && h("span", { title: t.notes }, "📝 Notes"),
+    h("span", { class: "made", title: "Made " + new Date(t.created_at.replace(" ", "T") + "Z").toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" }) }, "Made " + madeText(t)),
   );
 
   const row = h("div", {
@@ -891,7 +912,7 @@ $("#composer").addEventListener("submit", async (e) => {
     state.todos.unshift(todo);
     await refreshProjects();
     input.value = "";
-    $("#new-due").value = "";
+    $("#new-due").value = todayISO();  // new tasks are due today unless you pick otherwise
     // A task added from Inbox into a project would vanish from view; say where it went.
     if (state.view === "inbox" && todo.project_id != null) toast(`Added to ${projectById(todo.project_id)?.name}`);
     render();
@@ -986,7 +1007,7 @@ async function previewDump() {
   const seq = ++dumpSeq;
   if (!text.trim()) { dumpItems = []; dumpChoices.clear(); renderDumpPreview(); return; }
   try {
-    const { items } = await api("POST", "capture", { text, dry: true, project_id: currentProject()?.id });
+    const { items } = await api("POST", "capture", { text, dry: true, project_id: currentProject()?.id, default_due: todayISO() });
     if (seq !== dumpSeq) return;
     dumpItems = items;
     renderDumpPreview();
@@ -999,13 +1020,13 @@ async function submitDump() {
   try {
     // Line up the picks with the lines as the server parses them right now.
     const here = currentProject()?.id;
-    const { items: parsed } = await api("POST", "capture", { text, dry: true, project_id: here });
+    const { items: parsed } = await api("POST", "capture", { text, dry: true, project_id: here, default_due: todayISO() });
     const choices = parsed.map((it) => {
       const { choice, pid, section } = dumpTarget(it);
       if (choice.project === "auto") return section != null ? { section_id: section } : {};
       return { project_id: pid, section_id: section };
     });
-    const { items } = await api("POST", "capture", { text, choices, project_id: here });
+    const { items } = await api("POST", "capture", { text, choices, project_id: here, default_due: todayISO() });
     $("#dump-text").value = "";
     dumpChoices.clear();
     await previewDump();
@@ -1328,6 +1349,7 @@ for (const a of document.querySelectorAll(".js-todo")) a.href = siteUrl(1242);
 /* ---------- boot ---------- */
 const initial = location.hash.slice(1);
 if (VIEW_RE.test(initial)) state.view = initial;
+$("#new-due").value = todayISO();  // new tasks are due today unless you pick otherwise
 load().catch(fail);
 
 window.addEventListener("hashchange", () => {

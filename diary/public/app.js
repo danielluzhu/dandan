@@ -113,7 +113,7 @@ function saveTarget(t, { extract = false, keepalive = false } = {}) {
   const date = t.date || state.date;
   setSaved("Saving…");
   queue = queue.then(async () => {
-    const payload = { extract, link: `${location.origin}/#${date}` };
+    const payload = { extract, link: `${location.origin}/#${date}`, today: todayISO() };
     try {
       let res;
       if (t.kind === "summary") res = await api("PUT", `entries/${date}`, { ...payload, summary: body }, { keepalive });
