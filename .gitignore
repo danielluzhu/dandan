@@ -1,8 +1,6 @@
 node_modules/
-data/*.db
-data/*.db-*
-data/*.csv
+# Personal data (diary, to-dos, backups) never leaves this machine.
+data/
 .env
 *.log
-data/kitten-photos/
 home-help/
