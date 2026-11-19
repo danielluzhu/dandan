@@ -20,6 +20,8 @@ Remember to / have to / gotta / don't forget to …
   to-do alone.
 - The side panel shows the day's to-dos (tick them off there too) and everything due today or
   overdue on the to-do list. ☑ *To-do list* in the sidebar opens it.
+- **Long notes fold**: a note over 10 lines shows its first 5 — *Show more ▾* (or clicking into
+  it) opens it, *Show less ▴* folds it again. Notes you open stay open as you move around.
 - **Version history** (🕘 History, Alt+H, or *History* on a note), like a Google Doc's: every
   stretch of editing on a note or the summary is a version — edits within 10 minutes of each
   other fold into one — shown as what changed (added words green, removed red). Filter to one

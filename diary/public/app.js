@@ -170,7 +170,12 @@ window.addEventListener("pagehide", () => saveAll({ extract: true, keepalive: tr
 function grow(el) {
   el.style.height = "auto";
   el.style.height = el.scrollHeight + 2 + "px";
+  // A long note folds to its first few lines until you open it (or click into it).
+  const card = el.closest(".note");
+  if (card && el.scrollHeight) card.classList.toggle("long", el.scrollHeight > parseFloat(getComputedStyle(el).lineHeight) * LONG_LINES);
 }
+const LONG_LINES = 10;
+const openNotes = new Set();  // ids of long notes you've unfolded, kept as you move between days
 
 /* ---------- the day: its summary, with notes inside ---------- */
 function stampSummary() {
@@ -191,6 +196,14 @@ function noteEl(note, date = null) {
   const jpick = h("select", { class: "proj-pick j-pick", "aria-label": "Journal", title: "Which journal this note is in",
     onchange: (e) => setNoteJournal(t, card, e.target.value) });
   const t = bind({ kind: "note", note, el, date });
+  const more = h("button", { class: "more-btn", type: "button", onclick: () => unfold(!card.classList.contains("open")) });
+  const unfold = (open) => {
+    card.classList.toggle("open", open);
+    more.textContent = open ? "Show less ▴" : "Show more ▾";
+    if (note.id != null) open ? openNotes.add(note.id) : openNotes.delete(note.id);
+    if (!open && card.getBoundingClientRect().top < 0) card.scrollIntoView({ block: "start", behavior: "smooth" });
+  };
+  el.addEventListener("focus", () => { if (!card.classList.contains("open")) unfold(true); });
   t.stamp = () => {
     // Project: worked out from the words and projects' keywords ("Auto") until you pick one.
     const project = projectById(note.project_id);
@@ -217,11 +230,12 @@ function noteEl(note, date = null) {
   };
   const card = h("article", { class: "note" },
     h("div", { class: "note-rail" }, time),
-    h("div", { class: "note-body" }, el,
+    h("div", { class: "note-body" }, el, more,
       h("div", { class: "note-foot" }, h("span", { class: "proj-wrap" }, h("span", { class: "proj-dot" }), pick), jpick, meta, h("span", { class: "spacer" }),
         h("button", { class: "link-btn", onclick: () => { if (note.id != null) openHistory(note.id, date); } }, "History"),
         h("button", { class: "link-btn danger", onclick: () => deleteNote(t, card) }, "Delete"))));
   t.stamp();
+  unfold(note.id == null || openNotes.has(note.id));
   requestAnimationFrame(() => grow(el));
   return card;
 }

@@ -123,6 +123,12 @@ textarea::placeholder { color: var(--faint); }
 .note-body { padding: 8px 0 8px 10px; border-radius: 10px; }
 .note-body:focus-within { background: var(--bg); }
 .note-text { min-height: 56px; padding: 4px 8px 0; }
+/* long notes fold to their first few lines */
+.note.long:not(.open) .note-text { max-height: calc(1.65em * 5 + 4px); overflow: hidden;
+  -webkit-mask-image: linear-gradient(#000 55%, transparent); mask-image: linear-gradient(#000 55%, transparent); cursor: pointer; }
+.more-btn { display: none; border: 0; background: none; margin: 2px 8px 6px; padding: 0; font-size: 12.5px; font-weight: 600; color: var(--accent); }
+.more-btn:hover { text-decoration: underline; }
+.note.long .more-btn { display: block; }
 .note-foot { display: flex; gap: 12px; align-items: center; padding: 0 8px; min-height: 22px; font-size: 12.5px; color: var(--faint); }
 .note-foot .link-btn { opacity: 0; transition: opacity .12s; }
 .note:hover .link-btn, .note:focus-within .link-btn { opacity: 1; }
