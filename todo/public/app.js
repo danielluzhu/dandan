@@ -927,7 +927,7 @@ $("#composer").addEventListener("submit", async (e) => {
    can be changed there before adding. */
 let dumpTimer, dumpSeq = 0, dumpItems = [];
 // Per-line picks, keyed by the line's task title so they survive further typing:
-// { project: "auto" | "inbox" | id, section: id | null }.
+// { project: "auto" | "inbox" | id, section: id | null, label: "auto" | "urgent" | "north_star" | null }.
 const dumpChoices = new Map();
 const dumpKey = (it) => it.title.toLowerCase();
 const dumpOpen = (open) => {
@@ -945,23 +945,24 @@ try { dumpOpen(!!localStorage.getItem("todo.dumpOpen")); } catch { dumpOpen(fals
 
 // Where a previewed line will go: the pick if there is one, else the server's guess.
 function dumpTarget(it) {
-  const c = dumpChoices.get(dumpKey(it)) || { project: "auto", section: null };
+  const c = { project: "auto", section: null, label: "auto", ...dumpChoices.get(dumpKey(it)) };
   let pid = c.project === "auto" ? it.project_id : c.project === "inbox" ? null : c.project;
   if (pid != null && (!projectById(pid) || projectById(pid).archived)) { c.project = "auto"; pid = it.project_id; }
   const section = pid != null && c.section != null && sectionsOf(pid).some((x) => x.id === c.section) ? c.section : null;
-  return { choice: c, pid, section };
+  const label = c.label === "auto" ? it.label : c.label;
+  return { choice: c, pid, section, label };
 }
 
 function setDumpChoice(it, patch) {
   const { choice } = dumpTarget(it);
   const next = { ...choice, ...patch };
-  if (next.project === "auto" && next.section == null) dumpChoices.delete(dumpKey(it));
+  if (next.project === "auto" && next.section == null && next.label === "auto") dumpChoices.delete(dumpKey(it));
   else dumpChoices.set(dumpKey(it), next);
   renderDumpPreview();
 }
 
 function dumpItemEl(it) {
-  const { choice, pid, section } = dumpTarget(it);
+  const { choice, pid, section, label } = dumpTarget(it);
   const p = pid != null ? projectById(pid) : null;
   const due = dueInfo(it.due_date);
   const autoName = it.project_name ? it.project_name + (it.new_project ? " (new)" : "") : "Inbox";
@@ -987,9 +988,17 @@ function dumpItemEl(it) {
       ...secs.map((x) => h("option", { value: x.id }, x.name)));
     secSel.value = section == null ? "" : String(section);
   }
+  // Urgency: the words' guess (“!”, “urgent”, “asap”) until you pick one.
+  const labelSel = h("select", {
+      class: `dump-pick label-pick ${label || ""}`, "aria-label": `Urgency for “${it.title}”`,
+      onchange: (e) => setDumpChoice(it, { label: e.target.value === "" ? null : e.target.value }) },
+    h("option", { value: "" }, "Not urgent"),
+    h("option", { value: "urgent" }, "⚡ Urgent"),
+    h("option", { value: "north_star" }, "★ North Star"));
+  labelSel.value = label || "";
   return h("div", { class: "dump-item" },
     h("span", { class: "dump-title" }, it.title),
-    it.label && h("span", { class: "pill urgent" }, "⚡Urgent"),
+    labelSel,
     due && h("span", { class: `due ${due.cls}` }, "📅 " + due.text),
     h("span", { class: "dump-where" },
       h("span", { class: "dot", style: `background:${p ? p.color : "var(--faint)"}` }),
@@ -1023,8 +1032,9 @@ async function submitDump() {
     const { items: parsed } = await api("POST", "capture", { text, dry: true, project_id: here, default_due: todayISO() });
     const choices = parsed.map((it) => {
       const { choice, pid, section } = dumpTarget(it);
-      if (choice.project === "auto") return section != null ? { section_id: section } : {};
-      return { project_id: pid, section_id: section };
+      const c = choice.project === "auto" ? (section != null ? { section_id: section } : {}) : { project_id: pid, section_id: section };
+      if (choice.label !== "auto") c.label = choice.label;
+      return c;
     });
     const { items } = await api("POST", "capture", { text, choices, project_id: here, default_due: todayISO() });
     $("#dump-text").value = "";

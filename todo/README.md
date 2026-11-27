@@ -43,7 +43,8 @@ A to-do list app on port **1242** — tasks, projects, and labels.
   weekend / next week / 11/20 set the due date. Cmd/Ctrl+Enter adds them. A line that matches
   no project's keywords goes to the Inbox. On a project page, every line without a `#tag` goes to
   that project instead. Before adding, each previewed line has a project
-  picker (✨ is the automatic pick) and, when that project has subsections, a subsection picker.
+  picker (✨ is the automatic pick), an urgency picker (Not urgent / ⚡ Urgent / ★ North Star —
+  it starts from the words) and, when that project has subsections, a subsection picker.
 - **Daily ⇄ To-do**: the switch at the top of the sidebar (or `D`) goes to Daily, the diary on
   port 3030, in the same tab; Daily has the same switch back.
 - Keys: `N` new task, `/` filter, `Esc` close the editor, `?` (or ⌨ Shortcuts in the sidebar)
@@ -69,7 +70,7 @@ sudo systemctl daemon-reload && sudo systemctl enable --now dz-todo
 | GET, PATCH, DELETE | `/api/projects/:id` | PATCH also takes `{archived}`; projects carry `archived` (1 if it or a parent is archived) |
 | GET, POST | `/api/todos` | list / create `{title, notes?, label?, project_id?, section_id?, parent_id?, due_date?}` |
 | GET, PATCH, DELETE | `/api/todos/:id` | PATCH also takes `{done}` |
-| POST | `/api/capture` | free-form `{text, notes?, project_id?, default_project_id?, default_due?, choices?, dry?}` → `{items}`; one task per line, `project_id` takes untagged lines, `choices[i]` (`{project_id?, section_id?}`) overrides line i, `dry` only previews |
+| POST | `/api/capture` | free-form `{text, notes?, project_id?, default_project_id?, default_due?, choices?, dry?}` → `{items}`; one task per line, `project_id` takes untagged lines, `choices[i]` (`{project_id?, section_id?, label?}`) overrides line i, `dry` only previews |
 | POST | `/api/classify` | `{text}` → `{project}`: which project some writing falls into, by keywords |
 | GET, POST | `/api/sections` | list / create `{project_id, name}` |
 | PATCH, DELETE | `/api/sections/:id` | `{name}`, `{collapsed}`, or `{move: -1 \| 1}` |

@@ -250,7 +250,7 @@ const listKeyworded = () => listProjects().filter((p) => !p.archived && p.keywor
    `default_project_id` (Daily passes a note's project), else the Inbox. On a project page
    the page passes `project_id`, and lines without a #tag go there instead. `choices`, lined
    up with the parsed lines, overrides that per line: `{project_id}` (null = Inbox) and/or
-   `{section_id}`. A line with no due date of its own gets `default_due` (the page's today).
+   `{section_id}` and/or `{label}` ("urgent", "north_star" or null). A line with no due date of its own gets `default_due` (the page's today).
    With `dry`, nothing is written — the parse comes back so the page can
    preview it. */
 function capture(body) {
@@ -283,8 +283,9 @@ function capture(body) {
     return sec.id;
   };
   return db.transaction(() => items.map((it0, i) => {
-    const it = { ...it0, due_date: it0.due_date ?? defaultDue };
     const choice = choices[i] && typeof choices[i] === "object" ? choices[i] : {};
+    if ("label" in choice && !LABELS.has(choice.label ?? null)) throw new BadRequest("Label must be urgent, north_star or empty");
+    const it = { ...it0, due_date: it0.due_date ?? defaultDue, label: "label" in choice ? choice.label ?? null : it0.label };
     let p;
     if ("project_id" in choice) {
       p = choice.project_id == null || choice.project_id === "" ? null : projects.find((x) => x.id === Number(choice.project_id));
