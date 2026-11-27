@@ -55,6 +55,25 @@ if (!db.query("SELECT 1 FROM pragma_table_info('projects') WHERE name = 'keyword
 if (db.query("SELECT 1 FROM pragma_table_info('projects') WHERE name = 'is_theme'").get())
   db.exec("ALTER TABLE projects DROP COLUMN is_theme");
 db.exec("CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)");
+/* Images attached to tasks, kept in the database with everything else. A deleted task's
+   images are let go (todo_id NULL, orphaned_at set) rather than dropped, so Undo can take
+   them back; after a day they're cleared out for good. */
+db.exec(`
+  CREATE TABLE IF NOT EXISTS images (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    todo_id     INTEGER REFERENCES todos(id) ON DELETE SET NULL,
+    name        TEXT NOT NULL DEFAULT '',
+    type        TEXT NOT NULL,
+    size        INTEGER NOT NULL,
+    data        BLOB NOT NULL,
+    orphaned_at TEXT,
+    created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE INDEX IF NOT EXISTS images_todo ON images(todo_id);
+`);
+const clearOrphans = () =>
+  db.exec("DELETE FROM images WHERE todo_id IS NULL AND (orphaned_at IS NULL OR orphaned_at < datetime('now', '-1 day'))");
+clearOrphans();
 
 /* Start with Work, Health, Social and Domestic, each with keywords. A top-level project
    already called one of those (or e.g. "home" for Domestic) takes them on instead, keeping
@@ -240,7 +259,44 @@ const listProjects = () =>
 
 const listSections = () => db.query("SELECT * FROM sections ORDER BY project_id, position, id").all();
 
-const listTodos = () => db.query("SELECT * FROM todos ORDER BY done, created_at DESC, id DESC").all();
+// Each task carries `images`: [{id, name, type, size}] (the bytes are at /api/images/:id).
+const IMAGE_COLS = "id, todo_id, name, type, size, created_at";
+const listTodos = () => {
+  const byTodo = new Map();
+  for (const img of db.query(`SELECT ${IMAGE_COLS} FROM images WHERE todo_id IS NOT NULL ORDER BY id`).all()) {
+    if (!byTodo.has(img.todo_id)) byTodo.set(img.todo_id, []);
+    byTodo.get(img.todo_id).push(img);
+  }
+  return db.query("SELECT * FROM todos ORDER BY done, created_at DESC, id DESC").all().map((t) => ({ ...t, images: byTodo.get(t.id) || [] }));
+};
+const withImages = (t) => t && { ...t, images: db.query(`SELECT ${IMAGE_COLS} FROM images WHERE todo_id = ? ORDER BY id`).all(t.id) };
+
+// Formats every browser can show. No SVG: it can carry scripts.
+const IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/gif", "image/webp", "image/avif", "image/bmp"]);
+const MAX_IMAGE = 15 * 1024 * 1024;
+
+async function addImage(todoId, req) {
+  if (!db.query("SELECT 1 FROM todos WHERE id = ?").get(todoId)) return null;
+  const type = (req.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
+  if (!IMAGE_TYPES.has(type)) throw new BadRequest("That kind of image can't be shown here — use JPEG, PNG, GIF or WebP");
+  const data = new Uint8Array(await req.arrayBuffer());
+  if (!data.length) throw new BadRequest("That image is empty");
+  if (data.length > MAX_IMAGE) throw new BadRequest("Images can be up to 15 MB");
+  let name = "";
+  try { name = decodeURIComponent(req.headers.get("x-name") || ""); } catch {}
+  return db.query(`INSERT INTO images (todo_id, name, type, size, data) VALUES (?, ?, ?, ?, ?) RETURNING ${IMAGE_COLS}`)
+    .get(todoId, name.slice(0, 200), type, data.length, data);
+}
+
+// Let go of images (a deleted task's, or one removed by hand) so Undo can take them back.
+const orphanImages = (where, ...args) =>
+  db.query(`UPDATE images SET todo_id = NULL, orphaned_at = datetime('now') WHERE ${where}`).run(...args);
+// Undo: give let-go images back to a task.
+function adoptImages(todoId, ids) {
+  if (!Array.isArray(ids)) return;
+  const q = db.query("UPDATE images SET todo_id = ?, orphaned_at = NULL WHERE id = ? AND todo_id IS NULL");
+  for (const i of ids.slice(0, 200)) q.run(todoId, Number(i));
+}
 
 // The projects writing can be sorted into: active ones with keywords.
 const listKeyworded = () => listProjects().filter((p) => !p.archived && p.keywords.trim());
@@ -316,7 +372,27 @@ async function api(req, url) {
   const parts = url.pathname.split("/").filter(Boolean).slice(1); // drop "api"
   const [resource, rawId] = parts;
   const id = rawId === undefined ? null : Number(rawId);
+  // Images: raw bytes in, raw bytes out.
+  if (resource === "todos" && parts[2] === "images" && req.method === "POST") {
+    const img = await addImage(id, req);
+    return img ? json(img, 201) : notFound();
+  }
+  if (resource === "images" && id !== null && req.method === "GET") {
+    const img = db.query("SELECT type, data FROM images WHERE id = ?").get(id);
+    if (!img) return notFound();
+    return new Response(img.data, { headers: {
+      "content-type": img.type, "cache-control": "private, max-age=31536000, immutable",
+      "x-content-type-options": "nosniff", "content-security-policy": "default-src 'none'" } });
+  }
   const body = ["POST", "PATCH"].includes(req.method) ? await req.json().catch(() => ({})) : null;
+  if (resource === "images" && id !== null) {
+    // Remove (let go, for Undo) or put back: PATCH {todo_id}.
+    if (req.method === "DELETE") return orphanImages("id = ?", id).changes ? json({ ok: true }) : notFound();
+    if (req.method === "PATCH") {
+      adoptImages(Number(body.todo_id), [id]);
+      return json(db.query(`SELECT ${IMAGE_COLS} FROM images WHERE id = ?`).get(id) ?? null);
+    }
+  }
 
   if (resource === "state" && req.method === "GET") return json({ projects: listProjects(), sections: listSections(), todos: listTodos() });
 
@@ -364,9 +440,13 @@ async function api(req, url) {
   if (resource === "todos") {
     if (id === null) {
       if (req.method === "GET") return json(listTodos());
-      if (req.method === "POST") return json(insert("todos", fitSection(fitParent(cleanTodo(body, false), null), null)), 201);
+      if (req.method === "POST") {
+        const row = insert("todos", fitSection(fitParent(cleanTodo(body, false), null), null));
+        adoptImages(row.id, body.image_ids);  // Undo of a delete brings its images back
+        return json(withImages(row), 201);
+      }
     } else {
-      if (req.method === "GET") return json(db.query("SELECT * FROM todos WHERE id = ?").get(id) ?? null);
+      if (req.method === "GET") return json(withImages(db.query("SELECT * FROM todos WHERE id = ?").get(id)) ?? null);
       if (req.method === "PATCH") {
         const existing = db.query("SELECT * FROM todos WHERE id = ?").get(id);
         if (!existing) return notFound();
@@ -378,10 +458,14 @@ async function api(req, url) {
             db.query("UPDATE todos SET project_id = ?, section_id = ? WHERE parent_id = ?").run(row.project_id, row.section_id, id);
           return row;
         })();
-        return json(updated);
+        return json(withImages(updated));
       }
       if (req.method === "DELETE") {
-        const r = db.query("DELETE FROM todos WHERE id = ?").run(id);
+        const r = db.transaction(() => {
+          orphanImages("todo_id IN (SELECT id FROM todos WHERE id = ? OR parent_id = ?)", id, id);
+          return db.query("DELETE FROM todos WHERE id = ?").run(id);
+        })();
+        clearOrphans();
         return r.changes ? json({ ok: true }) : notFound();
       }
     }
@@ -398,7 +482,7 @@ const server = Bun.serve({
       try {
         const res = await api(req, url);
         // A GET/PATCH on a missing row returns null from the helpers above.
-        if (res.status === 200 && (await res.clone().text()) === "null") return notFound();
+        if (res.status === 200 && res.headers.get("content-type") === "application/json" && (await res.clone().text()) === "null") return notFound();
         return res;
       } catch (err) {
         if (err instanceof BadRequest) return json({ error: err.message }, 400);

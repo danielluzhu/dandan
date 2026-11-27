@@ -7,6 +7,12 @@ A to-do list app on port **1242** — tasks, projects, and labels.
   you give it a date (or clear the composer's date). Each open task has **+1d / +3d / +7d** buttons
   (on hover; always on touch screens) that push its due date back — from its due date, or from
   today if it's overdue or has none. Each task also shows when it was made (“Made Nov 12”).
+- **Images**: open a task and *📎 Attach image*, paste one (⌘V / Ctrl+V) into the editor, or drop
+  image files onto it. Tasks show small thumbnails; click one to see it big (← / → to step
+  through, *Open full size* for the original). Hover a thumbnail in the editor for × to remove it
+  (with undo). Photos over 2400px are scaled down before upload; JPEG, PNG, GIF, WebP, AVIF and
+  BMP up to 15 MB. They're stored in `todo.db` with everything else; deleting a task keeps its
+  images for a day so Undo brings them back.
 - **Projects**: create, edit (name, description, color, keywords), delete — deleting a project deletes its tasks.
 - **Keywords**: any project can have them (*Edit project*). New tasks from free-form notes and
   Daily land in the project whose keywords they match most. It starts with **Work**, **Health**,
@@ -69,7 +75,9 @@ sudo systemctl daemon-reload && sudo systemctl enable --now dz-todo
 | GET, POST | `/api/projects` | list / create `{name, description?, color?, parent_id?, keywords?}` |
 | GET, PATCH, DELETE | `/api/projects/:id` | PATCH also takes `{archived}`; projects carry `archived` (1 if it or a parent is archived) |
 | GET, POST | `/api/todos` | list / create `{title, notes?, label?, project_id?, section_id?, parent_id?, due_date?}` |
-| GET, PATCH, DELETE | `/api/todos/:id` | PATCH also takes `{done}` |
+| GET, PATCH, DELETE | `/api/todos/:id` | PATCH also takes `{done}`; todos carry `images: [{id, name, type, size}]`, POST takes `image_ids` (Undo) |
+| POST | `/api/todos/:id/images` | the image's bytes as the body, its type as `content-type`, `x-name` its file name |
+| GET, PATCH, DELETE | `/api/images/:id` | GET the bytes; DELETE removes it (kept a day); PATCH `{todo_id}` puts a removed one back |
 | POST | `/api/capture` | free-form `{text, notes?, project_id?, default_project_id?, default_due?, choices?, dry?}` → `{items}`; one task per line, `project_id` takes untagged lines, `choices[i]` (`{project_id?, section_id?, label?}`) overrides line i, `dry` only previews |
 | POST | `/api/classify` | `{text}` → `{project}`: which project some writing falls into, by keywords |
 | GET, POST | `/api/sections` | list / create `{project_id, name}` |

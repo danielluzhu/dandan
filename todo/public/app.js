@@ -683,12 +683,13 @@ function todoEl(t, opts = {}) {
     !t.done && !opts.self && h("span", { class: "push" }, PUSHES.map((n) =>
       h("button", { class: "meta-btn push-btn", title: `Push the due date ${n} day${n === 1 ? "" : "s"}`, onclick: () => pushDue(t, n) }, `+${n}d`))),
     t.notes && !isOpen && h("span", { title: t.notes }, "📝 Notes"),
+    !isOpen && t.images?.length > 0 && thumbsEl(t, 4),
     h("span", { class: "made", title: "Made " + new Date(t.created_at.replace(" ", "T") + "Z").toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" }) }, "Made " + madeText(t)),
   );
 
   const row = h("div", {
     class: "todo-row",
-    onclick: (e) => { if (!e.target.closest(".check, .grip, .meta-btn") && !dragJustEnded()) toggleOpen(t.id); },
+    onclick: (e) => { if (!e.target.closest(".check, .grip, .meta-btn, .thumb") && !dragJustEnded()) toggleOpen(t.id); },
     onpointerdown: (e) => pressTodo(e, t),
   },
     !isOpen && !opts.self && h("span", { class: "grip", title: "Drag to relabel, or onto a North Star to put it inside", "aria-hidden": "true" }, "⠿"),
@@ -739,14 +740,14 @@ function editorEl(t) {
   proj.value = t.project_id == null ? "" : String(t.project_id);
 
   const tSecs = t.project_id != null ? sectionsOf(t.project_id) : [];
-  const sec = tSecs.length && h("select", { "aria-label": "Subsection", onchange: (e) => save({ section_id: e.target.value || null }) },
+  const sec = tSecs.length > 0 && h("select", { "aria-label": "Subsection", onchange: (e) => save({ section_id: e.target.value || null }) },
     h("option", { value: "" }, "No subsection"),
     tSecs.map((s) => h("option", { value: s.id }, s.name)));
   if (sec) sec.value = t.section_id == null ? "" : String(t.section_id);
 
   // Which North Star this task sits inside (North Stars themselves can't be nested).
   const stars = state.todos.filter((x) => isStar(x) && x.id !== t.id && (!x.done || x.id === t.parent_id));
-  const inside = !isStar(t) && stars.length && h("select", { "aria-label": "Inside North Star", onchange: (e) => save({ parent_id: e.target.value || null }) },
+  const inside = !isStar(t) && stars.length > 0 && h("select", { "aria-label": "Inside North Star", onchange: (e) => save({ parent_id: e.target.value || null }) },
     h("option", { value: "" }, "Not inside a North Star"),
     stars.map((x) => h("option", { value: x.id }, `★ ${x.title}` + (x.project_id != null ? ` (${projectById(x.project_id)?.name})` : ""))));
   if (inside) inside.value = t.parent_id == null ? "" : String(t.parent_id);
@@ -759,8 +760,30 @@ function editorEl(t) {
     ? `Completed ${new Date(t.completed_at).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}`
     : `Created ${created.toLocaleDateString(undefined, { dateStyle: "medium" })}`;
 
-  return h("div", { class: "editor", onclick: (e) => e.stopPropagation() },
-    title, notes,
+  // Images: 📎 Attach, paste into the editor, or drop files onto it.
+  const picker = h("input", { type: "file", accept: "image/*", multiple: true, hidden: true,
+    onchange: (e) => { uploadImages(t, [...e.target.files]); e.target.value = ""; } });
+  const images = h("div", { class: "e-images" },
+    t.images.map((img, i) => h("div", { class: "e-image" },
+      h("img", { class: "thumb", src: imageUrl(img), alt: img.name || "Image", draggable: "false", loading: "lazy",
+        onclick: () => showImage(t, i) }),
+      h("button", { class: "e-image-x", type: "button", title: "Remove image", "aria-label": "Remove image", onclick: () => removeImage(t, img) }, "×"))),
+    h("button", { class: "e-attach", type: "button", onclick: () => picker.click() }, "📎 Attach image"),
+    picker);
+
+  return h("div", { class: "editor", onclick: (e) => e.stopPropagation(),
+    onpaste: (e) => {
+      const files = [...(e.clipboardData?.files || [])].filter((f) => f.type.startsWith("image/"));
+      if (files.length) { e.preventDefault(); uploadImages(t, files); }
+    },
+    ondragover: (e) => { if (e.dataTransfer?.types.includes("Files")) { e.preventDefault(); e.currentTarget.classList.add("drop-files"); } },
+    ondragleave: (e) => { if (!e.currentTarget.contains(e.relatedTarget)) e.currentTarget.classList.remove("drop-files"); },
+    ondrop: (e) => {
+      e.currentTarget.classList.remove("drop-files");
+      const files = [...(e.dataTransfer?.files || [])].filter((f) => f.type.startsWith("image/"));
+      if (files.length) { e.preventDefault(); uploadImages(t, files); }
+    } },
+    title, notes, images,
     h("div", { class: "editor-opts" }, seg, proj, sec, inside, due, clearDue),
     h("div", { class: "editor-actions" },
       h("span", { class: "stamp" }, stamp),
@@ -769,6 +792,97 @@ function editorEl(t) {
       h("button", { class: "btn small", type: "button", onclick: () => toggleDone(t) }, t.done ? "Mark not done" : "Complete"),
       h("button", { class: "btn primary small", type: "button", onclick: closeEditor }, "Done")));
 }
+
+/* ---------- images ---------- */
+const imageUrl = (img) => `/api/images/${img.id}`;
+
+// A task's first few images as small thumbnails (click one to see it big).
+function thumbsEl(t, max) {
+  const more = t.images.length - max;
+  return h("span", { class: "thumbs" },
+    t.images.slice(0, max).map((img, i) => h("img", { class: "thumb", src: imageUrl(img), alt: img.name || "Image", draggable: "false", loading: "lazy",
+      title: img.name || "Image", onclick: () => showImage(t, i) })),
+    more > 0 && h("button", { class: "meta-btn thumb-more", onclick: () => showImage(t, max) }, `+${more}`));
+}
+
+// Big photos are scaled down before they're sent (longest side 2400px), so the list stays quick.
+const MAX_SIDE = 2400;
+async function shrink(file) {
+  if (file.type === "image/gif") return file;  // keep animations
+  try {
+    const bmp = await createImageBitmap(file);
+    const scale = Math.min(1, MAX_SIDE / Math.max(bmp.width, bmp.height));
+    if (scale === 1 && file.size <= 3 * 1024 * 1024) return file;
+    const c = document.createElement("canvas");
+    c.width = Math.round(bmp.width * scale);
+    c.height = Math.round(bmp.height * scale);
+    c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height);
+    const type = file.type === "image/png" && file.size <= 3 * 1024 * 1024 ? "image/png" : "image/jpeg";
+    const blob = await new Promise((r) => c.toBlob(r, type, 0.85));
+    return blob && blob.size < file.size ? blob : file;
+  } catch { return file; }  // can't decode it here; let the server judge it
+}
+
+async function uploadImages(t, files) {
+  if (!files.length) return;
+  document.activeElement?.blur?.();  // save any typing first; the editor redraws with the images
+  toast(files.length === 1 ? "Attaching image…" : `Attaching ${files.length} images…`);
+  let added = 0;
+  for (const file of files) {
+    try {
+      const body = await shrink(file);
+      const res = await fetch(`/api/todos/${t.id}/images`, {
+        method: "POST", body,
+        headers: { "content-type": body.type || file.type, "x-name": encodeURIComponent(file.name || "") },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || `Upload failed (${res.status})`);
+      added++;
+    } catch (err) { fail(err); }
+  }
+  if (!added) return;
+  replaceTodo(await api("GET", `todos/${t.id}`));
+  render();
+  toast(added === 1 ? "Image attached" : `${added} images attached`);
+}
+
+async function removeImage(t, img) {
+  document.activeElement?.blur?.();
+  try {
+    await api("DELETE", `images/${img.id}`);
+    replaceTodo(await api("GET", `todos/${t.id}`));
+    render();
+    toast("Image removed", { label: "Undo", run: async () => {
+      try {
+        await api("PATCH", `images/${img.id}`, { todo_id: t.id });
+        replaceTodo(await api("GET", `todos/${t.id}`));
+        render();
+      } catch (err) { fail(err); }
+    } });
+  } catch (err) { fail(err); }
+}
+
+// The viewer: one of a task's images, big. ← / → step through them; Esc or a click closes it.
+let viewing = null;
+function showImage(t, i) {
+  const imgs = todoById(t.id)?.images || t.images;
+  if (!imgs.length) return;
+  viewing = { t, i: (i + imgs.length) % imgs.length };
+  const img = imgs[viewing.i];
+  $("#viewer-img").src = imageUrl(img);
+  $("#viewer-img").alt = img.name || "Image";
+  $("#viewer-cap").textContent = `${t.title}` + (imgs.length > 1 ? ` · ${viewing.i + 1} of ${imgs.length}` : "");
+  $("#viewer-open").href = imageUrl(img);
+  $("#viewer-prev").hidden = $("#viewer-next").hidden = imgs.length < 2;
+  if (!$("#viewer").open) $("#viewer").showModal();
+}
+$("#viewer").addEventListener("click", (e) => { if (!e.target.closest("button, a")) $("#viewer").close(); });
+$("#viewer-prev").addEventListener("click", () => showImage(viewing.t, viewing.i - 1));
+$("#viewer-next").addEventListener("click", () => showImage(viewing.t, viewing.i + 1));
+$("#viewer").addEventListener("keydown", (e) => {
+  if (e.key === "ArrowLeft") showImage(viewing.t, viewing.i - 1);
+  if (e.key === "ArrowRight") showImage(viewing.t, viewing.i + 1);
+});
 
 /* ---------- actions ---------- */
 function go(view) {
@@ -881,10 +995,12 @@ async function deleteTodo(t) {
             project_id: projectById(t.project_id) ? t.project_id : null,
             section_id: projectById(t.project_id) && sectionById(t.section_id) ? t.section_id : null,
             parent_id: isStar(todoById(t.parent_id)) ? t.parent_id : null,
+            image_ids: (t.images || []).map((i) => i.id),
           });
           if (t.done) await api("PATCH", `todos/${restored.id}`, { done: true });
           for (const k of kids) {
-            const kid = await api("POST", "todos", { title: k.title, notes: k.notes, label: k.label, due_date: k.due_date, parent_id: restored.id });
+            const kid = await api("POST", "todos", { title: k.title, notes: k.notes, label: k.label, due_date: k.due_date, parent_id: restored.id,
+              image_ids: (k.images || []).map((i) => i.id) });
             if (k.done) await api("PATCH", `todos/${kid.id}`, { done: true });
           }
           await load();

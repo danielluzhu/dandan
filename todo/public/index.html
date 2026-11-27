@@ -115,6 +115,18 @@
     </form>
   </dialog>
 
+  <dialog id="viewer" class="viewer" aria-label="Image">
+    <img id="viewer-img" alt="">
+    <div class="viewer-bar">
+      <button type="button" class="btn small" id="viewer-prev" aria-label="Previous image">‹</button>
+      <span id="viewer-cap"></span>
+      <button type="button" class="btn small" id="viewer-next" aria-label="Next image">›</button>
+      <span class="spacer"></span>
+      <a class="btn small" id="viewer-open" target="_blank" rel="noopener">Open full size ↗</a>
+      <button type="button" class="btn small" onclick="this.closest('dialog').close()">Close</button>
+    </div>
+  </dialog>
+
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
   <script src="app.js"></script>
