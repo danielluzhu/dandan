@@ -11,7 +11,7 @@ const state = {
   projects: [],
   sections: [],         // project subsections
   todos: [],
-  view: "all",          // all | inbox | urgent | north_star | p<id> | n<id>
+  view: "all",          // all | plan | inbox | urgent | north_star | p<id> | n<id>
   openId: null,         // todo whose editor is expanded
   showDone: false,
   query: "",
@@ -24,6 +24,8 @@ const state = {
   pCollapsed: new Set(readCollapsed("todo.pCollapsed")),  // projects whose sub-projects are folded in the sidebar
   showArchived: readCollapsed("todo.showArchived") === true,  // the sidebar's Archived list is open
   inboxAll: readCollapsed("todo.inboxAll") === true,  // the Inbox shows every task, not just unsorted ones
+  planUndated: readCollapsed("todo.planUndated") === true,  // Plan today also goes through tasks with no date
+  planSeen: new Set(),  // tasks dealt with (or skipped) in Plan today since the page loaded
 };
 
 function readCollapsed(key = "todo.nsCollapsed") {
@@ -35,6 +37,7 @@ function saveCollapsed() {
     localStorage.setItem("todo.pCollapsed", JSON.stringify([...state.pCollapsed]));
     localStorage.setItem("todo.showArchived", JSON.stringify(state.showArchived));
     localStorage.setItem("todo.inboxAll", JSON.stringify(state.inboxAll));
+    localStorage.setItem("todo.planUndated", JSON.stringify(state.planUndated));
   } catch {}
 }
 
@@ -114,7 +117,7 @@ const currentStar = () => {
   const t = todoById(Number(state.view.slice(1)));
   return isStar(t) ? t : null;
 };
-const VIEW_RE = /^(all|inbox|urgent|north_star|p\d+|n\d+)$/;
+const VIEW_RE = /^(all|plan|inbox|urgent|north_star|p\d+|n\d+)$/;
 
 const isoOf = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 const todayISO = () => isoOf(new Date());
@@ -257,6 +260,7 @@ function renderSidebar() {
   urgentNav.dataset.drop = "urgent";
   $("#views").replaceChildren(
     navItem("all", h("span", { class: "nav-icon" }, "☰"), "All tasks", open.length),
+    navItem("plan", h("span", { class: "nav-icon" }, "🗓"), "Plan today", planQueue(false).length),
     navItem("inbox", h("span", { class: "nav-icon" }, "📥"), "Inbox", open.filter((t) => t.project_id == null).length),
     ...starNavs(null),
     starNav,
@@ -332,13 +336,14 @@ function renderHeader() {
   const star = currentStar();
   if (star) return renderStarHeader(star);
   const p = currentProject();
-  const titles = { all: "All tasks", inbox: "Inbox", urgent: "Urgent", north_star: "North Star" };
+  const titles = { all: "All tasks", plan: "Plan today", inbox: "Inbox", urgent: "Urgent", north_star: "North Star" };
   const title = $("#view-title");
   if (p) title.replaceChildren(h("span", { class: "dot", style: `background:${p.color}` }), p.name);
   else title.replaceChildren(titles[state.view]);
   const descs = {
     inbox: state.inboxAll ? "Every task, whatever project it's in." : "Tasks that don't belong to a project yet.",
     urgent: "Everything marked urgent, across every project.",
+    plan: "Go through what's overdue, one task at a time: do it today, push it, finish it, or let it go.",
     north_star: "The tasks that matter most — the ones that move the needle.",
   };
   const up = p ? ancestorsOf(p) : [];
@@ -361,6 +366,11 @@ function renderHeader() {
       h("button", { class: "btn small", onclick: startAddSection }, "+ Subsection"),
       h("button", { class: "btn small", onclick: () => openProjectDialog(p) }, "Edit project"),
       h("button", { class: "btn small", title: "Hide this project and its tasks from your lists", onclick: () => setArchived(p, true) }, "Archive"),
+    ] : state.view === "plan" ? [
+      h("div", { class: "seg", role: "radiogroup", "aria-label": "Plan goes through" },
+        [[false, "Overdue"], [true, `+ No date (${state.todos.filter((t) => !t.done && isLive(t) && !t.due_date).length})`]].map(([v, text]) => h("button", {
+          role: "radio", "aria-checked": String(state.planUndated === v),
+          onclick: () => { state.planUndated = v; saveCollapsed(); render(); } }, text))),
     ] : state.view === "inbox" ? [
       h("div", { class: "seg", role: "radiogroup", "aria-label": "Inbox shows" },
         [[false, "Unsorted"], [true, "All tasks"]].map(([v, text]) => h("button", {
@@ -416,6 +426,8 @@ function section(key, title, todos, opts = {}) {
 
 function renderList() {
   const list = $("#list");
+  document.body.classList.toggle("planning", state.view === "plan");
+  if (state.view === "plan") return renderPlan(list);
   const todos = viewTodos();
   const open = todos.filter((t) => !t.done).sort(byOpenOrder);
   const done = todos.filter((t) => t.done).sort((a, b) => (b.completed_at || "").localeCompare(a.completed_at || ""));
@@ -824,6 +836,102 @@ function editorEl(t) {
       h("button", { class: "btn danger ghost small", type: "button", onclick: () => deleteTodo(t) }, "Delete"),
       h("button", { class: "btn small", type: "button", onclick: () => toggleDone(t) }, t.done ? "Mark not done" : "Complete"),
       h("button", { class: "btn primary small", type: "button", onclick: closeEditor }, "Done")));
+}
+
+/* ---------- Plan today ----------
+   Overdue tasks (and, if you like, ones with no date), one at a time, oldest first. Each gets
+   a decision — today, a push, done, no date, delete, or skip — and the next one comes up. */
+function planQueue(skipSeen = true) {
+  const today = todayISO();
+  const open = state.todos.filter((t) => !t.done && isLive(t) && !(skipSeen && state.planSeen.has(t.id)));
+  const overdue = open.filter((t) => t.due_date && t.due_date < today)
+    .sort((a, b) => a.due_date.localeCompare(b.due_date) || a.id - b.id);
+  const undated = state.planUndated ? open.filter((t) => !t.due_date).sort((a, b) => a.id - b.id) : [];
+  return [...overdue, ...undated];
+}
+
+// Do something to the task in front of you; it leaves the queue, and Undo puts it back.
+async function planAct(t, fields, msg) {
+  const before = Object.fromEntries(Object.keys(fields).map((k) => [k, k === "done" ? !!t[k] : t[k]]));
+  state.planSeen.add(t.id);
+  renderList();
+  await patchTodo(t.id, fields);
+  toast(msg, { label: "Undo", run: async () => { state.planSeen.delete(t.id); await patchTodo(t.id, before); } });
+}
+const planDue = (t, n) => planAct(t, { due_date: addDays(todayISO(), n) }, n === 0 ? "Moved to today" : `Pushed to ${fmtDay(addDays(todayISO(), n))}`);
+const planSkip = (t) => { state.planSeen.add(t.id); renderList(); renderSidebar(); };
+
+function renderPlan(list) {
+  const queue = planQueue();
+  const today = todayISO();
+  const dueToday = state.todos.filter((t) => !t.done && isLive(t) && t.due_date === today).sort(byOpenOrder);
+  const todayList = section("", "On today's list", dueToday, { hint: "Nothing due today yet." });
+  const t = queue[0];
+  if (!t) {
+    list.replaceChildren(h("div", { class: "empty plan-empty" }, h("div", { class: "big" }, "🌤"),
+      state.planSeen.size ? "All planned. Nice." : "Nothing overdue.",
+      !state.planUndated && h("div", { class: "plan-sub" }, "Tasks without a date can go through here too — ",
+        h("button", { class: "link-btn", onclick: () => { state.planUndated = true; saveCollapsed(); render(); } }, "include them"), ".")),
+      todayList);
+    return;
+  }
+  const done = state.planSeen.size;
+  const total = done + queue.length;
+  const days = t.due_date ? Math.round((new Date(today + "T00:00") - new Date(t.due_date + "T00:00")) / 86400000) : null;
+  const p = t.project_id != null ? projectById(t.project_id) : null;
+  const sec = t.section_id != null ? sectionById(t.section_id) : null;
+  const parent = t.parent_id != null ? todoById(t.parent_id) : null;
+  const labelInfo = LABELS.find((l) => l.v === t.label);
+  const key = (k) => h("kbd", {}, k);
+  const btn = (text, k, run, cls = "") => h("button", { class: `btn plan-btn ${cls}`, type: "button", onclick: run }, text, k && key(k));
+  const pick = h("input", { type: "date", class: "plan-date", "aria-label": "Pick a date", min: today,
+    onchange: (e) => e.target.value && planAct(t, { due_date: e.target.value }, `Moved to ${fmtDay(e.target.value)}`) });
+
+  list.replaceChildren(
+    h("div", { class: "plan-progress" },
+      h("span", {}, `${queue.length} to go`), h("span", { class: "bar" }, h("span", { style: `width:${Math.round(done / total * 100)}%` })),
+      h("span", { class: "n" }, `${done} of ${total} planned`)),
+    h("div", { class: `plan-card ${t.label || ""}` },
+      h("div", { class: "plan-when " + (days != null ? "overdue" : "") },
+        days == null ? "No due date" : days === 1 ? "Was due yesterday" : `Was due ${fmtDay(t.due_date)} · ${days} days ago`),
+      h("div", { class: "plan-title" }, t.title),
+      h("div", { class: "meta" },
+        t.label && h("span", { class: `pill ${t.label}` }, labelInfo.icon, labelInfo.text),
+        parent && h("span", { class: "chip star-chip" }, "★ ", parent.title),
+        h("span", { class: "chip" }, h("span", { class: "dot", style: `background:${p ? p.color : "var(--faint)"}` }), p ? p.name : "Inbox", sec && ` › ${sec.name}`),
+        t.repeat && h("span", { class: "repeat" }, "🔁 " + repeatText(t.repeat)),
+        t.images?.length > 0 && thumbsEl(t, 6),
+        h("span", { class: "made" }, "Made " + madeText(t))),
+      t.notes && h("div", { class: "plan-notes" }, t.notes.length > 280 ? t.notes.slice(0, 280) + " …" : t.notes),
+      h("div", { class: "plan-actions" },
+        btn("Today", "T", () => planDue(t, 0), "primary"),
+        btn("+1d", "1", () => planDue(t, 1)),
+        btn("+3d", "3", () => planDue(t, 3)),
+        btn("+7d", "7", () => planDue(t, 7)),
+        pick),
+      h("div", { class: "plan-actions" },
+        btn("✓ Done", "X", () => planAct(t, { done: true }, t.repeat ? "Done — the next one is on its way" : "Done"), "done"),
+        t.due_date && btn("No date", "0", () => planAct(t, { due_date: null }, "Date cleared")),
+        btn("Skip", "S", () => planSkip(t)),
+        h("span", { class: "spacer" }),
+        btn("Delete", "⌫", () => { state.planSeen.add(t.id); deleteTodo(t); }, "danger ghost"))),
+    todayList);
+}
+
+// Plan today's keys: T, 1, 3, 7, X, 0, S (or →), Delete.
+function planKey(e) {
+  const t = planQueue()[0];
+  if (!t) return false;
+  const k = e.key.toLowerCase();
+  if (k === "t") planDue(t, 0);
+  else if (k === "1" || k === "3" || k === "7") planDue(t, Number(k));
+  else if (k === "x") planAct(t, { done: true }, t.repeat ? "Done — the next one is on its way" : "Done");
+  else if (k === "0" && t.due_date) planAct(t, { due_date: null }, "Date cleared");
+  else if (k === "s" || k === "arrowright") planSkip(t);
+  else if (k === "delete" || k === "backspace") { state.planSeen.add(t.id); deleteTodo(t); }
+  else return false;
+  e.preventDefault();
+  return true;
 }
 
 /* ---------- images ---------- */
@@ -1491,6 +1599,7 @@ async function dropProject() {
 document.addEventListener("keydown", (e) => {
   const typing = e.target.closest("input, textarea, select, dialog");
   if (typing || e.metaKey || e.ctrlKey || e.altKey) return;
+  if (state.view === "plan" && planKey(e)) return;
   if (e.key === "n") { e.preventDefault(); $("#new-title").focus(); }
   else if (e.key === "/") { e.preventDefault(); $("#search").focus(); }
   else if (e.key === "d") { e.preventDefault(); location.href = siteUrl(3030); }

@@ -7,6 +7,10 @@ A to-do list app on port **1242** — tasks, projects, and labels.
   you give it a date (or clear the composer's date). Each open task has **+1d / +3d / +7d** buttons
   (on hover; always on touch screens) that push its due date back — from its due date, or from
   today if it's overdue or has none. Each task also shows when it was made (“Made Nov 12”).
+- **Plan today** (sidebar): overdue tasks one at a time, oldest first, each with **Today**,
+  **+1d / +3d / +7d**, a date picker, **Done**, **No date**, **Skip** and **Delete** — keys `T`,
+  `1` `3` `7`, `X`, `0`, `S`/→, Delete — with Undo on each. *+ No date* (top right) adds the
+  tasks without a due date to the run. Below the card is what's on today's list.
 - **Repeating tasks**: pick *🔁 Repeat* in the composer or a task's editor (daily, weekly,
   every 2 weeks, monthly, every 3 or 6 months, yearly, or *Custom…* like “10 days”), or write it in
   free-form notes and Daily: “pay rent every month on 12/1”, “water plants every other day”,
