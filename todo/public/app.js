@@ -11,7 +11,7 @@ const state = {
   projects: [],
   sections: [],         // project subsections
   todos: [],
-  view: "all",          // all | inbox | urgent | north_star | p<id>
+  view: "all",          // all | inbox | urgent | north_star | p<id> | n<id>
   openId: null,         // todo whose editor is expanded
   showDone: false,
   query: "",
@@ -80,7 +80,7 @@ const fail = (err) => toast(err.message || "Something went wrong");
 const projectById = (id) => state.projects.find((p) => p.id === id);
 const sectionById = (id) => state.sections.find((s) => s.id === id);
 const sectionsOf = (projectId) => state.sections.filter((s) => s.project_id === projectId);
-const currentProject = () => (state.view.startsWith("p") ? projectById(Number(state.view.slice(1))) : null);
+const currentProject = () => (/^p\d/.test(state.view) ? projectById(Number(state.view.slice(1))) : null);
 const subProjectsOf = (id) => state.projects.filter((p) => (p.parent_id ?? null) === id);
 // Every active project in sidebar order — each one followed by its sub-projects — with its
 // depth. A project whose parent is missing is treated as top-level. `archived` is 1 for an
@@ -129,6 +129,37 @@ function pushDue(t, n) {
   patchTodo(t.id, { due_date: due });
   toast(`Pushed to ${new Date(due + "T12:00").toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}`);
 }
+/* Repeating tasks: a rule like "1 month". Completing one makes the next, due a step later. */
+const REPEATS = ["1 day", "1 week", "2 week", "1 month", "3 month", "6 month", "1 year"];
+const REPEAT_RE = /^([1-9]\d{0,2}) (day|week|month|year)s?$/;
+function repeatText(rule) {
+  const m = rule?.match(REPEAT_RE);
+  if (!m) return "";
+  if (m[1] === "1") return { day: "Daily", week: "Weekly", month: "Monthly", year: "Yearly" }[m[2]];
+  return `Every ${m[1]} ${m[2]}s`;
+}
+// A repeat picker: the common rules, "Custom…" to type one, and the task's own if it's unusual.
+function repeatSelect(current, onpick, attrs = {}) {
+  const sel = h("select", { "aria-label": "Repeat", title: "Repeat", ...attrs,
+    onchange: (e) => {
+      let v = e.target.value;
+      if (v === "custom") {
+        const typed = (prompt("Repeat every… (e.g. 10 days, 4 weeks, 2 months)", "2 weeks") || "").trim().toLowerCase();
+        const m = typed.match(/^(?:every\s+)?(\d{1,3})\s*(day|week|month|year)s?$/);
+        if (!m || m[1] === "0") { if (typed) toast("Try something like “10 days” or “2 months”"); e.target.value = current || ""; return; }
+        v = `${Number(m[1])} ${m[2]}`;
+      }
+      onpick(v || null);
+    } },
+    h("option", { value: "" }, "Doesn't repeat"),
+    REPEATS.map((r) => h("option", { value: r }, "🔁 " + repeatText(r))),
+    current && !REPEATS.includes(current) && h("option", { value: current }, "🔁 " + repeatText(current)),
+    h("option", { value: "custom" }, "Custom…"));
+  sel.value = current || "";
+  return sel;
+}
+const fmtDay = (iso) => new Date(iso + "T12:00").toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+
 // When a task was made: "today", "yesterday", or "Nov 12".
 function madeText(t) {
   const made = isoOf(new Date(t.created_at.replace(" ", "T") + "Z"));
@@ -166,7 +197,7 @@ async function load() {
   state.projects = data.projects;
   state.sections = data.sections;
   state.todos = data.todos;
-  if (state.view.startsWith("p") && !currentProject()) state.view = "all";
+  if (/^p\d/.test(state.view) && !currentProject()) state.view = "all";
   if (/^n\d/.test(state.view) && !currentStar()) state.view = "all";
   render();
 }
@@ -175,7 +206,7 @@ function viewTodos() {
   const v = state.view;
   const q = state.query.trim().toLowerCase();
   const star = currentStar();
-  let list = v.startsWith("p") ? state.todos : state.todos.filter(isLive);
+  let list = /^p\d/.test(v) ? state.todos : state.todos.filter(isLive);
   // Tasks inside a North Star render nested under it — except in the flat Urgent view, a
   // North Star's own page, and while filtering.
   if (star) list = list.filter((t) => t.parent_id === star.id);
@@ -183,7 +214,7 @@ function viewTodos() {
   if (star) {}
   else if (v === "inbox" && !state.inboxAll) list = list.filter((t) => t.project_id == null);
   else if (v === "urgent" || v === "north_star") list = list.filter((t) => t.label === v);
-  else if (v.startsWith("p")) list = list.filter((t) => t.project_id === Number(v.slice(1)));
+  else if (/^p\d/.test(v)) list = list.filter((t) => t.project_id === Number(v.slice(1)));
   if (q) list = list.filter((t) => (t.title + " " + t.notes).toLowerCase().includes(q));
   return list;
 }
@@ -669,7 +700,7 @@ function todoEl(t, opts = {}) {
   ];
   const p = t.project_id != null ? projectById(t.project_id) : null;
   const due = dueInfo(t.due_date);
-  const showProject = p && !state.view.startsWith("p") && !currentStar();
+  const showProject = p && !/^p\d/.test(state.view) && !currentStar();
   const labelInfo = LABELS.find((l) => l.v === t.label);
   const showLabelPill = t.label && (state.view !== t.label) && (t.done || ["urgent", "north_star"].includes(state.view));
 
@@ -680,6 +711,7 @@ function todoEl(t, opts = {}) {
     showProject && h("span", { class: "chip" }, h("span", { class: "dot", style: `background:${p.color}` }), p.name,
       t.section_id != null && sectionById(t.section_id) && ` › ${sectionById(t.section_id).name}`),
     due && !t.done && h("span", { class: `due ${due.cls}` }, "📅 " + due.text),
+    t.repeat && !t.done && h("span", { class: "repeat", title: "Repeats — completing it makes the next one" }, "🔁 " + repeatText(t.repeat)),
     !t.done && !opts.self && h("span", { class: "push" }, PUSHES.map((n) =>
       h("button", { class: "meta-btn push-btn", title: `Push the due date ${n} day${n === 1 ? "" : "s"}`, onclick: () => pushDue(t, n) }, `+${n}d`))),
     t.notes && !isOpen && h("span", { title: t.notes }, "📝 Notes"),
@@ -753,6 +785,7 @@ function editorEl(t) {
   if (inside) inside.value = t.parent_id == null ? "" : String(t.parent_id);
 
   const due = h("input", { type: "date", "aria-label": "Due date", value: t.due_date || "", onchange: (e) => save({ due_date: e.target.value || null }) });
+  const repeat = repeatSelect(t.repeat, (v) => save({ repeat: v }));
   const clearDue = t.due_date && h("button", { class: "btn ghost small", type: "button", onclick: () => save({ due_date: null }) }, "Clear date");
 
   const created = new Date(t.created_at.replace(" ", "T") + "Z");
@@ -784,7 +817,7 @@ function editorEl(t) {
       if (files.length) { e.preventDefault(); uploadImages(t, files); }
     } },
     title, notes, images,
-    h("div", { class: "editor-opts" }, seg, proj, sec, inside, due, clearDue),
+    h("div", { class: "editor-opts" }, seg, proj, sec, inside, due, clearDue, repeat),
     h("div", { class: "editor-actions" },
       h("span", { class: "stamp" }, stamp),
       h("span", { class: "spacer" }),
@@ -930,7 +963,8 @@ async function refreshProjects() {
 
 async function patchTodo(id, fields) {
   try {
-    replaceTodo(await api("PATCH", `todos/${id}`, fields));
+    // Completing a repeating task makes the next one; the server dates it from your today.
+    replaceTodo(await api("PATCH", `todos/${id}`, "done" in fields ? { ...fields, today: todayISO() } : fields));
     if ("project_id" in fields || "done" in fields || "parent_id" in fields) {
       // Children may have moved with their North Star; take the server's word for everything.
       const data = await api("GET", "state");
@@ -973,7 +1007,8 @@ async function toggleDone(t) {
   replaceTodo({ ...t, done: done ? 1 : 0, completed_at: done ? new Date().toISOString() : null });
   renderList();
   await patchTodo(t.id, { done });
-  if (done) toast("Completed", { label: "Undo", run: () => patchTodo(t.id, { done: false }) });
+  const next = done && t.repeat ? todoById(todoById(t.id)?.repeat_next_id) : null;
+  if (done) toast(next ? `Completed — next one due ${fmtDay(next.due_date)}` : "Completed", { label: "Undo", run: () => patchTodo(t.id, { done: false }) });
 }
 
 async function deleteTodo(t) {
@@ -991,7 +1026,7 @@ async function deleteTodo(t) {
       run: async () => {
         try {
           const restored = await api("POST", "todos", {
-            title: t.title, notes: t.notes, label: t.label, due_date: t.due_date,
+            title: t.title, notes: t.notes, label: t.label, due_date: t.due_date, repeat: t.repeat,
             project_id: projectById(t.project_id) ? t.project_id : null,
             section_id: projectById(t.project_id) && sectionById(t.section_id) ? t.section_id : null,
             parent_id: isStar(todoById(t.parent_id)) ? t.parent_id : null,
@@ -1018,8 +1053,9 @@ $("#composer").addEventListener("submit", async (e) => {
   const p = currentProject();
   const star = currentStar();
   try {
-    const todo = await api("POST", "todos", star ? { title, label: state.newLabel, parent_id: star.id, due_date: $("#new-due").value || null } : {
-      title,
+    const repeat = $("#new-repeat").value || null;
+    const todo = await api("POST", "todos", star ? { title, label: state.newLabel, parent_id: star.id, due_date: $("#new-due").value || null, repeat } : {
+      title, repeat,
       label: state.newLabel,
       project_id: p ? p.id : $("#new-project-select").value || null,
       section_id: p ? $("#new-section-select").value || null : null,
@@ -1029,6 +1065,7 @@ $("#composer").addEventListener("submit", async (e) => {
     await refreshProjects();
     input.value = "";
     $("#new-due").value = todayISO();  // new tasks are due today unless you pick otherwise
+    $("#new-repeat").replaceWith(repeatSelect(null, () => {}, { id: "new-repeat" }));
     // A task added from Inbox into a project would vanish from view; say where it went.
     if (state.view === "inbox" && todo.project_id != null) toast(`Added to ${projectById(todo.project_id)?.name}`);
     render();
@@ -1116,6 +1153,7 @@ function dumpItemEl(it) {
     h("span", { class: "dump-title" }, it.title),
     labelSel,
     due && h("span", { class: `due ${due.cls}` }, "📅 " + due.text),
+    it.repeat && h("span", { class: "repeat" }, "🔁 " + repeatText(it.repeat)),
     h("span", { class: "dump-where" },
       h("span", { class: "dot", style: `background:${p ? p.color : "var(--faint)"}` }),
       projSel, secSel));
@@ -1476,6 +1514,7 @@ for (const a of document.querySelectorAll(".js-todo")) a.href = siteUrl(1242);
 const initial = location.hash.slice(1);
 if (VIEW_RE.test(initial)) state.view = initial;
 $("#new-due").value = todayISO();  // new tasks are due today unless you pick otherwise
+$("#new-repeat").replaceWith(repeatSelect(null, () => {}, { id: "new-repeat" }));
 load().catch(fail);
 
 window.addEventListener("hashchange", () => {

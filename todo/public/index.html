@@ -45,6 +45,7 @@
           <select id="new-project-select" aria-label="Project"></select>
           <select id="new-section-select" aria-label="Subsection" hidden></select>
           <input type="date" id="new-due" aria-label="Due date">
+          <select id="new-repeat" aria-label="Repeat"></select>
         </div>
       </form>
 
@@ -56,7 +57,7 @@
           <textarea id="dump-text" rows="4" aria-label="Free-form notes" placeholder="clean toilet&#10;pay rent by friday!&#10;call mom this weekend&#10;print poster #print"></textarea>
           <div class="dump-preview" id="dump-preview"></div>
           <div class="dump-actions">
-            <span class="dump-hint">#project picks one · <b>!</b> or “urgent” · today, tomorrow, friday, 11/20</span>
+            <span class="dump-hint">#project picks one · <b>!</b> or “urgent” · today, tomorrow, friday, 11/20 · every month, weekly, every 2 weeks</span>
             <span class="spacer"></span>
             <button type="button" class="btn primary" id="dump-add" disabled>Add tasks</button>
           </div>
@@ -110,6 +111,7 @@
         <dt><code>#print</code></dt><dd>File it in a project by name</dd>
         <dt><code>!</code> · <code>urgent</code></dt><dd>Mark it Urgent</dd>
         <dt><code>today</code> · <code>friday</code> · <code>11/20</code></dt><dd>Set the due date</dd>
+        <dt><code>every month</code> · <code>weekly</code> · <code>every 2 weeks</code> · <code>every friday</code></dt><dd>Make it repeat</dd>
       </dl>
       <div class="dialog-actions"><span class="spacer"></span><button class="btn primary">Done</button></div>
     </form>

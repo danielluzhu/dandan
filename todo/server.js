@@ -1,5 +1,5 @@
 import { Database } from "bun:sqlite";
-import { STARTER_PROJECTS, parseText, projectFor } from "./capture.js";
+import { STARTER_PROJECTS, parseText, projectFor, REPEAT_RE, nextDue } from "./capture.js";
 
 const PORT = Number(process.env.TODO_PORT || 1242);
 const PUBLIC_DIR = new URL("./public/", import.meta.url);
@@ -54,6 +54,12 @@ if (!db.query("SELECT 1 FROM pragma_table_info('projects') WHERE name = 'keyword
 // Projects and "themes" were briefly separate lists; they're all just projects now.
 if (db.query("SELECT 1 FROM pragma_table_info('projects') WHERE name = 'is_theme'").get())
   db.exec("ALTER TABLE projects DROP COLUMN is_theme");
+// Repeating tasks: `repeat` is a rule like "1 month"; completing one makes the next copy,
+// remembered in `repeat_next_id` so un-completing it can take that copy back.
+if (!db.query("SELECT 1 FROM pragma_table_info('todos') WHERE name = 'repeat'").get())
+  db.exec("ALTER TABLE todos ADD COLUMN repeat TEXT");
+if (!db.query("SELECT 1 FROM pragma_table_info('todos') WHERE name = 'repeat_next_id'").get())
+  db.exec("ALTER TABLE todos ADD COLUMN repeat_next_id INTEGER");
 db.exec("CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)");
 /* Images attached to tasks, kept in the database with everything else. A deleted task's
    images are let go (todo_id NULL, orphaned_at set) rather than dropped, so Undo can take
@@ -122,6 +128,11 @@ function cleanTodo(body, partial) {
     if (pid !== null && !db.query("SELECT 1 FROM projects WHERE id = ?").get(pid))
       throw new BadRequest("No such project");
     out.project_id = pid;
+  }
+  if ("repeat" in body) {
+    const r = body.repeat ? String(body.repeat).trim().toLowerCase() : null;
+    if (r && !REPEAT_RE.test(r)) throw new BadRequest('Repeat must look like "1 week" or "3 month"');
+    out.repeat = r;
   }
   if ("parent_id" in body)
     out.parent_id = body.parent_id == null || body.parent_id === "" ? null : Number(body.parent_id);
@@ -259,6 +270,27 @@ const listProjects = () =>
 
 const listSections = () => db.query("SELECT * FROM sections ORDER BY project_id, position, id").all();
 
+/* A repeating task just completed: make its next copy (once). Un-completed: take that copy
+   back, if it's still open. */
+function repeatOnDone(before, row, today) {
+  if (row.done && !before.done && row.repeat) {
+    const live = row.repeat_next_id != null && db.query("SELECT 1 FROM todos WHERE id = ?").get(row.repeat_next_id);
+    if (live) return row;
+    const next = insert("todos", {
+      title: row.title, notes: row.notes, label: row.label, repeat: row.repeat,
+      due_date: nextDue(row.due_date, row.repeat, today),
+      project_id: row.project_id, section_id: row.section_id, parent_id: row.parent_id,
+    });
+    return update("todos", row.id, { repeat_next_id: next.id });
+  }
+  if (!row.done && before.done && row.repeat_next_id != null) {
+    db.query("DELETE FROM todos WHERE id = ? AND done = 0").run(row.repeat_next_id);
+    return update("todos", row.id, { repeat_next_id: null });
+  }
+  return row;
+}
+const localToday = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
+
 // Each task carries `images`: [{id, name, type, size}] (the bytes are at /api/images/:id).
 const IMAGE_COLS = "id, todo_id, name, type, size, created_at";
 const listTodos = () => {
@@ -354,7 +386,7 @@ function capture(body) {
       p = insert("projects", { name: p.name });
       projects.push(p);
     }
-    out.todo = insert("todos", { title: it.title, label: it.label, due_date: it.due_date, project_id: p?.id ?? null, section_id, notes });
+    out.todo = insert("todos", { title: it.title, label: it.label, due_date: it.due_date, repeat: it.repeat, project_id: p?.id ?? null, section_id, notes });
     out.project_id = p?.id ?? null;
     return out;
   }))();
@@ -456,7 +488,8 @@ async function api(req, url) {
           // Children travel with their North Star.
           if (row.project_id !== existing.project_id || row.section_id !== existing.section_id)
             db.query("UPDATE todos SET project_id = ?, section_id = ? WHERE parent_id = ?").run(row.project_id, row.section_id, id);
-          return row;
+          // The page sends its own `today`: the server's clock is UTC, not yours.
+          return repeatOnDone(existing, row, /^\d{4}-\d{2}-\d{2}$/.test(body.today || "") ? body.today : localToday());
         })();
         return json(withImages(updated));
       }

@@ -98,7 +98,52 @@ function takeDue(text, today) {
   return { due: null, text };
 }
 
-/* One free-form line → { title, label, due_date, project } where `project` is a
+/* Repeating tasks: a rule is "<n> <unit>" — "1 week", "3 month". When one is completed
+   the next copy is made, due one step later. */
+export const REPEAT_RE = /^([1-9]\d{0,2}) (day|week|month|year)$/;
+const UNIT = { day: "day", days: "day", week: "week", weeks: "week", month: "month", months: "month", year: "year", years: "year" };
+
+// The repeat phrase in a line ("every month", "weekly", "every 2 weeks", "every friday"),
+// taken out of it. "every friday" leaves "friday" behind so the due date lands on one.
+function takeRepeat(text) {
+  const rules = [
+    [/\bevery other (day|week|month|year)\b/i, (m) => `2 ${UNIT[m[1].toLowerCase()]}`],
+    [/\bevery ([1-9]\d{0,2}) (days?|weeks?|months?|years?)\b/i, (m) => `${m[1]} ${UNIT[m[2].toLowerCase()]}`],
+    [/\bevery (day|week|month|year)\b/i, (m) => `1 ${UNIT[m[1].toLowerCase()]}`],
+    [new RegExp(`\\bevery (${WEEKDAYS.join("|")})\\b`, "i"), (m) => "1 week", (m) => m[1]],
+    [/\b(daily|weekly|biweekly|monthly|quarterly|yearly|annually)\b/i, (m) =>
+      ({ daily: "1 day", weekly: "1 week", biweekly: "2 week", monthly: "1 month", quarterly: "3 month", yearly: "1 year", annually: "1 year" })[m[1].toLowerCase()]],
+  ];
+  for (const [re, rule, keep] of rules) {
+    const m = text.match(re);
+    if (m) return { repeat: rule(m), text: text.slice(0, m.index) + (keep ? keep(m) : "") + text.slice(m.index + m[0].length) };
+  }
+  return { repeat: null, text };
+}
+
+const parseISO = (s) => { const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d); };
+// One step of a rule on from a YYYY-MM-DD date. Months and years keep the day of the month,
+// or the month's last day when it's shorter (Jan 31 → Feb 28).
+function step(date, rule) {
+  const [, n0, unit] = rule.match(REPEAT_RE);
+  const n = Number(n0);
+  const d = parseISO(date);
+  if (unit === "day" || unit === "week") { d.setDate(d.getDate() + n * (unit === "week" ? 7 : 1)); return iso(d); }
+  const months = unit === "year" ? 12 * n : n;
+  const day = d.getDate();
+  const out = new Date(d.getFullYear(), d.getMonth() + months, 1);
+  out.setDate(Math.min(day, new Date(out.getFullYear(), out.getMonth() + 1, 0).getDate()));
+  return iso(out);
+}
+// When the next copy is due: a step on from this one's due date, and after today — a task
+// done late doesn't come back already overdue.
+export function nextDue(due, rule, today = iso(new Date())) {
+  let next = step(due || today, rule);
+  for (let i = 0; next <= today && i < 5000; i++) next = step(next, rule);
+  return next;
+}
+
+/* One free-form line → { title, label, due_date, repeat, project } where `project` is a
    project name the line asked for with #tag, if any. Returns null for a blank line. */
 export function parseLine(raw, today = new Date()) {
   let text = String(raw)
@@ -118,10 +163,12 @@ export function parseLine(raw, today = new Date()) {
   const tag = text.match(/(^|\s)#([\w-]+)/);
   if (tag) { project = tag[2].replace(/[-_]/g, " "); text = text.replace(tag[0], " "); }
 
+  const rep = takeRepeat(text);
+  text = rep.text;
   const due = takeDue(text, today);
   const title = due.text.replace(/\s{2,}/g, " ").replace(/^[\s,;:-]+|[\s,;:-]+$/g, "").trim();
   if (!title) return null;
-  return { title, label, due_date: due.due, project };
+  return { title, label, due_date: due.due, repeat: rep.repeat, project };
 }
 
 export const parseText = (text, today) => String(text ?? "").split(/\r?\n/).map((l) => parseLine(l, today)).filter(Boolean);

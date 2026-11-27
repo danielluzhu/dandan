@@ -7,6 +7,11 @@ A to-do list app on port **1242** — tasks, projects, and labels.
   you give it a date (or clear the composer's date). Each open task has **+1d / +3d / +7d** buttons
   (on hover; always on touch screens) that push its due date back — from its due date, or from
   today if it's overdue or has none. Each task also shows when it was made (“Made Nov 12”).
+- **Repeating tasks**: pick *🔁 Repeat* in the composer or a task's editor (daily, weekly,
+  every 2 weeks, monthly, every 3 or 6 months, yearly, or *Custom…* like “10 days”), or write it in
+  free-form notes and Daily: “pay rent every month on 12/1”, “water plants every other day”,
+  “gym every monday”, “dentist yearly”. Completing one makes the next copy, due one step on from
+  its due date (and never already overdue); Jan 31 monthly goes to Feb 28. Undo takes it back.
 - **Images**: open a task and *📎 Attach image*, paste one (⌘V / Ctrl+V) into the editor, or drop
   image files onto it. Tasks show small thumbnails; click one to see it big (← / → to step
   through, *Open full size* for the original). Hover a thumbnail in the editor for × to remove it
@@ -75,7 +80,7 @@ sudo systemctl daemon-reload && sudo systemctl enable --now dz-todo
 | GET, POST | `/api/projects` | list / create `{name, description?, color?, parent_id?, keywords?}` |
 | GET, PATCH, DELETE | `/api/projects/:id` | PATCH also takes `{archived}`; projects carry `archived` (1 if it or a parent is archived) |
 | GET, POST | `/api/todos` | list / create `{title, notes?, label?, project_id?, section_id?, parent_id?, due_date?}` |
-| GET, PATCH, DELETE | `/api/todos/:id` | PATCH also takes `{done}`; todos carry `images: [{id, name, type, size}]`, POST takes `image_ids` (Undo) |
+| GET, PATCH, DELETE | `/api/todos/:id` | PATCH also takes `{done, today?}` (completing a task with `repeat` like `"1 month"` makes its next copy, dated from `today`); todos carry `images: [{id, name, type, size}]`, POST takes `image_ids` (Undo) |
 | POST | `/api/todos/:id/images` | the image's bytes as the body, its type as `content-type`, `x-name` its file name |
 | GET, PATCH, DELETE | `/api/images/:id` | GET the bytes; DELETE removes it (kept a day); PATCH `{todo_id}` puts a removed one back |
 | POST | `/api/capture` | free-form `{text, notes?, project_id?, default_project_id?, default_due?, choices?, dry?}` → `{items}`; one task per line, `project_id` takes untagged lines, `choices[i]` (`{project_id?, section_id?, label?}`) overrides line i, `dry` only previews |
