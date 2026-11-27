@@ -3,7 +3,7 @@
 A to-do list app on port **1242** — tasks, projects, and labels.
 
 - **Tasks**: create, edit (title, notes, label, project, due date), complete, delete (with undo).
-- **Due today by default**: every new task — typed, free-form, or from Daily — is due today unless
+- **Due today by default**: every new task — typed, free-form, or from Day Log — is due today unless
   you give it a date (or clear the composer's date). Each open task has **+1d / +3d / +7d** buttons
   (on hover; always on touch screens) that push its due date back — from its due date, or from
   today if it's overdue or has none. Each task also shows when it was made (“Made Nov 12”).
@@ -13,7 +13,7 @@ A to-do list app on port **1242** — tasks, projects, and labels.
   tasks without a due date to the run. Below the card is what's on today's list.
 - **Repeating tasks**: pick *🔁 Repeat* in the composer or a task's editor (daily, weekly,
   every 2 weeks, monthly, every 3 or 6 months, yearly, or *Custom…* like “10 days”), or write it in
-  free-form notes and Daily: “pay rent every month on 12/1”, “water plants every other day”,
+  free-form notes and Day Log: “pay rent every month on 12/1”, “water plants every other day”,
   “gym every monday”, “dentist yearly”. Completing one makes the next copy, due one step on from
   its due date (and never already overdue); Jan 31 monthly goes to Feb 28. Undo takes it back.
 - **Images**: open a task and *📎 Attach image*, paste one (⌘V / Ctrl+V) into the editor, or drop
@@ -24,7 +24,7 @@ A to-do list app on port **1242** — tasks, projects, and labels.
   images for a day so Undo brings them back.
 - **Projects**: create, edit (name, description, color, keywords), delete — deleting a project deletes its tasks.
 - **Keywords**: any project can have them (*Edit project*). New tasks from free-form notes and
-  Daily land in the project whose keywords they match most. It starts with **Work**, **Health**,
+  Day Log land in the project whose keywords they match most. It starts with **Work**, **Health**,
   **Social** and **Domestic** (family and home), each with keywords; they're ordinary projects —
   rename, nest, archive or delete them like any other.
 - **Sub-projects**: projects nest, any depth. Drag project A onto project B in the sidebar (or onto
@@ -48,7 +48,7 @@ A to-do list app on port **1242** — tasks, projects, and labels.
 - **Archive** a project (button on its page) to put it away: it and its sub-projects leave the
   sidebar, the project pickers and every task list and count, but nothing is deleted. Archived
   projects sit under *Archived* at the bottom of the sidebar; open one to see its tasks or
-  **Unarchive** it. Free-form notes and Daily never file into an archived project.
+  **Unarchive** it. Free-form notes and Day Log never file into an archived project.
 - Tasks without a project live in the **Inbox**. Its *Unsorted | All tasks* switch (top right, remembered) shows every task there instead, each with its project.
 - **Free-form notes**: write anything, one task per line, and each line is sorted for you before
   it's added (the preview shows where each will land). `capture.js` reads the project from the words
@@ -60,8 +60,8 @@ A to-do list app on port **1242** — tasks, projects, and labels.
   that project instead. Before adding, each previewed line has a project
   picker (✨ is the automatic pick), an urgency picker (Not urgent / ⚡ Urgent / ★ North Star —
   it starts from the words) and, when that project has subsections, a subsection picker.
-- **Daily ⇄ To-do**: the switch at the top of the sidebar (or `D`) goes to Daily, the diary on
-  port 3030, in the same tab; Daily has the same switch back.
+- **Day Log ⇄ To-do**: the switch at the top of the sidebar (or `D`) goes to Day Log, the diary on
+  port 3030, in the same tab; Day Log has the same switch back.
 - Keys: `N` new task, `/` filter, `Esc` close the editor, `?` (or ⌨ Shortcuts in the sidebar)
   lists every shortcut.
 

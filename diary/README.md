@@ -1,6 +1,6 @@
-# Daily
+# Day Log
 
-**Daily** is the diary, on port **3030** (it lives in `diary/`) — one page per day: a **summary** of the day with any number
+**Day Log** is the diary, on port **3030** (it lives in `diary/`) — one page per day: a **summary** of the day with any number
 of **notes** inside it, each stamped with the time it was written (“+ New note”, or Alt+N).
 It saves as you type, and anything written as a to-do lands on the to-do list (`../todo`,
 port 1242), sorted into the right project the same way the to-do list's free-form notes are.
@@ -31,7 +31,7 @@ Remember to / have to / gotta / don't forget to …
   words and the projects' keywords (✨) until you pick one under the note. To-dos in a note whose
   own words don't place them land in the note's project. The sidebar can narrow entries to one
   project; keywords are edited on the to-do list (*Edit project*).
-- The Daily ⇄ To-do switch at the top of the sidebar (or Alt+D) goes to the to-do list in the
+- The Day Log ⇄ To-do switch at the top of the sidebar (or Alt+D) goes to the to-do list in the
   same tab.
 - **Journals**: every note is in one. Day-to-day notes go in the **📖 Daily journal** (sidebar, or
   Alt+J): every day on one running page, like a single long file — oldest at the top, today at

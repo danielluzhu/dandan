@@ -15,7 +15,7 @@
   <div class="app">
     <aside class="sidebar" id="sidebar">
       <nav class="app-switch" aria-label="Switch app">
-        <a class="js-daily" href="http://localhost:3030"><span class="mark daily" aria-hidden="true"></span>Daily</a>
+        <a class="js-daily" href="http://localhost:3030"><span class="mark daily" aria-hidden="true"></span>Day Log</a>
         <a class="js-todo" href="http://localhost:1242" aria-current="page"><span class="mark todo" aria-hidden="true"></span>To-do</a>
       </nav>
       <nav class="views" id="views"></nav>
@@ -35,7 +35,7 @@
           <p id="view-desc" class="view-desc"></p>
         </div>
         <div class="head-actions" id="head-actions"></div>
-        <a class="app-hop js-daily" href="http://localhost:3030"><span class="mark daily" aria-hidden="true"></span>Daily</a>
+        <a class="app-hop js-daily" href="http://localhost:3030"><span class="mark daily" aria-hidden="true"></span>Day Log</a>
       </header>
 
       <form class="composer" id="composer" autocomplete="off">
@@ -82,7 +82,7 @@
       <label>Name<input id="pd-name" maxlength="200" required></label>
       <label>Inside<select id="pd-parent"></select></label>
       <label>Keywords<textarea id="pd-keywords" rows="3" maxlength="10000" placeholder="clean*, laundry, groceries, mom, pick up"></textarea>
-        <span class="field-hint">Optional, comma-separated. New tasks and Daily notes with these words land in this project — whichever project matches most words wins. <code>clean*</code> also matches cleaning, cleaned.</span></label>
+        <span class="field-hint">Optional, comma-separated. New tasks and Day Log notes with these words land in this project — whichever project matches most words wins. <code>clean*</code> also matches cleaning, cleaned.</span></label>
       <label>Description<textarea id="pd-desc" rows="3" maxlength="5000" placeholder="What is this project for?"></textarea></label>
       <div class="field">
         <span class="field-label">Color</span>
@@ -107,7 +107,7 @@
         <dt><kbd>Esc</kbd></dt><dd>Close the task editor, or cancel a drag</dd>
         <dt><kbd>Enter</kbd></dt><dd>Add the task / save a title</dd>
         <dt><kbd>Ctrl</kbd> <kbd>Enter</kbd> <span class="or">or</span> <kbd>⌘</kbd> <kbd>Enter</kbd></dt><dd>Add everything in Free-form notes</dd>
-        <dt><kbd>D</kbd></dt><dd>Go to Daily</dd>
+        <dt><kbd>D</kbd></dt><dd>Go to Day Log</dd>
         <dt><kbd>?</kbd></dt><dd>Show this list</dd>
       </dl>
       <h3>In Plan today</h3>

@@ -92,7 +92,7 @@ button { cursor: pointer; }
 }
 .icon-btn:hover { background: var(--hover); color: var(--text); }
 
-/* Daily ⇄ To-do: the two apps, one click apart */
+/* Day Log ⇄ To-do: the two apps, one click apart */
 .app-switch { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; padding: 3px; margin: 0 4px 18px; border-radius: 11px; background: var(--hover); border: 1px solid var(--line); }
 .app-switch a { display: flex; align-items: center; justify-content: center; gap: 7px; padding: 7px 6px; border-radius: 8px; text-decoration: none; color: var(--muted); font-weight: 600; font-size: 14px; }
 .app-switch a:hover { color: var(--text); background: var(--hover); }

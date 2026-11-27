@@ -353,7 +353,7 @@ function renderHeader() {
       ? `Archived ${new Date(p.archived_at).toLocaleDateString(undefined, { dateStyle: "medium" })} — hidden from your lists, tasks kept.`
       : `Archived along with ${archivedBy.name}.`) : "",
     up.length ? h("span", { class: "crumb p-crumb" }, "Inside ", up.map((a, i) => [i ? " › " : "", h("a", { href: "#p" + a.id }, a.name)])) : "",
-    p?.keywords?.trim() ? h("span", { class: "keywords-note" }, "New tasks and Daily notes with words like ",
+    p?.keywords?.trim() ? h("span", { class: "keywords-note" }, "New tasks and Day Log notes with words like ",
       h("i", {}, (p.keywords || "").split(",").slice(0, 6).map((w) => w.trim()).filter(Boolean).join(", ") || "(none yet)"),
       " land here. ", h("button", { class: "link-btn", onclick: () => openProjectDialog(p) }, "Edit keywords")) : "",
     p ? p.description : descs[state.view] || "");
@@ -1607,7 +1607,7 @@ document.addEventListener("keydown", (e) => {
   else if (e.key === "Escape" && state.openId != null) closeEditor();
 });
 
-/* Daily (port 3030) and the to-do list (port 1242) are one click apart. The proxy exposes
+/* Day Log (port 3030) and the to-do list (port 1242) are one click apart. The proxy exposes
    each port as <host>-<port>.another.ac; locally it's just the port. */
 function siteUrl(port) {
   const { hostname, protocol } = location;

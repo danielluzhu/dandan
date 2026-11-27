@@ -36,7 +36,7 @@ function toast(msg) {
   toastTimer = setTimeout(() => (t.hidden = true), 3500);
 }
 
-/* Daily (port 3030) and the to-do list (port 1242) are one click apart. The proxy exposes
+/* Day Log (port 3030) and the to-do list (port 1242) are one click apart. The proxy exposes
    each port as <host>-<port>.another.ac; locally it's just the port. */
 function siteUrl(port) {
   const { hostname, protocol } = location;
@@ -389,7 +389,7 @@ async function openDay(date) {
   $("#day-sub").textContent = (days === 0 ? "Today" : days === 1 ? "Yesterday" : days === -1 ? "Tomorrow"
     : days > 0 ? `${days} days ago` : `In ${-days} days`) + " · " + d.getFullYear();
   $("#pick").value = date;
-  document.title = `${d.toLocaleDateString(undefined, { month: "short", day: "numeric" })} · Daily`;
+  document.title = `${d.toLocaleDateString(undefined, { month: "short", day: "numeric" })} · Day Log`;
   $("#sidebar").classList.remove("show");
   setSaved("");
   try {
@@ -434,7 +434,7 @@ async function openJournal(jid = null) {
        h("button", { class: "link-btn", onclick: () => journalDialog(j) }, "Rename"), " · ",
        h("button", { class: "link-btn danger", onclick: () => deleteJournal(j) }, "Delete")]
     : ["Every day, one running page"]));
-  document.title = `${j ? j.name : "Daily journal"} · Daily`;
+  document.title = `${j ? j.name : "Daily journal"} · Day Log`;
   $("#sidebar").classList.remove("show");
   closeHistory();
   setSaved("");

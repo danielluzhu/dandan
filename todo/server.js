@@ -48,7 +48,7 @@ if (!db.query("SELECT 1 FROM pragma_table_info('projects') WHERE name = 'parent_
 // Archived projects (and everything inside them) drop out of the lists but keep their tasks.
 if (!db.query("SELECT 1 FROM pragma_table_info('projects') WHERE name = 'archived_at'").get())
   db.exec("ALTER TABLE projects ADD COLUMN archived_at TEXT");
-// Any project can have keywords: tasks and Daily notes fall into the one they match most.
+// Any project can have keywords: tasks and Day Log notes fall into the one they match most.
 if (!db.query("SELECT 1 FROM pragma_table_info('projects') WHERE name = 'keywords'").get())
   db.exec("ALTER TABLE projects ADD COLUMN keywords TEXT NOT NULL DEFAULT ''");
 // Projects and "themes" were briefly separate lists; they're all just projects now.
@@ -335,7 +335,7 @@ const listKeyworded = () => listProjects().filter((p) => !p.archived && p.keywor
 
 /* Free-form capture: each line of `text` becomes a task, filed into the project its
    #tag names (created if missing), else the project its words match the keywords of, else
-   `default_project_id` (Daily passes a note's project), else the Inbox. On a project page
+   `default_project_id` (Day Log passes a note's project), else the Inbox. On a project page
    the page passes `project_id`, and lines without a #tag go there instead. `choices`, lined
    up with the parsed lines, overrides that per line: `{project_id}` (null = Inbox) and/or
    `{section_id}` and/or `{label}` ("urgent", "north_star" or null). A line with no due date of its own gets `default_due` (the page's today).
@@ -428,7 +428,7 @@ async function api(req, url) {
 
   if (resource === "state" && req.method === "GET") return json({ projects: listProjects(), sections: listSections(), todos: listTodos() });
 
-  // Which project a piece of writing falls into, by keywords (Daily asks this for each note).
+  // Which project a piece of writing falls into, by keywords (Day Log asks this for each note).
   if (resource === "classify" && req.method === "POST") {
     const p = projectFor(String(body.text ?? "").slice(0, 200000), listKeyworded());
     return json({ project: p ? { id: p.id, name: p.name, color: p.color } : null });

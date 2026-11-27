@@ -2,7 +2,7 @@
    into tasks — which project each falls into, whether it's urgent, and when it's due.
    Pure functions; the server decides what to do with the result. */
 
-// Any project can have keywords; a task or Daily note falls into the project whose keywords
+// Any project can have keywords; a task or Day Log note falls into the project whose keywords
 // it matches most. These four start with some; all are editable in the app.
 // Keywords match whole words, so "bin" doesn't fire on "cabinet"; a trailing * matches any
 // ending ("clean*" → cleaning, cleaned); a phrase matches as written ("pick up").
