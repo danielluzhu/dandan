@@ -771,14 +771,17 @@ function todoEl(t, opts = {}) {
       h("button", { class: "meta-btn wait-btn", title: "Stop waiting — back to a normal task", onclick: () => stopWaiting(t) }, "Not pending")),
     isSnoozed(t) && h("span", { class: "wait-chip" }, `⏳ Pending since ${sinceText(t.waiting_since)} · checks in ${fmtDay(t.remind_on)}`),
     isSnoozed(t) && h("button", { class: "meta-btn wait-btn", title: "Stop waiting — back to a normal task", onclick: () => stopWaiting(t) }, "Not pending"),
-    !t.done && !opts.self && !isWaiting(t) && h("button", { class: "meta-btn pend-btn", title: `Waiting on it (a delivery, a reply)? It'll leave your lists and check in after ${WAITS.find(([n]) => n === state.waitDays)?.[1] || state.waitDays + " days"}`,
-      onclick: () => startWaiting(t) }, "⏳ Pending"),
-    !t.done && !opts.self && !isWaiting(t) && h("span", { class: "push" }, PUSHES.map((n) =>
-      h("button", { class: "meta-btn push-btn", title: `Push the due date ${n} day${n === 1 ? "" : "s"}`, onclick: () => pushDue(t, n) }, `+${n}d`))),
     t.notes && !isOpen && h("span", { title: t.notes }, "📝 Notes"),
     !isOpen && t.images?.length > 0 && thumbsEl(t, 4),
     h("span", { class: "made", title: "Made " + new Date(t.created_at.replace(" ", "T") + "Z").toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" }) }, "Made " + madeText(t)),
   );
+
+  // Pending and the pushes sit in their own column at the right, so they line up row to row.
+  const acts = !t.done && !opts.self && !isWaiting(t) && h("div", { class: "row-acts" },
+    h("button", { class: "meta-btn pend-btn", title: `Waiting on it (a delivery, a reply)? It'll leave your lists and check in after ${WAITS.find(([n]) => n === state.waitDays)?.[1] || state.waitDays + " days"}`,
+      onclick: () => startWaiting(t) }, "⏳ Pending"),
+    h("span", { class: "push" }, PUSHES.map((n) =>
+      h("button", { class: "meta-btn push-btn", title: `Push the due date ${n} day${n === 1 ? "" : "s"}`, onclick: () => pushDue(t, n) }, `+${n}d`))));
 
   const row = h("div", {
     class: "todo-row",
@@ -792,6 +795,7 @@ function todoEl(t, opts = {}) {
       onclick: () => toggleDone(t),
     }, checkSvg()),
     h("div", { class: "todo-main" }, h("div", { class: "todo-title" }, t.title), meta),
+    acts,
   );
 
   return h("div", { class: `todo ${t.label || ""}` + (t.done ? " done" : "") + (isNudge(t) ? " nudge" : "") + (isOpen ? " open" : "") + (t.parent_id != null ? " child" : ""), "data-id": t.id },

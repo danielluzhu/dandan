@@ -472,9 +472,13 @@ kbd { display: inline-block; min-width: 24px; text-align: center; padding: 1px 7
 .sub-tasks-link .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
 
 /* Push a task's due date: +1d / +3d / +7d — on hover (always on touch screens). */
-.push { display: inline-flex; gap: 2px; opacity: 0; transition: opacity .12s; }
-.todo-row:hover .push, .todo-row:focus-within .push { opacity: 1; }
-@media (hover: none) { .push { opacity: 1; } }
+.row-acts { flex: none; display: flex; align-items: center; gap: 8px; align-self: center; font-size: 12.5px; }
+.push { display: inline-flex; gap: 2px; }
+/* Phones: no room for a right-hand column, so the buttons get their own line under the title. */
+@media (max-width: 760px) {
+  .todo-row { flex-wrap: wrap; row-gap: 0; }
+  .row-acts { order: 4; flex-basis: 100%; padding-left: 32px; margin-top: 4px; }
+}
 .push-btn { margin: 0; padding: 1px 6px; font-size: 12px; font-weight: 600; border: 1px solid var(--line); border-radius: 99px; }
 .push-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
 /* Pending is always shown, quieter than the push buttons until you point at it. */
