@@ -11,7 +11,7 @@ A to-do list app on port **1242** — tasks, projects, and labels.
   **+1d / +3d / +7d**, a date picker, **Done**, **No date**, **Skip** and **Delete** — keys `T`,
   `1` `3` `7`, `X`, `0`, `S`/→, Delete — with Undo on each. *+ No date* (top right) adds the
   tasks without a due date to the run. Below the card is what's on today's list.
-- **Pending** (waiting on a delivery, a reply): hover a task and click **⏳ Pending**, or pick it in
+- **Pending** (waiting on a delivery, a reply): click **⏳ Pending** on any task (every open task has it), or pick it in
   the editor. It leaves your lists until its check-in day (1 day, 3 days, 1 week or 2 weeks —
   the default is set on the *⏳ Pending* page — or any date in the editor), then comes back,
   marked “Pending since Nov 20 — still waiting?”, with **✓ Arrived**, **Wait +3d / +7d** and

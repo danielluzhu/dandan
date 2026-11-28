@@ -771,10 +771,10 @@ function todoEl(t, opts = {}) {
       h("button", { class: "meta-btn wait-btn", title: "Stop waiting — back to a normal task", onclick: () => stopWaiting(t) }, "Not pending")),
     isSnoozed(t) && h("span", { class: "wait-chip" }, `⏳ Pending since ${sinceText(t.waiting_since)} · checks in ${fmtDay(t.remind_on)}`),
     isSnoozed(t) && h("button", { class: "meta-btn wait-btn", title: "Stop waiting — back to a normal task", onclick: () => stopWaiting(t) }, "Not pending"),
+    !t.done && !opts.self && !isWaiting(t) && h("button", { class: "meta-btn pend-btn", title: `Waiting on it (a delivery, a reply)? It'll leave your lists and check in after ${WAITS.find(([n]) => n === state.waitDays)?.[1] || state.waitDays + " days"}`,
+      onclick: () => startWaiting(t) }, "⏳ Pending"),
     !t.done && !opts.self && !isWaiting(t) && h("span", { class: "push" }, PUSHES.map((n) =>
-      h("button", { class: "meta-btn push-btn", title: `Push the due date ${n} day${n === 1 ? "" : "s"}`, onclick: () => pushDue(t, n) }, `+${n}d`)),
-      h("button", { class: "meta-btn push-btn", title: `Waiting on it (a delivery, a reply)? It'll leave your lists and check in after ${WAITS.find(([n]) => n === state.waitDays)?.[1] || state.waitDays + " days"}`,
-        onclick: () => startWaiting(t) }, "⏳ Pending")),
+      h("button", { class: "meta-btn push-btn", title: `Push the due date ${n} day${n === 1 ? "" : "s"}`, onclick: () => pushDue(t, n) }, `+${n}d`))),
     t.notes && !isOpen && h("span", { title: t.notes }, "📝 Notes"),
     !isOpen && t.images?.length > 0 && thumbsEl(t, 4),
     h("span", { class: "made", title: "Made " + new Date(t.created_at.replace(" ", "T") + "Z").toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" }) }, "Made " + madeText(t)),
@@ -905,7 +905,7 @@ function renderWaiting(list) {
   if (!todos.length) {
     list.replaceChildren(h("div", { class: "empty" }, h("div", { class: "big" }, "⏳"),
       state.query ? "No pending tasks match that filter." : "Nothing pending.",
-      !state.query && h("div", { class: "plan-sub" }, "Waiting on a delivery or a reply? Hover a task and click ⏳ Pending.")));
+      !state.query && h("div", { class: "plan-sub" }, "Waiting on a delivery or a reply? Click ⏳ Pending on the task.")));
     return;
   }
   list.replaceChildren(
