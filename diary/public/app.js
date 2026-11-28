@@ -698,7 +698,8 @@ function todoEl(t, projects, refresh) {
         h("a", { href: `${TODO_URL}/#${p ? "p" + p.id : "inbox"}`, target: "_blank", rel: "noopener" },
           p ? [h("span", { class: "dot", style: `background:${p.color}` }), p.name] : "📥 Inbox"),
         t.label === "urgent" && h("span", { class: "due overdue" }, "⚡ Urgent"),
-        due && h("span", { class: `due ${due.cls}` }, "📅 " + due.text))));
+        due && h("span", { class: `due ${due.cls}` }, "📅 " + due.text),
+        t.waiting_since && !t.done && h("span", { class: "due pending" }, "⏳ Pending — still waiting?"))));
 }
 
 async function loadFound() {

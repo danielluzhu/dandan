@@ -11,7 +11,7 @@ const state = {
   projects: [],
   sections: [],         // project subsections
   todos: [],
-  view: "all",          // all | plan | inbox | urgent | north_star | p<id> | n<id>
+  view: "all",          // all | plan | waiting | inbox | urgent | north_star | p<id> | n<id>
   openId: null,         // todo whose editor is expanded
   showDone: false,
   query: "",
@@ -25,6 +25,7 @@ const state = {
   showArchived: readCollapsed("todo.showArchived") === true,  // the sidebar's Archived list is open
   inboxAll: readCollapsed("todo.inboxAll") === true,  // the Inbox shows every task, not just unsorted ones
   planUndated: readCollapsed("todo.planUndated") === true,  // Plan today also goes through tasks with no date
+  waitDays: Number(readCollapsed("todo.waitDays")) || 3,  // how long a task stays pending before it asks again
   planSeen: new Set(),  // tasks dealt with (or skipped) in Plan today since the page loaded
 };
 
@@ -38,6 +39,7 @@ function saveCollapsed() {
     localStorage.setItem("todo.showArchived", JSON.stringify(state.showArchived));
     localStorage.setItem("todo.inboxAll", JSON.stringify(state.inboxAll));
     localStorage.setItem("todo.planUndated", JSON.stringify(state.planUndated));
+    localStorage.setItem("todo.waitDays", JSON.stringify(state.waitDays));
   } catch {}
 }
 
@@ -117,7 +119,7 @@ const currentStar = () => {
   const t = todoById(Number(state.view.slice(1)));
   return isStar(t) ? t : null;
 };
-const VIEW_RE = /^(all|plan|inbox|urgent|north_star|p\d+|n\d+)$/;
+const VIEW_RE = /^(all|plan|waiting|inbox|urgent|north_star|p\d+|n\d+)$/;
 
 const isoOf = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 const todayISO = () => isoOf(new Date());
@@ -162,6 +164,26 @@ function repeatSelect(current, onpick, attrs = {}) {
   return sel;
 }
 const fmtDay = (iso) => new Date(iso + "T12:00").toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+
+/* Pending: a task you're waiting on — a delivery, a reply. It steps out of your lists until
+   its check-back day, then comes back (and into Plan today) asking whether it's still pending. */
+const WAITS = [[1, "1 day"], [3, "3 days"], [7, "1 week"], [14, "2 weeks"]];
+const isWaiting = (t) => !!t && !t.done && !!t.waiting_since;
+const isSnoozed = (t) => isWaiting(t) && !!t.remind_on && t.remind_on > todayISO();  // pending, not back yet
+const isNudge = (t) => isWaiting(t) && !isSnoozed(t);                                 // pending, and back to ask
+const sinceText = (iso) => iso === todayISO() ? "today" : iso === addDays(todayISO(), -1) ? "yesterday" : new Date(iso + "T12:00").toLocaleDateString(undefined, { month: "short", day: "numeric" });
+function startWaiting(t, days = state.waitDays) {
+  const back = addDays(todayISO(), days);
+  const before = { waiting_since: t.waiting_since || null, remind_on: t.remind_on || null };
+  patchTodo(t.id, { waiting_since: t.waiting_since || todayISO(), remind_on: back });
+  toast(isWaiting(t) ? `Still pending — back ${fmtDay(back)}` : `⏳ Pending — it'll check in ${fmtDay(back)}`,
+    { label: "Undo", run: () => patchTodo(t.id, before) });
+}
+function stopWaiting(t) {
+  const before = { waiting_since: t.waiting_since, remind_on: t.remind_on };
+  patchTodo(t.id, { waiting_since: null, remind_on: null });
+  toast("No longer pending", { label: "Undo", run: () => patchTodo(t.id, before) });
+}
 
 // When a task was made: "today", "yesterday", or "Nov 12".
 function madeText(t) {
@@ -212,6 +234,9 @@ function viewTodos() {
   let list = /^p\d/.test(v) ? state.todos : state.todos.filter(isLive);
   // Tasks inside a North Star render nested under it — except in the flat Urgent view, a
   // North Star's own page, and while filtering.
+  // Pending tasks are out of the way until they're back to ask; the Pending page has them all.
+  if (v === "waiting") return list.filter(isWaiting).filter((t) => !q || (t.title + " " + t.notes).toLowerCase().includes(q));
+  list = list.filter((t) => !isSnoozed(t));
   if (star) list = list.filter((t) => t.parent_id === star.id);
   else if (v !== "urgent" && !q) list = list.filter((t) => t.parent_id == null);
   if (star) {}
@@ -253,7 +278,11 @@ function starNavs(projectId) {
 }
 
 function renderSidebar() {
-  const open = state.todos.filter((t) => !t.done && isLive(t));
+  const open = state.todos.filter((t) => !t.done && isLive(t) && !isSnoozed(t));
+  const pending = state.todos.filter((t) => isWaiting(t) && isLive(t));
+  const nudges = pending.filter(isNudge).length;
+  const waitNav = navItem("waiting", h("span", { class: "nav-icon" }, "⏳"), "Pending", nudges ? `${nudges} to check` : pending.length);
+  waitNav.classList.toggle("nudging", nudges > 0);
   const starNav = navItem("north_star", h("span", { class: "nav-icon", style: "color:var(--star)" }, "★"), "North Star", open.filter((t) => t.label === "north_star").length);
   const urgentNav = navItem("urgent", h("span", { class: "nav-icon", style: "color:var(--urgent)" }, "⚡"), "Urgent", open.filter((t) => t.label === "urgent").length);
   starNav.dataset.drop = "north_star";
@@ -261,6 +290,7 @@ function renderSidebar() {
   $("#views").replaceChildren(
     navItem("all", h("span", { class: "nav-icon" }, "☰"), "All tasks", open.length),
     navItem("plan", h("span", { class: "nav-icon" }, "🗓"), "Plan today", planQueue(false).length),
+    waitNav,
     navItem("inbox", h("span", { class: "nav-icon" }, "📥"), "Inbox", open.filter((t) => t.project_id == null).length),
     ...starNavs(null),
     starNav,
@@ -336,14 +366,15 @@ function renderHeader() {
   const star = currentStar();
   if (star) return renderStarHeader(star);
   const p = currentProject();
-  const titles = { all: "All tasks", plan: "Plan today", inbox: "Inbox", urgent: "Urgent", north_star: "North Star" };
+  const titles = { all: "All tasks", plan: "Plan today", waiting: "Pending", inbox: "Inbox", urgent: "Urgent", north_star: "North Star" };
   const title = $("#view-title");
   if (p) title.replaceChildren(h("span", { class: "dot", style: `background:${p.color}` }), p.name);
   else title.replaceChildren(titles[state.view]);
   const descs = {
     inbox: state.inboxAll ? "Every task, whatever project it's in." : "Tasks that don't belong to a project yet.",
     urgent: "Everything marked urgent, across every project.",
-    plan: "Go through what's overdue, one task at a time: do it today, push it, finish it, or let it go.",
+    waiting: "Tasks you're waiting on — a delivery, a reply. Each steps out of your lists, then comes back on its check-in day to ask if it's still pending.",
+    plan: "Go through what's overdue — and pending tasks back to check in — one at a time: do it today, push it, finish it, or let it go.",
     north_star: "The tasks that matter most — the ones that move the needle.",
   };
   const up = p ? ancestorsOf(p) : [];
@@ -366,6 +397,12 @@ function renderHeader() {
       h("button", { class: "btn small", onclick: startAddSection }, "+ Subsection"),
       h("button", { class: "btn small", onclick: () => openProjectDialog(p) }, "Edit project"),
       h("button", { class: "btn small", title: "Hide this project and its tasks from your lists", onclick: () => setArchived(p, true) }, "Archive"),
+    ] : state.view === "waiting" ? [
+      h("span", { class: "seg-label" }, "New pending tasks check in after"),
+      h("div", { class: "seg", role: "radiogroup", "aria-label": "Check in after" },
+        WAITS.map(([n, text]) => h("button", {
+          role: "radio", "aria-checked": String(state.waitDays === n),
+          onclick: () => { state.waitDays = n; saveCollapsed(); render(); } }, text))),
     ] : state.view === "plan" ? [
       h("div", { class: "seg", role: "radiogroup", "aria-label": "Plan goes through" },
         [[false, "Overdue"], [true, `+ No date (${state.todos.filter((t) => !t.done && isLive(t) && !t.due_date).length})`]].map(([v, text]) => h("button", {
@@ -428,6 +465,7 @@ function renderList() {
   const list = $("#list");
   document.body.classList.toggle("planning", state.view === "plan");
   if (state.view === "plan") return renderPlan(list);
+  if (state.view === "waiting") return renderWaiting(list);
   const todos = viewTodos();
   const open = todos.filter((t) => !t.done).sort(byOpenOrder);
   const done = todos.filter((t) => t.done).sort((a, b) => (b.completed_at || "").localeCompare(a.completed_at || ""));
@@ -473,6 +511,8 @@ function renderList() {
     parts.push(section("", "Unlabeled", rest, { drop: "none", hint: "Nothing else on the list." }));
   }
   if (p) parts.push(addSectionEl());
+  const pendingHere = p && !state.query ? state.todos.filter((t) => isSnoozed(t) && t.project_id === p.id && t.parent_id == null) : [];
+  if (pendingHere.length) parts.push(section("pending", "⏳ Pending", pendingHere.sort((a, b) => a.remind_on.localeCompare(b.remind_on))));
   const below = subTasksEl();
   if (below) parts.push(below);
   if (done.length) parts.push(section("", "Completed", done, { collapsible: true }));
@@ -724,8 +764,17 @@ function todoEl(t, opts = {}) {
       t.section_id != null && sectionById(t.section_id) && ` › ${sectionById(t.section_id).name}`),
     due && !t.done && h("span", { class: `due ${due.cls}` }, "📅 " + due.text),
     t.repeat && !t.done && h("span", { class: "repeat", title: "Repeats — completing it makes the next one" }, "🔁 " + repeatText(t.repeat)),
-    !t.done && !opts.self && h("span", { class: "push" }, PUSHES.map((n) =>
-      h("button", { class: "meta-btn push-btn", title: `Push the due date ${n} day${n === 1 ? "" : "s"}`, onclick: () => pushDue(t, n) }, `+${n}d`))),
+    isNudge(t) && h("span", { class: "wait-chip nudge" }, `⏳ Pending since ${sinceText(t.waiting_since)} — still waiting?`),
+    isNudge(t) && h("span", { class: "wait-acts" },
+      h("button", { class: "meta-btn wait-btn arrived", title: "It came — complete it", onclick: () => toggleDone(t) }, "✓ Arrived"),
+      WAITS.slice(1, 3).map(([n]) => h("button", { class: "meta-btn wait-btn", title: `Keep waiting ${n} more days`, onclick: () => startWaiting(t, n) }, `Wait +${n}d`)),
+      h("button", { class: "meta-btn wait-btn", title: "Stop waiting — back to a normal task", onclick: () => stopWaiting(t) }, "Not pending")),
+    isSnoozed(t) && h("span", { class: "wait-chip" }, `⏳ Pending since ${sinceText(t.waiting_since)} · checks in ${fmtDay(t.remind_on)}`),
+    isSnoozed(t) && h("button", { class: "meta-btn wait-btn", title: "Stop waiting — back to a normal task", onclick: () => stopWaiting(t) }, "Not pending"),
+    !t.done && !opts.self && !isWaiting(t) && h("span", { class: "push" }, PUSHES.map((n) =>
+      h("button", { class: "meta-btn push-btn", title: `Push the due date ${n} day${n === 1 ? "" : "s"}`, onclick: () => pushDue(t, n) }, `+${n}d`)),
+      h("button", { class: "meta-btn push-btn", title: `Waiting on it (a delivery, a reply)? It'll leave your lists and check in after ${WAITS.find(([n]) => n === state.waitDays)?.[1] || state.waitDays + " days"}`,
+        onclick: () => startWaiting(t) }, "⏳ Pending")),
     t.notes && !isOpen && h("span", { title: t.notes }, "📝 Notes"),
     !isOpen && t.images?.length > 0 && thumbsEl(t, 4),
     h("span", { class: "made", title: "Made " + new Date(t.created_at.replace(" ", "T") + "Z").toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" }) }, "Made " + madeText(t)),
@@ -745,7 +794,7 @@ function todoEl(t, opts = {}) {
     h("div", { class: "todo-main" }, h("div", { class: "todo-title" }, t.title), meta),
   );
 
-  return h("div", { class: `todo ${t.label || ""}` + (t.done ? " done" : "") + (isOpen ? " open" : "") + (t.parent_id != null ? " child" : ""), "data-id": t.id },
+  return h("div", { class: `todo ${t.label || ""}` + (t.done ? " done" : "") + (isNudge(t) ? " nudge" : "") + (isOpen ? " open" : "") + (t.parent_id != null ? " child" : ""), "data-id": t.id },
     row, isOpen && editorEl(t));
 }
 
@@ -798,6 +847,16 @@ function editorEl(t) {
 
   const due = h("input", { type: "date", "aria-label": "Due date", value: t.due_date || "", onchange: (e) => save({ due_date: e.target.value || null }) });
   const repeat = repeatSelect(t.repeat, (v) => save({ repeat: v }));
+  // Pending: check back in a while; once pending, the check-in day can be set exactly.
+  const wait = !t.done && h("select", { "aria-label": "Pending", title: "Waiting on it? It leaves your lists until the check-in day",
+    onchange: (e) => e.target.value ? save({ waiting_since: t.waiting_since || todayISO(), remind_on: addDays(todayISO(), Number(e.target.value)) })
+                                    : save({ waiting_since: null, remind_on: null }) },
+    h("option", { value: "" }, "Not pending"),
+    WAITS.map(([n, text]) => h("option", { value: n }, `⏳ Pending — check in ${text}`)),
+    isWaiting(t) && h("option", { value: "keep" }, `⏳ Pending — checks in ${fmtDay(t.remind_on || todayISO())}`));
+  if (wait) wait.value = isWaiting(t) ? "keep" : "";
+  const waitOn = isWaiting(t) && h("input", { type: "date", "aria-label": "Check in on", title: "The day it comes back to ask", value: t.remind_on || "",
+    onchange: (e) => e.target.value && save({ remind_on: e.target.value }) });
   const clearDue = t.due_date && h("button", { class: "btn ghost small", type: "button", onclick: () => save({ due_date: null }) }, "Clear date");
 
   const created = new Date(t.created_at.replace(" ", "T") + "Z");
@@ -829,7 +888,7 @@ function editorEl(t) {
       if (files.length) { e.preventDefault(); uploadImages(t, files); }
     } },
     title, notes, images,
-    h("div", { class: "editor-opts" }, seg, proj, sec, inside, due, clearDue, repeat),
+    h("div", { class: "editor-opts" }, seg, proj, sec, inside, due, clearDue, repeat, wait, waitOn),
     h("div", { class: "editor-actions" },
       h("span", { class: "stamp" }, stamp),
       h("span", { class: "spacer" }),
@@ -838,16 +897,33 @@ function editorEl(t) {
       h("button", { class: "btn primary small", type: "button", onclick: closeEditor }, "Done")));
 }
 
+/* The Pending page: what's back to ask first, then everything still out, soonest first. */
+function renderWaiting(list) {
+  const todos = viewTodos();
+  const nudges = todos.filter(isNudge).sort((a, b) => (a.remind_on || "").localeCompare(b.remind_on || ""));
+  const out = todos.filter(isSnoozed).sort((a, b) => a.remind_on.localeCompare(b.remind_on));
+  if (!todos.length) {
+    list.replaceChildren(h("div", { class: "empty" }, h("div", { class: "big" }, "⏳"),
+      state.query ? "No pending tasks match that filter." : "Nothing pending.",
+      !state.query && h("div", { class: "plan-sub" }, "Waiting on a delivery or a reply? Hover a task and click ⏳ Pending.")));
+    return;
+  }
+  list.replaceChildren(
+    nudges.length ? section("nudge", "Still waiting? Check on these", nudges) : "",
+    section("", "Waiting", out, { hint: "Nothing else out." }));
+}
+
 /* ---------- Plan today ----------
    Overdue tasks (and, if you like, ones with no date), one at a time, oldest first. Each gets
    a decision — today, a push, done, no date, delete, or skip — and the next one comes up. */
 function planQueue(skipSeen = true) {
   const today = todayISO();
   const open = state.todos.filter((t) => !t.done && isLive(t) && !(skipSeen && state.planSeen.has(t.id)));
-  const overdue = open.filter((t) => t.due_date && t.due_date < today)
+  const nudges = open.filter(isNudge).sort((a, b) => (a.remind_on || "").localeCompare(b.remind_on || "") || a.id - b.id);
+  const overdue = open.filter((t) => !isWaiting(t) && t.due_date && t.due_date < today)
     .sort((a, b) => a.due_date.localeCompare(b.due_date) || a.id - b.id);
-  const undated = state.planUndated ? open.filter((t) => !t.due_date).sort((a, b) => a.id - b.id) : [];
-  return [...overdue, ...undated];
+  const undated = state.planUndated ? open.filter((t) => !isWaiting(t) && !t.due_date).sort((a, b) => a.id - b.id) : [];
+  return [...nudges, ...overdue, ...undated];
 }
 
 // Do something to the task in front of you; it leaves the queue, and Undo puts it back.
@@ -859,6 +935,7 @@ async function planAct(t, fields, msg) {
   toast(msg, { label: "Undo", run: async () => { state.planSeen.delete(t.id); await patchTodo(t.id, before); } });
 }
 const planDue = (t, n) => planAct(t, { due_date: addDays(todayISO(), n) }, n === 0 ? "Moved to today" : `Pushed to ${fmtDay(addDays(todayISO(), n))}`);
+const planWait = (t, n) => planAct(t, { remind_on: addDays(todayISO(), n) }, `Still pending — back ${fmtDay(addDays(todayISO(), n))}`);
 const planSkip = (t) => { state.planSeen.add(t.id); renderList(); renderSidebar(); };
 
 function renderPlan(list) {
@@ -892,8 +969,9 @@ function renderPlan(list) {
       h("span", {}, `${queue.length} to go`), h("span", { class: "bar" }, h("span", { style: `width:${Math.round(done / total * 100)}%` })),
       h("span", { class: "n" }, `${done} of ${total} planned`)),
     h("div", { class: `plan-card ${t.label || ""}` },
-      h("div", { class: "plan-when " + (days != null ? "overdue" : "") },
-        days == null ? "No due date" : days === 1 ? "Was due yesterday" : `Was due ${fmtDay(t.due_date)} · ${days} days ago`),
+      h("div", { class: "plan-when " + (isNudge(t) ? "nudge" : days != null ? "overdue" : "") },
+        isNudge(t) ? `⏳ Pending since ${sinceText(t.waiting_since)} — still waiting?`
+          : days == null ? "No due date" : days === 1 ? "Was due yesterday" : `Was due ${fmtDay(t.due_date)} · ${days} days ago`),
       h("div", { class: "plan-title" }, t.title),
       h("div", { class: "meta" },
         t.label && h("span", { class: `pill ${t.label}` }, labelInfo.icon, labelInfo.text),
@@ -903,6 +981,18 @@ function renderPlan(list) {
         t.images?.length > 0 && thumbsEl(t, 6),
         h("span", { class: "made" }, "Made " + madeText(t))),
       t.notes && h("div", { class: "plan-notes" }, t.notes.length > 280 ? t.notes.slice(0, 280) + " …" : t.notes),
+      isNudge(t) ? [
+        h("div", { class: "plan-actions" },
+          btn("✓ Arrived", "X", () => planAct(t, { done: true }, "Done — it arrived"), "primary"),
+          btn("Wait +1d", "1", () => planWait(t, 1)),
+          btn("Wait +3d", "3", () => planWait(t, 3)),
+          btn("Wait +7d", "7", () => planWait(t, 7))),
+        h("div", { class: "plan-actions" },
+          btn("Not pending — do it today", "T", () => planAct(t, { waiting_since: null, remind_on: null, due_date: today }, "No longer pending — on today's list")),
+          btn("Skip", "S", () => planSkip(t)),
+          h("span", { class: "spacer" }),
+          btn("Delete", "⌫", () => { state.planSeen.add(t.id); deleteTodo(t); }, "danger ghost")),
+      ] : [
       h("div", { class: "plan-actions" },
         btn("Today", "T", () => planDue(t, 0), "primary"),
         btn("+1d", "1", () => planDue(t, 1)),
@@ -914,7 +1004,7 @@ function renderPlan(list) {
         t.due_date && btn("No date", "0", () => planAct(t, { due_date: null }, "Date cleared")),
         btn("Skip", "S", () => planSkip(t)),
         h("span", { class: "spacer" }),
-        btn("Delete", "⌫", () => { state.planSeen.add(t.id); deleteTodo(t); }, "danger ghost"))),
+        btn("Delete", "⌫", () => { state.planSeen.add(t.id); deleteTodo(t); }, "danger ghost"))]),
     todayList);
 }
 
@@ -923,6 +1013,16 @@ function planKey(e) {
   const t = planQueue()[0];
   if (!t) return false;
   const k = e.key.toLowerCase();
+  if (isNudge(t)) {
+    if (k === "x") planAct(t, { done: true }, "Done — it arrived");
+    else if (k === "1" || k === "3" || k === "7") planWait(t, Number(k));
+    else if (k === "t") planAct(t, { waiting_since: null, remind_on: null, due_date: todayISO() }, "No longer pending — on today's list");
+    else if (k === "s" || k === "arrowright") planSkip(t);
+    else if (k === "delete" || k === "backspace") { state.planSeen.add(t.id); deleteTodo(t); }
+    else return false;
+    e.preventDefault();
+    return true;
+  }
   if (k === "t") planDue(t, 0);
   else if (k === "1" || k === "3" || k === "7") planDue(t, Number(k));
   else if (k === "x") planAct(t, { done: true }, t.repeat ? "Done — the next one is on its way" : "Done");
@@ -1135,6 +1235,7 @@ async function deleteTodo(t) {
         try {
           const restored = await api("POST", "todos", {
             title: t.title, notes: t.notes, label: t.label, due_date: t.due_date, repeat: t.repeat,
+            waiting_since: t.waiting_since, remind_on: t.remind_on,
             project_id: projectById(t.project_id) ? t.project_id : null,
             section_id: projectById(t.project_id) && sectionById(t.section_id) ? t.section_id : null,
             parent_id: isStar(todoById(t.parent_id)) ? t.parent_id : null,

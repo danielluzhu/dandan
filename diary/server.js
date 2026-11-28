@@ -473,7 +473,9 @@ async function api(req, url) {
     try {
       const state = await todoApi("GET", "state");
       const archived = new Set(state.projects.filter((p) => p.archived).map((p) => p.id));
-      const todos = state.todos.filter((t) => !t.done && t.due_date && t.due_date <= today && !archived.has(t.project_id)).sort((a, b) => a.due_date.localeCompare(b.due_date));
+      // Pending tasks stay out until their check-in day, then show up asking if they're still pending.
+      const when = (t) => t.waiting_since ? (!t.remind_on || t.remind_on <= today ? t.remind_on || today : null) : t.due_date && t.due_date <= today ? t.due_date : null;
+      const todos = state.todos.filter((t) => !t.done && when(t) && !archived.has(t.project_id)).sort((a, b) => when(a).localeCompare(when(b)));
       return json({ todos, projects: state.projects });
     } catch (err) { return json({ todos: [], projects: [], error: `Couldn't reach the to-do list: ${err.message}` }); }
   }

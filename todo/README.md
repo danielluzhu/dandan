@@ -11,6 +11,13 @@ A to-do list app on port **1242** — tasks, projects, and labels.
   **+1d / +3d / +7d**, a date picker, **Done**, **No date**, **Skip** and **Delete** — keys `T`,
   `1` `3` `7`, `X`, `0`, `S`/→, Delete — with Undo on each. *+ No date* (top right) adds the
   tasks without a due date to the run. Below the card is what's on today's list.
+- **Pending** (waiting on a delivery, a reply): hover a task and click **⏳ Pending**, or pick it in
+  the editor. It leaves your lists until its check-in day (1 day, 3 days, 1 week or 2 weeks —
+  the default is set on the *⏳ Pending* page — or any date in the editor), then comes back,
+  marked “Pending since Nov 20 — still waiting?”, with **✓ Arrived**, **Wait +3d / +7d** and
+  **Not pending**. Check-ins also come first in Plan today, show in Day Log's due panel, and
+  the sidebar's *Pending* says how many are back to check. Project pages list their pending
+  tasks at the bottom.
 - **Repeating tasks**: pick *🔁 Repeat* in the composer or a task's editor (daily, weekly,
   every 2 weeks, monthly, every 3 or 6 months, yearly, or *Custom…* like “10 days”), or write it in
   free-form notes and Day Log: “pay rent every month on 12/1”, “water plants every other day”,
@@ -84,7 +91,7 @@ sudo systemctl daemon-reload && sudo systemctl enable --now dz-todo
 | GET, POST | `/api/projects` | list / create `{name, description?, color?, parent_id?, keywords?}` |
 | GET, PATCH, DELETE | `/api/projects/:id` | PATCH also takes `{archived}`; projects carry `archived` (1 if it or a parent is archived) |
 | GET, POST | `/api/todos` | list / create `{title, notes?, label?, project_id?, section_id?, parent_id?, due_date?}` |
-| GET, PATCH, DELETE | `/api/todos/:id` | PATCH also takes `{done, today?}` (completing a task with `repeat` like `"1 month"` makes its next copy, dated from `today`); todos carry `images: [{id, name, type, size}]`, POST takes `image_ids` (Undo) |
+| GET, PATCH, DELETE | `/api/todos/:id` | PATCH also takes `{done, today?}`, `{waiting_since, remind_on}` (pending; null both to stop) (completing a task with `repeat` like `"1 month"` makes its next copy, dated from `today`); todos carry `images: [{id, name, type, size}]`, POST takes `image_ids` (Undo) |
 | POST | `/api/todos/:id/images` | the image's bytes as the body, its type as `content-type`, `x-name` its file name |
 | GET, PATCH, DELETE | `/api/images/:id` | GET the bytes; DELETE removes it (kept a day); PATCH `{todo_id}` puts a removed one back |
 | POST | `/api/capture` | free-form `{text, notes?, project_id?, default_project_id?, default_due?, choices?, dry?}` → `{items}`; one task per line, `project_id` takes untagged lines, `choices[i]` (`{project_id?, section_id?, label?}`) overrides line i, `dry` only previews |

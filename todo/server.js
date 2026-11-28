@@ -60,6 +60,11 @@ if (!db.query("SELECT 1 FROM pragma_table_info('todos') WHERE name = 'repeat'").
   db.exec("ALTER TABLE todos ADD COLUMN repeat TEXT");
 if (!db.query("SELECT 1 FROM pragma_table_info('todos') WHERE name = 'repeat_next_id'").get())
   db.exec("ALTER TABLE todos ADD COLUMN repeat_next_id INTEGER");
+// Pending: a task you're waiting on (a delivery, a reply). `waiting_since` is the day it went
+// pending, `remind_on` the day it comes back to ask whether it's still pending.
+for (const col of ["waiting_since", "remind_on"])
+  if (!db.query("SELECT 1 FROM pragma_table_info('todos') WHERE name = ?").get(col))
+    db.exec(`ALTER TABLE todos ADD COLUMN ${col} TEXT`);
 db.exec("CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)");
 /* Images attached to tasks, kept in the database with everything else. A deleted task's
    images are let go (todo_id NULL, orphaned_at set) rather than dropped, so Undo can take
@@ -129,6 +134,12 @@ function cleanTodo(body, partial) {
       throw new BadRequest("No such project");
     out.project_id = pid;
   }
+  for (const k of ["waiting_since", "remind_on"])
+    if (k in body) {
+      const d = body[k] || null;
+      if (d && !/^\d{4}-\d{2}-\d{2}$/.test(d)) throw new BadRequest(`${k} must be YYYY-MM-DD`);
+      out[k] = d;
+    }
   if ("repeat" in body) {
     const r = body.repeat ? String(body.repeat).trim().toLowerCase() : null;
     if (r && !REPEAT_RE.test(r)) throw new BadRequest('Repeat must look like "1 week" or "3 month"');

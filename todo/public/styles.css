@@ -502,3 +502,16 @@ body.planning .composer, body.planning .dump, body.planning .toolbar { display: 
 .plan-date { border: 1px solid var(--line); border-radius: 8px; padding: 5px 8px; background: var(--panel); font: inherit; font-size: 13px; }
 .plan-empty .plan-sub { margin-top: 8px; font-size: 13.5px; color: var(--muted); }
 @media (hover: none) { .plan-btn kbd { display: none; } }
+
+/* pending: waiting on a delivery or a reply */
+.wait-chip { color: var(--muted); white-space: nowrap; }
+.wait-chip.nudge { color: #b7791f; font-weight: 600; white-space: normal; }
+.wait-acts { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+.wait-btn { margin: 0; padding: 1px 8px; font-size: 12px; font-weight: 600; border: 1px solid var(--line); border-radius: 99px; }
+.wait-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+.wait-btn.arrived { border-color: var(--accent); color: var(--accent); }
+.todo.nudge > .todo-row { box-shadow: inset 3px 0 0 #e0a43a; }
+.section-head.nudge { color: #b7791f; }
+.plan-when.nudge { color: #b7791f; }
+.nav-item.nudging .count { color: #b7791f; font-weight: 700; }
+.seg-label { font-size: 12.5px; color: var(--muted); align-self: center; }

@@ -299,3 +299,4 @@ kbd { display: inline-block; min-width: 24px; text-align: center; padding: 1px 7
 .swatches { display: flex; gap: 8px; flex-wrap: wrap; }
 .swatch { width: 24px; height: 24px; border-radius: 50%; border: 2px solid transparent; box-shadow: inset 0 0 0 2px var(--panel); }
 .swatch.on { border-color: var(--text); }
+.due.pending { color: #b7791f; font-weight: 600; }
